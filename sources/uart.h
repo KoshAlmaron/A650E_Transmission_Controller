@@ -10,7 +10,7 @@
 	uint8_t uart_get_byte();
 	void uart_send_char(char Data);
 	void uart_send_string(char* s);
-	void uart_send_array(uint16_t Sz);
+	void uart_send_array();
 	uint8_t uart_tx_ready();
 
 	// Спецсимволы в пакете данных

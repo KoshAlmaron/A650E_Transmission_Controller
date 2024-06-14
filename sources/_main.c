@@ -2,7 +2,7 @@
 #include <avr/interrupt.h>	// Прерывания.
 #include <avr/io.h>			// Названия регистров и номера бит.
 #include <stdio.h>			// Стандартная библиотека ввода/вывода.
-#include <avr/wdt.h>			// Сторожевой собак.
+#include <avr/wdt.h>		// Сторожевой собак.
 
 #include "macros.h"			// Макросы.
 #include "mathemat.h"		// Математические функции.
@@ -98,17 +98,15 @@ void loop_main() {
 		engine_n_break_state();		// Состояние двинателя и пердали тормоза.
 	}
 
-	if (DataUpdateTimer >= 48) {
+	if (DataUpdateTimer >= 20) {
 		DataUpdateTimer = 0;
 		calculate_tcu_data();		// Расчет значений TCU.
 		speedometer_control();		// Выход на спидометр.
 	}
 
 	// Отправка данных в UART.
-	if (UartTimer >= 1001) {
+	if (UartTimer >= 24) {
 		if(uart_tx_ready()) {
-			//uart_send_string("---\n\r");
-
 			UartTimer = 0;
 			send_tcu_data();
 		}
@@ -116,6 +114,7 @@ void loop_main() {
 }
 
 static void loop_add() {
+
 	// Режим отладки.
 	if (DebugTimer >= 250) {
 		DebugTimer = 0;
@@ -133,6 +132,8 @@ static void loop_add() {
 				if (!PIN_READ(DEBUG_MODE_ON_PIN)) {
 					DebugMode = 2;			// Ручной режим управления.
 					add_channels_on(1);	// Увeличить количество каналов ADC.
+					TCU.ATMode = 0;
+					TCU.Gear = 0;
 				}
 				if (PIN_READ(DEBUG_LCD_ON_PIN)) {
 					DebugMode = 0;
@@ -140,6 +141,7 @@ static void loop_add() {
 				}
 				break;
 			case 2:
+				TCU.EngineWork = 1;
 				solenoid_manual_control();		// Ручное управление соленоидами.
 				debug_print_data();				// Отправка данных на дисплей.
 				if (PIN_READ(DEBUG_MODE_ON_PIN)) {
@@ -167,21 +169,21 @@ static void loop_add() {
 		OCR1C = 0;		// SLU.
 
 		TCU.ATMode = 0;	// Состояние АКПП.
+		TCU.Gear = 0;
+		return;
 	}
 
 	if (DebugMode == 2) {return;}	// Ручное управление соленоидами.
 
 	if (AtModeTimer >= 67) {
 		AtModeTimer = 0;
-		if (DebugMode != 2) {
-			at_mode_control();		// Управление режимами АКПП.
-			slt_control();			// Управление линейными давлением.
-		}
+		at_mode_control();		// Управление режимами АКПП.
+		slt_control();			// Управление линейными давлением.
 	}
 
 	if (GearsTimer >= 203) {
 		GearsTimer = 0;
-		if (DebugMode != 2) {gear_control();}
+		gear_control();
 	}		
 }
 

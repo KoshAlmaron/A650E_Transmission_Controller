@@ -1,4 +1,5 @@
 #include <stdint.h>				// Коротние название int.
+#include <avr/io.h>				// Названия регистров и номера бит.
 
 #include "tcudata.h"			// Свой заголовок.
 #include "tcudata_tables.h"		// Таблицы.
@@ -7,6 +8,7 @@
 #include "macros.h"				// Макросы.
 #include "configuration.h"		// Настройки.
 #include "mathemat.h"			// Математические функции.
+#include "pinout.h"				// Список назначенных выводов.
 
 // Инициализация структуры
 TCU_t TCU = {
@@ -19,12 +21,18 @@ TCU_t TCU = {
 	.SLT = 0,
 	.SLN = 0,
 	.SLU = 0,
+	.S1 = 0,
+	.S2 = 0,
+	.S3 = 0,
+	.S4 = 0,
 	.Selector = 0,
 	.ATMode = 0,
 	.Gear = 0,
 	.GearChange = 0,
 	.Break = 0,
-	.EngineWork = 0
+	.EngineWork = 0,
+	.SlipDetected = 0,
+	.Glock = 0
 };
 
 // Расчет параметров на основе датчиков и таблиц.
@@ -36,6 +44,11 @@ void calculate_tcu_data() {
 	
 	TCU.OilTemp = get_oil_temp();
 	TCU.TPS = get_tps();
+
+	TCU.S1 = PIN_READ(SOLENOID_S1_PIN) ? 1 : 0;
+	TCU.S2 = PIN_READ(SOLENOID_S2_PIN) ? 1 : 0;
+	TCU.S3 = PIN_READ(SOLENOID_S3_PIN) ? 1 : 0;
+	TCU.S4 = PIN_READ(SOLENOID_S4_PIN) ? 1 : 0;
 }
 
 // Расчет скорости авто.
@@ -97,4 +110,7 @@ uint8_t get_slt_value() {
 	return SLT;
 }
 
+uint8_t get_sln_value() {
+	return 127;
+}
 

@@ -15,20 +15,16 @@
 #define SET_UBRR ((F_CPU / (8UL * UART_BAUD_RATE)) - 1UL)
 
 
-#define UART_SEND_BUFFER_SIZE 100					// Размер буфера отправки.
-uint8_t	SendBuffer[UART_SEND_BUFFER_SIZE] = {0};	// Буфер отправки.
-uint16_t MsgSize = 0;								// Количество байт для отправки.
-volatile uint16_t BuffPos = 0;						// Позиция в буфере.
+#define UART_TX_BUFFER_SIZE 64					// Размер буфера отправки.
+uint8_t	SendBuffer[UART_TX_BUFFER_SIZE] = {0};	// Буфер отправки.
+uint16_t TxMsgSize = 0;								// Количество байт для отправки.
+volatile uint16_t TxBuffPos = 0;					// Позиция в буфере.
 volatile uint8_t TXReady = 1;						// UART готов к отправке.
 
 // Использовать спецсимволы начала/конца пакета.
 uint8_t UseMarkers = 0;
 // Признак, что предыдущий символ был заменен.
 volatile uint8_t MarkerByte = 0;
-
-// Прототипы функций.
-// static void send_i8(uint8_t* OneByte);
-static void send_i16(uint8_t* OneByte);
 
 void uart_init(uint8_t mode) {
 	// Сброс регистров настроек, так как загрузчик Arduino может нагадить.
@@ -51,7 +47,7 @@ void uart_init(uint8_t mode) {
 	switch (mode) {
 		case 1:			
 			UCSR0B |= (1 << RXEN0);		// 1 - Только прием.
-			UCSR0B |= (1<<RXCIE0);		// Прерывание по завершеию приёма.
+			UCSR0B |= (1 << RXCIE0);		// Прерывание по завершеию приёма.
 			break;
 		case 2:
 			UCSR0B |= (1 << TXEN0);		// 2 - Только передача.
@@ -61,33 +57,28 @@ void uart_init(uint8_t mode) {
 			// 3 - прием / передача.
 			UCSR0B |= (1 << TXEN0);		// Прием.
 			UCSR0B |= (1 << RXEN0);		// Передача.
-			UCSR0B |= (1<<RXCIE0);		// Прерывание по завершеию приёма.
+			UCSR0B |= (1 << RXCIE0);		// Прерывание по завершеию приёма.
 			UCSR0B |= (1 << TXCIE0);	// Прерывание по завершеию передачи.
 			break;
 	}
 }
 
 void send_tcu_data() {
-	SendBuffer[0] = FOBEGIN;	// Начальный байт.
-	BuffPos = 1;
+	TxBuffPos = 0;	// Сброс позиции.
+	UseMarkers = 1;	// Используем байты маркеры.
+	SendBuffer[TxBuffPos++] = FOBEGIN;	// Байт начала пакета.
 
-	TCU.DrumRPM = 0x3040;
-	send_i16((uint8_t*)&TCU.DrumRPM);
+	//TCU.OilTemp = 78;
 
-
-	SendBuffer[BuffPos++] = FIOEND;
-
-	UseMarkers = 1;
-	uart_send_array(BuffPos);
-	UseMarkers = 0;
-}
-
-// static void send_i8(uint8_t* OneByte) {
-// }
-
-static void send_i16(uint8_t* OneByte) {
-	SendBuffer[BuffPos++] = *OneByte;
-	SendBuffer[BuffPos++] = *(OneByte + 1);
+	// Начальный адрес структуры TCU.
+	uint8_t* TCUAddr = (uint8_t*) &TCU;
+	// Запихиваем структуру побайтово в массив на отправку.
+	for (uint8_t i = 0; i < sizeof(TCU); i++) {
+		SendBuffer[TxBuffPos++] = *(TCUAddr + i);
+	}
+	
+	SendBuffer[TxBuffPos++] = FIOEND;		// Байт конца пакета.
+	uart_send_array();
 }
 
 // Принять байт из UART.
@@ -118,10 +109,10 @@ void uart_send_string(char* s) {
 }
 
 // Отправить массив в UART.
-void uart_send_array(uint16_t Sz) {
-	MsgSize = Sz;				// Количество байт на отправку.
-	TXReady = 0;
-	BuffPos = 0;				// Сбрасываем позицию в массиве.
+void uart_send_array() {
+	TxMsgSize = TxBuffPos;			// Количество байт на отправку.
+	TXReady = 0;				// UART занят.
+	TxBuffPos = 0;				// Сбрасываем позицию в массиве.
 	UCSR0B |= (1 << UDRIE0);	// Включаем прерывание по опустошению буфера.
 }
 
@@ -137,16 +128,16 @@ uint8_t uart_tx_ready() {
 
 // Прерывание по опустошению буфера.
 ISR (USART0_UDRE_vect) {
-	uint8_t SendByte = SendBuffer[BuffPos];
+	uint8_t SendByte = SendBuffer[TxBuffPos];
 	
 	if (UseMarkers) {		// Используются маркеры.
-		if (MarkerByte) {		// Если был маркер.
+		if (MarkerByte) {			// Если был маркер.
 			SendByte = MarkerByte;	// Отправляем символ-замену.
-			MarkerByte = 0;		// Сбрасываем маркер.
-			BuffPos++;
+			MarkerByte = 0;			// Сбрасываем маркер.
+			TxBuffPos++;
 		}
 		// Первый и последний байт - исключение.
-		else if (BuffPos != 0 && BuffPos != MsgSize - 1) {
+		else if (TxBuffPos > 0 && TxBuffPos < TxMsgSize - 1) {
 			switch (SendByte) {
 				case FOBEGIN:		// Если байт совпадает с маркером.
 					SendByte = FESC;	// Отправляем символ подмены байта
@@ -161,19 +152,15 @@ ISR (USART0_UDRE_vect) {
 					MarkerByte = TFESC;
 					break;
 				default:
-					BuffPos++;	// Если нет совпадения, переходим к следующему байту.
+					TxBuffPos++;	// Если нет совпадения, переходим к следующему байту.
 			}
 		}
-		else {
-			BuffPos++;
-		}
+		else {TxBuffPos++;}
 	}
-	else {
-		BuffPos++;
-	}
+	else {TxBuffPos++;}
 
 	UDR0 = SendByte;	// Загружаем очередной байт.
-	if (BuffPos >= MsgSize) {		// Все данные загружены в буфер отправки.
+	if (TxBuffPos >= TxMsgSize) {		// Все данные загружены в буфер отправки.
 		UCSR0B &=~ (1 << UDRIE0);	// Запрещаем прерывание.
 	}
 }
@@ -181,4 +168,5 @@ ISR (USART0_UDRE_vect) {
 // Прерывание по окончании передачи.
 ISR (USART0_TX_vect) {
 	TXReady = 1;
+	UseMarkers = 0;
 }

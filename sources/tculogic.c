@@ -23,7 +23,7 @@ void at_mode_control() {
 	if (TCU.Selector == 9) {
 		TCU.ATMode = TCU.Selector;
 		set_gear_n(250);
-		set_gear_1(500);
+		set_gear_1(250);
 		return;
 	}
 

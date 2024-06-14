@@ -21,7 +21,6 @@ void selector_init() {
 	// Вход без подтяжки для определение работы двигателя.
 	SET_PIN_MODE_INPUT(ENGINE_WORK_PIN);
 	SET_PIN_LOW(ENGINE_WORK_PIN);
-
 }
 
 // Текущая позиция селектора АКПП.

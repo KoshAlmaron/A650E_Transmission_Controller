@@ -53,14 +53,9 @@ void debug_print_data() {
 	if (TCU.OutputRPM > 1) {GearRatio = (float) TCU.DrumRPM / TCU.OutputRPM;}
 	dtostrf(GearRatio, 4, 2, GearRatioChar);
 
-	uint8_t S1 = PIN_READ(SOLENOID_S1_PIN) ? 1 : 0;
-	uint8_t S2 = PIN_READ(SOLENOID_S2_PIN) ? 1 : 0;
-	uint8_t S3 = PIN_READ(SOLENOID_S3_PIN) ? 1 : 0;
-	uint8_t S4 = PIN_READ(SOLENOID_S4_PIN) ? 1 : 0;
-
 	// row,  col
 	lcd_set_cursor(0, 0);
-	snprintf(LCDArray, 21, "O %3i| %1i%1i %1i%1i |I %4i", TCU.OilTemp, S1, S2, S3, S4, TCU.DrumRPM);
+	snprintf(LCDArray, 21, "O %3i| %1i%1i %1i%1i |I %4i", TCU.OilTemp, TCU.S1, TCU.S2, TCU.S3, TCU.S4, TCU.DrumRPM);
 	lcd_send_string(LCDArray, 20);
 
 	lcd_set_cursor(1, 0);
@@ -77,10 +72,23 @@ void debug_print_data() {
 }
 
 void solenoid_manual_control() {
+	if (PIN_READ(DEBUG_S1_PIN)) {SET_PIN_LOW(SOLENOID_S1_PIN);}
+	else {SET_PIN_HIGH(SOLENOID_S1_PIN);}
+
+	if (PIN_READ(DEBUG_S2_PIN)) {SET_PIN_LOW(SOLENOID_S2_PIN);}
+	else {SET_PIN_HIGH(SOLENOID_S2_PIN);}
+
+	if (PIN_READ(DEBUG_S3_PIN)) {SET_PIN_LOW(SOLENOID_S3_PIN);}
+	else {SET_PIN_HIGH(SOLENOID_S3_PIN);}
+	
+	if (PIN_READ(DEBUG_S4_PIN)) {SET_PIN_LOW(SOLENOID_S4_PIN);}
+	else {SET_PIN_HIGH(SOLENOID_S4_PIN);}
+
+
 	// Считываем положение потенциометров.
-	TCU.SLT = get_adc_value(3);
-	TCU.SLN = get_adc_value(4);
-	TCU.SLU = get_adc_value(5);
+	TCU.SLT = get_adc_value(2) >> 2;
+	TCU.SLN = get_adc_value(3) >> 2;
+	TCU.SLU = get_adc_value(4) >> 2;
 
 	// Устанавливаем ШИМ на соленоидах.
 	OCR1A = TCU.SLT;
