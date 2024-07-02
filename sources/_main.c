@@ -95,7 +95,8 @@ void loop_main() {
 	if (SelectorTimer >= 202) {
 		SelectorTimer = 0;
 		selector_position();		// Определение позиции селектора АКПП.
-		engine_n_break_state();		// Состояние двинателя и пердали тормоза.
+		engine_n_break_state();		// Состояние двинателя и педали тормоза.
+		rear_lamp();				// Лампа заднего хода.
 	}
 
 	if (DataUpdateTimer >= 20) {
@@ -156,6 +157,9 @@ static void loop_add() {
 		}
 	}
 
+
+	if (DebugMode == 2) {return;}	// Ручное управление соленоидами.
+
 	// При неработающем двигателе выключаем все соленоиды
 	if (!TCU.EngineWork) {
 		SET_PIN_LOW(SOLENOID_S1_PIN);
@@ -172,8 +176,6 @@ static void loop_add() {
 		TCU.Gear = 0;
 		return;
 	}
-
-	if (DebugMode == 2) {return;}	// Ручное управление соленоидами.
 
 	if (AtModeTimer >= 67) {
 		AtModeTimer = 0;

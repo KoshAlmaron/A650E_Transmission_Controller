@@ -6,12 +6,15 @@
 // Значения в массивах хранятся в числах АЦП - 0..1023.
 
 // Размер буфера и размер битового сдвига для деления.
-#define SENSOR_BUFFER_SIZE 16
-#define SENSOR_BUFFER_SHIFT 4
+#define SENSOR_BUFFER_SIZE 8
+#define SENSOR_BUFFER_SHIFT 3
 
 // Измеренный период сигнала в шагах таймера (4 мкс).
 volatile uint16_t OverDriveDrumPeriod = UINT16_MAX;
 volatile uint16_t OutputShaftPeriod = UINT16_MAX;
+volatile uint16_t OverDriveDrumPeriodPrev = UINT16_MAX;
+volatile uint16_t OutputShaftPeriodPrev = UINT16_MAX;
+
 // Кольцевые буферы для замера оборотов, прохождение 1 зуба шагах таймера (4 мкс).
 uint16_t OverDriveDrumArray[SENSOR_BUFFER_SIZE] = {0};
 uint16_t OutputShaftArray[SENSOR_BUFFER_SIZE] = {0};
@@ -29,7 +32,7 @@ void calculate_overdrive_drum_rpm() {
 	// Забираем значение из переменной с прерываниями.
 	uint16_t Period = 0;
 	cli();
-	Period = OverDriveDrumPeriod;
+		Period = OverDriveDrumPeriodPrev;
 	sei();
 
 	// Рассчитываем обороты вала.
@@ -54,7 +57,7 @@ void calculate_output_shaft_rpm() {
 	// Забираем значение из переменной с прерываниями.
 	uint16_t Period = 0;
 	cli();
-	Period = OutputShaftPeriod;
+		Period = OutputShaftPeriodPrev;
 	sei();
 
 	// Рассчитываем обороты вала.
@@ -79,20 +82,23 @@ uint16_t get_overdrive_drum_rpm() {
 	// Находим среднее значение.
 	uint32_t AVG = 0;
 	for (uint8_t i = 0; i < SENSOR_BUFFER_SIZE; i++) {AVG += OverDriveDrumArray[i];}
-	return AVG >> SENSOR_BUFFER_SHIFT;
+	AVG = AVG >> SENSOR_BUFFER_SHIFT;
+	return AVG;
 }
 
 uint16_t get_output_shaft_rpm() {
 	// Находим среднее значение.
 	uint32_t AVG = 0;
 	for (uint8_t i = 0; i < SENSOR_BUFFER_SIZE; i++) {AVG += OutputShaftArray[i];}
-	return AVG >> SENSOR_BUFFER_SHIFT;
+	AVG = AVG >> SENSOR_BUFFER_SHIFT;
+	return AVG;
 }
 
 // Корзина овердрайва.
 // Прерывание по захвату сигнала таймером 4.
 ISR (TIMER4_CAPT_vect) {
 	TCNT4 = 0;						// Обнулить счётный регистр.
+	OverDriveDrumPeriodPrev = OverDriveDrumPeriod;
 	OverDriveDrumPeriod = ICR4;		// Результат из регистра захвата.
 }
 // Прерывание по переполнению таймера 4.
@@ -102,6 +108,7 @@ ISR (TIMER4_OVF_vect) {OverDriveDrumPeriod = UINT16_MAX;}
 // Прерывание по захвату сигнала таймером 5.
 ISR (TIMER5_CAPT_vect) {
 	TCNT5 = 0;						// Обнулить счётный регистр.
+	OutputShaftPeriodPrev = OutputShaftPeriod;
 	OutputShaftPeriod = ICR5;		// Результат из регистра захвата.
 }
 // Прерывание по переполнению таймера 5.

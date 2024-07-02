@@ -45,7 +45,7 @@ void selector_position() {
 			TCU.Selector = 4;	// D
 			ErrorTimer = 0;
 			break;
-		case 40:
+		case 72:
 			// D + 4.
 			TCU.Selector = 5;	// 4
 			ErrorTimer = 0;
@@ -68,8 +68,6 @@ void selector_position() {
 			if (ErrorTimer < 4) {ErrorTimer++;}
 			else {TCU.Selector = 9;}
 	}
-
-
 }
 
 void engine_n_break_state() {

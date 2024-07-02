@@ -59,11 +59,11 @@ void debug_print_data() {
 	lcd_send_string(LCDArray, 20);
 
 	lcd_set_cursor(1, 0);
-	snprintf(LCDArray, 21, "T %3i| A %3i |O %4i", TCU.SLT, TCU.TPS, TCU.OutputRPM);
+	snprintf(LCDArray, 21, "T %3i| A%4i |O %4i", TCU.SLT, TCU.TPS, TCU.OutputRPM);
 	lcd_send_string(LCDArray, 20);
 
 	lcd_set_cursor(2, 0);
-	snprintf(LCDArray, 21, "N %3i| S %c-%c |Sp %3i", TCU.SLN, ATModeChar[TCU.Selector], ATModeChar[TCU.ATMode], get_car_speed());
+	snprintf(LCDArray, 21, "N %3i| S %c-%c |Sp %3i", TCU.SLN, ATModeChar[TCU.Selector], ATModeChar[TCU.ATMode], TCU.CarSpeed);
 	lcd_send_string(LCDArray, 20);
 
 	lcd_set_cursor(3, 0);

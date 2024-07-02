@@ -6,6 +6,7 @@
 	void slt_control();
 	void at_mode_control();
 	
+	void rear_lamp();
 	void speedometer_control();
 	
 #endif

@@ -10,6 +10,10 @@
 #include "mathemat.h"			// Математические функции.
 #include "pinout.h"				// Список назначенных выводов.
 
+// Прототипы локальных функций.
+static uint16_t get_car_speed();
+static uint16_t get_speed_timer_value();
+
 // Инициализация структуры
 TCU_t TCU = {
 	.DrumRPM = 0,
@@ -49,10 +53,12 @@ void calculate_tcu_data() {
 	TCU.S2 = PIN_READ(SOLENOID_S2_PIN) ? 1 : 0;
 	TCU.S3 = PIN_READ(SOLENOID_S3_PIN) ? 1 : 0;
 	TCU.S4 = PIN_READ(SOLENOID_S4_PIN) ? 1 : 0;
+
+	slip_detect();
 }
 
 // Расчет скорости авто.
-uint16_t get_car_speed() {
+static uint16_t get_car_speed() {
 	// Расчет скорости автомобиля происходит по выходному валу АКПП.
 	// Главная пара - 3.909,
 	// Длина окружности колеса - 1.807 м,
@@ -62,7 +68,7 @@ uint16_t get_car_speed() {
 }
 
 // Расчет значения регистра сравнения для таймера спидометра.
-uint16_t get_speed_timer_value() {
+static uint16_t get_speed_timer_value() {
 	// Таймер 3, делитель х64, Частота 250 кГц, 1 шаг таймера 4 мкс.
 	// Количество импульсов на 1 км для спидометра - 16000.
 	// [Частота для спидометра] = (16000 / 3600) * [Скорость].
@@ -86,6 +92,7 @@ uint16_t get_tps() {
 	// ДПДЗ на ADC1.
 	int16_t TempValue = get_adc_value(1);
 	uint8_t ArraySize = sizeof(TPSGraph) / sizeof(TPSGraph[0]);
+	//return TempValue;
 	return get_interpolated_value(TempValue, TPSGraph, TPSGrid, ArraySize);
 }
 
@@ -112,5 +119,40 @@ uint8_t get_slt_value() {
 
 uint8_t get_sln_value() {
 	return 127;
+}
+
+void slip_detect() {
+	if (TCU.GearChange) {
+		TCU.SlipDetected = 0;
+		return;
+	}
+
+	// Расчетная скорость входного вала.
+	uint16_t CalcDrumRPM = 0;
+
+	switch (TCU.Gear) {
+		case 1:
+			CalcDrumRPM = (uint32_t) (TCU.OutputRPM * GEAR_1_RATIO) >> 10;
+			break;
+		case 2:
+			CalcDrumRPM = (uint32_t) (TCU.OutputRPM * GEAR_2_RATIO) >> 10;
+			break;
+		case 3:
+			CalcDrumRPM = (uint32_t) (TCU.OutputRPM * GEAR_3_RATIO) >> 10;
+			break;
+		case 4:
+			CalcDrumRPM = (uint32_t) (TCU.OutputRPM * GEAR_4_RATIO) >> 10;
+			break;
+		default:
+			TCU.SlipDetected = 0;
+			return;
+	}
+
+	if (ABS(TCU.DrumRPM - CalcDrumRPM) > MAX_SLIP_RPM) {
+		TCU.SlipDetected = 1;
+	}
+	else {
+		TCU.SlipDetected = 0;
+	}
 }
 

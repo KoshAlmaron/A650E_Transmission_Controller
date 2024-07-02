@@ -4,12 +4,11 @@
 	#define _TCUDATA_H_
 
 	void calculate_tcu_data();
-	uint16_t get_car_speed();
-	uint16_t get_speed_timer_value();
 	int16_t get_oil_temp();
 	uint16_t get_tps();
 	uint8_t get_slt_value();
 	uint8_t get_sln_value();
+	void slip_detect();
 
 	// Структура для хранения переменных.
 	typedef struct TCU_t {

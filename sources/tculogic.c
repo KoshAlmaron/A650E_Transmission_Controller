@@ -4,6 +4,7 @@
 #include "tculogic.h"		// Свой заголовок.
 #include "configuration.h"	// Настройки.
 #include "macros.h"			// Макросы.
+#include "pinout.h"			// Список назначенных выводов.
 #include "tcudata.h"		// Расчет и хранение всех необходимых параметров.
 #include "gears.h"			// Фунции переключения передач.
 
@@ -60,7 +61,7 @@ void at_mode_control() {
 
 	// Задняя скорость включается только стоя на тормозе.
 	if (TCU.Selector == 2) {
-		if (TCU.OutputRPM == 0 && TCU.Break) {
+		if (TCU.CarSpeed < 5 && TCU.Break) {
 			set_gear_n(100);
 			set_gear_r(500);
 			TCU.ATMode = TCU.Selector;
@@ -84,7 +85,20 @@ void at_mode_control() {
 				TCU.ATMode = TCU.Selector;
 		}
 	}
+}
 
+void rear_lamp() {
+	if (TCU.EngineWork) {
+		// При работающем двигателе лампа заднего хода
+		// Зависит от текущей передачи.
+		if (TCU.Gear == -1) {SET_PIN_HIGH(REAR_LAMP_PIN);}
+		else {SET_PIN_LOW(REAR_LAMP_PIN);}
+	}
+	else {
+		// В противном случае лампа включается селектором АКПП.
+		if (TCU.Selector == 2) {SET_PIN_HIGH(REAR_LAMP_PIN);}
+		else {SET_PIN_LOW(REAR_LAMP_PIN);}
+	}
 }
 
 void speedometer_control() {
