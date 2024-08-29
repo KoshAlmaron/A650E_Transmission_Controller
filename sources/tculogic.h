@@ -5,7 +5,8 @@
 
 	void slt_control();
 	void at_mode_control();
-	
+	void glock_control(uint8_t Timer);
+
 	void rear_lamp();
 	void speedometer_control();
 	

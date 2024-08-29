@@ -8,6 +8,9 @@
 #include "tcudata.h"		// Расчет и хранение всех необходимых параметров.
 #include "gears.h"			// Фунции переключения передач.
 
+// Прототипы локальных функций.
+static void engine_brake_solenoid();
+
 void slt_control() {
 	TCU.SLT = get_slt_value();
 	OCR1A = TCU.SLT;	// SLT - выход A таймера 1.
@@ -51,7 +54,6 @@ void at_mode_control() {
 	// выходим из функции.
 	if (TCU.ATMode == 0 || TCU.ATMode == 9) {return;}
 
-
 	// Измение состояния АКПП по положению селектора.
 	if (TCU.Selector == 1 || TCU.Selector == 3) {	// Нейтраль включается всегда.
 		TCU.ATMode = TCU.Selector;
@@ -83,7 +85,55 @@ void at_mode_control() {
 				break;
 			default:		// В остальных случаях просто меняем режим АКПП.
 				TCU.ATMode = TCU.Selector;
+				// Проверка дополнительных соленоидов торможения двигателем.
+				engine_brake_solenoid();
+
+
 		}
+	}
+}
+
+static void engine_brake_solenoid() {
+	switch (TCU.Gear) {
+		case 1:
+			// Дополнительный соленоид первой передачи.		
+			if (TCU.ATMode == 4) {SET_PIN_LOW(SOLENOID_S3_PIN);}		// D
+			else if (TCU.ATMode == 7) {SET_PIN_HIGH(SOLENOID_S3_PIN);}	// 2
+			break;
+		case 3:
+			// Дополнительный соленоид третьей передачи.
+			if (TCU.ATMode == 4) {SET_PIN_LOW(SOLENOID_S3_PIN);}		// D
+			else if (TCU.ATMode == 6) {SET_PIN_HIGH(SOLENOID_S3_PIN);}	// 3		
+			break;
+	}
+}
+
+void glock_control(uint8_t Timer) {
+	#define SLU_START_VALUE 50
+	static uint16_t GTimer = 0;
+
+	// Условия для включения блокировки гидротрансформатора.
+	if (!TCU.Break && TCU.Gear >= 4 && TCU.TPS >= 5 && TCU.TPS <= 16 && TCU.CarSpeed >= 40) {
+		if (!TCU.Glock) {GTimer += Timer;}
+	}
+	else {	// Отключение блокировки при нарушении условий.
+		GTimer = 0;
+		TCU.Glock = 0;
+		TCU.SLU = 0;
+		OCR1C = TCU.SLU;	// SLU - выход C таймера 1.
+		return;
+	}
+
+	// Задержка включения блокировки.
+	if (!TCU.Glock && GTimer > 5000) {
+		if (!TCU.SLU) {
+			TCU.SLU = SLU_START_VALUE;	// Начальное значение схватывания.
+		}
+		else {
+			if (TCU.SLU < 255) {TCU.SLU = MIN(255, TCU.SLU + 20);}
+			else {TCU.Glock = 1;}
+		}
+		OCR1C = TCU.SLU;	// Применение значения.
 	}
 }
 

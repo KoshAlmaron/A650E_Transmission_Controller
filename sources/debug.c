@@ -49,25 +49,27 @@ void debug_print_data() {
 	//|12345678901234567890|
 
 	char GearRatioChar[5] = {0};
-	float GearRatio = 0.00;
-	if (TCU.OutputRPM > 1) {GearRatio = (float) TCU.DrumRPM / TCU.OutputRPM;}
-	dtostrf(GearRatio, 4, 2, GearRatioChar);
+	if (TCU.OutputRPM > 10) {
+		snprintf(GearRatioChar, 5, "%1u.%2u", 
+			MIN(9, TCU.DrumRPM / TCU.OutputRPM), MIN(99, ((TCU.DrumRPM % TCU.OutputRPM) * 100) / TCU.OutputRPM));
+	}
 
 	// row,  col
 	lcd_set_cursor(0, 0);
-	snprintf(LCDArray, 21, "O %3i| %1i%1i %1i%1i |I %4i", TCU.OilTemp, TCU.S1, TCU.S2, TCU.S3, TCU.S4, TCU.DrumRPM);
+	snprintf(LCDArray, 21, "O %3i| %1u%1u %1u%1u |I %4u", 
+		CONSTRAIN(TCU.OilTemp, -30, 150), MIN(1, TCU.S1), MIN(1, TCU.S2), MIN(1, TCU.S3), MIN(1, TCU.S4), MIN(9998, TCU.DrumRPM));
 	lcd_send_string(LCDArray, 20);
 
 	lcd_set_cursor(1, 0);
-	snprintf(LCDArray, 21, "T %3i| A%4i |O %4i", TCU.SLT, TCU.TPS, TCU.OutputRPM);
+	snprintf(LCDArray, 21, "T %3u| A%3u |O %4u", TCU.SLT, TCU.TPS, TCU.OutputRPM);
 	lcd_send_string(LCDArray, 20);
 
 	lcd_set_cursor(2, 0);
-	snprintf(LCDArray, 21, "N %3i| S %c-%c |Sp %3i", TCU.SLN, ATModeChar[TCU.Selector], ATModeChar[TCU.ATMode], TCU.CarSpeed);
+	snprintf(LCDArray, 21, "N %3u| S %c-%c |Sp %3i", TCU.SLN, ATModeChar[TCU.Selector], ATModeChar[TCU.ATMode], TCU.CarSpeed);
 	lcd_send_string(LCDArray, 20);
 
 	lcd_set_cursor(3, 0);
-	snprintf(LCDArray, 21, "U %3i| Gr  %1i |R %s", TCU.SLU, TCU.Gear, GearRatioChar);
+	snprintf(LCDArray, 21, "U %3u| Gr %2i |R %s", TCU.SLU, CONSTRAIN(TCU.Gear, -1, 6), GearRatioChar);
 	lcd_send_string(LCDArray, 20);
 }
 

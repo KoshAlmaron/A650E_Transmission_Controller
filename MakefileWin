@@ -31,8 +31,6 @@ $(PROJECT).bin: $(OBJ)
 	$(COMPILE) -o output/$(PROJECT).elf $(OBJ)
 	$(OBJCOPY) -O binary output/$(PROJECT).elf output/$(PROJECT).bin
 	$(OBJDUMP) -Pmem-usage output/$(PROJECT).elf
-	del /Q OUTPUT\*.o
-	del /Q OUTPUT\*.elf
 
 
 # Создание файлов .o, требует наличие фалов .c

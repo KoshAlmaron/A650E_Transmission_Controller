@@ -1,115 +1,147 @@
 #include <avr/interrupt.h>		// Прерывания.
 #include <stdint.h>				// Коротние название int.
+#include "configuration.h"		// Настройки.
 #include "spdsens.h"			// Свой заголовок.
 
-// Для датчиков используются кольцевые буферы усреднения.
-// Значения в массивах хранятся в числах АЦП - 0..1023.
+
+// Минимальное сырое значения для фильтрации ошибочных значений.
+#define MIN_RAW_VALUE_OD 132
+#define MIN_RAW_VALUE_OUT 152
 
 // Размер буфера и размер битового сдвига для деления.
-#define SENSOR_BUFFER_SIZE 8
-#define SENSOR_BUFFER_SHIFT 3
-
-// Измеренный период сигнала в шагах таймера (4 мкс).
-volatile uint16_t OverDriveDrumPeriod = UINT16_MAX;
-volatile uint16_t OutputShaftPeriod = UINT16_MAX;
-volatile uint16_t OverDriveDrumPeriodPrev = UINT16_MAX;
-volatile uint16_t OutputShaftPeriodPrev = UINT16_MAX;
+#define SENSOR_BUFFER_SIZE 16 + 4
+#define SENSOR_BUFFER_SHIFT 4
 
 // Кольцевые буферы для замера оборотов, прохождение 1 зуба шагах таймера (4 мкс).
-uint16_t OverDriveDrumArray[SENSOR_BUFFER_SIZE] = {0};
-uint16_t OutputShaftArray[SENSOR_BUFFER_SIZE] = {0};
+volatile uint16_t DrumArray[SENSOR_BUFFER_SIZE] = {0};
+volatile uint16_t OutputArray[SENSOR_BUFFER_SIZE] = {0};
 // Текущая позиция в буфере.
-uint8_t OverDriveDrumPos = 0;
-uint8_t OutputShaftPos = 0;
+volatile uint8_t DrumPos = 0;
+volatile uint8_t OutputPos = 0;
+// Признак готовности буфера для записи.
+volatile uint8_t DrumBufferReady = 1;
+volatile uint8_t OutputBufferReady = 1;
 
 // Расчет скорости корзины овердрайва АКПП.
-void calculate_overdrive_drum_rpm() {
+uint16_t get_overdrive_drum_rpm() {
 	// 1000000 * 60 / ([Шаг таймера, мкс] * [Кол-во зубов] * [Кол-во шагов])
 	// Шаг таймера = 1000000 / [Частота таймера]
-	// (1000000 * 60) / (4 * 12)
-	#define SPEED_CALC_COEF 10000000UL	// Таймер x8
+	// (1000000 * 60) / (4 * 16)
+	#define PRM_CALC_COEF_OD 937500UL
 
-	// Забираем значение из переменной с прерываниями.
-	uint16_t Period = 0;
-	cli();
-		Period = OverDriveDrumPeriodPrev;
-	sei();
+	DrumBufferReady = 0;	// Запрещаем обновление буфера в прерываниях.
+
+	// Переменные для хранения двух крайних значений.
+	uint16_t MaxValue = DrumArray[0];
+	uint16_t MaxValuePrev = DrumArray[0];
+	
+	uint16_t MinValue = DrumArray[0];
+	uint16_t MinValuePrev = DrumArray[0];
+
+	uint32_t AVG = 0;
+	// Суммируем среднее и ищем крайние значения.
+	for (uint8_t i = 0; i < SENSOR_BUFFER_SIZE; i++) {
+		AVG += DrumArray[i];
+
+		if (DrumArray[i] < MinValue) {
+			MinValuePrev = MinValue;
+			MinValue = DrumArray[i];
+		}
+		if (DrumArray[i] > MaxValue) {
+			MaxValuePrev = MaxValue;
+			MaxValue = DrumArray[i];
+		}
+	}
+	DrumBufferReady = 1;	// Разрешаем обновление буфера в прерываниях.
+
+	// Исключаем два самых больших и два самых маленьких значения.
+	AVG -= (MaxValue + MaxValuePrev + MinValue + MinValuePrev);
+	// Находим среднее значение.
+	AVG = AVG >> SENSOR_BUFFER_SHIFT;
 
 	// Рассчитываем обороты вала.
 	uint16_t RPM = 0;
-	if (Period != UINT16_MAX) {
-		RPM = (uint32_t) SPEED_CALC_COEF / Period;
-	}
-
-	// Записываем значение в кольцевой буфер
-	OverDriveDrumArray[OverDriveDrumPos] = RPM;
-	OverDriveDrumPos++;
-	if (OverDriveDrumPos >= SENSOR_BUFFER_SIZE) {OverDriveDrumPos = 0;}
+	if (AVG < UINT16_MAX - 100) {RPM = (uint32_t) PRM_CALC_COEF_OD / AVG;}
+	return RPM;
 }
 
 // Расчет скорости выходного валов АКПП.
-void calculate_output_shaft_rpm() {
+uint16_t get_output_shaft_rpm() {
 	// 1000000 * 60 / ([Шаг таймера, мкс] * [Кол-во зубов] * [Кол-во шагов])
 	// Шаг таймера = 1000000 / [Частота таймера]
 	// (1000000 * 60) / (4 * 12)
-	#define SPEED_CALC_COEF 10000000UL	// Таймер x8
+	#define PRM_CALC_COEF_OUT 1250000UL
 
-	// Забираем значение из переменной с прерываниями.
-	uint16_t Period = 0;
-	cli();
-		Period = OutputShaftPeriodPrev;
-	sei();
+	OutputBufferReady = 0;	// Запрещаем обновление буфера в прерываниях.
+
+	// Переменные для хранения двух крайних значений.
+	uint16_t MaxValue = OutputArray[0];
+	uint16_t MaxValuePrev = OutputArray[0];
+	
+	uint16_t MinValue = OutputArray[0];
+	uint16_t MinValuePrev = OutputArray[0];
+
+	uint32_t AVG = 0;
+	// Суммируем среднее и ищем крайние значения.
+	for (uint8_t i = 0; i < SENSOR_BUFFER_SIZE; i++) {
+		AVG += OutputArray[i];
+
+		if (OutputArray[i] < MinValue) {
+			MinValuePrev = MinValue;
+			MinValue = OutputArray[i];
+		}
+		if (OutputArray[i] > MaxValue) {
+			MaxValuePrev = MaxValue;
+			MaxValue = OutputArray[i];
+		}
+	}
+	OutputBufferReady = 1;	// Разрешаем обновление буфера в прерываниях.
+
+	// Исключаем два самых больших и два самых маленьких значения.
+	AVG -= (MaxValue + MaxValuePrev + MinValue + MinValuePrev);
+	// Находим среднее значение.
+	AVG = AVG >> SENSOR_BUFFER_SHIFT;
 
 	// Рассчитываем обороты вала.
 	uint16_t RPM = 0;
-	if (Period != UINT16_MAX) {
-		RPM = (uint32_t) SPEED_CALC_COEF / Period;
-	}
-
-	// Записываем значение в кольцевой буфер
-	OutputShaftArray[OutputShaftPos] = RPM;
-	OutputShaftPos++;
-	if (OutputShaftPos >= SENSOR_BUFFER_SIZE) {OutputShaftPos = 0;}
-}
-
-// Вызывается переодически из цикла.
-void speed_sensors_read() {
-	calculate_overdrive_drum_rpm();
-	calculate_output_shaft_rpm();
-}
-
-uint16_t get_overdrive_drum_rpm() {
-	// Находим среднее значение.
-	uint32_t AVG = 0;
-	for (uint8_t i = 0; i < SENSOR_BUFFER_SIZE; i++) {AVG += OverDriveDrumArray[i];}
-	AVG = AVG >> SENSOR_BUFFER_SHIFT;
-	return AVG;
-}
-
-uint16_t get_output_shaft_rpm() {
-	// Находим среднее значение.
-	uint32_t AVG = 0;
-	for (uint8_t i = 0; i < SENSOR_BUFFER_SIZE; i++) {AVG += OutputShaftArray[i];}
-	AVG = AVG >> SENSOR_BUFFER_SHIFT;
-	return AVG;
+	if (AVG < UINT16_MAX - 100) {RPM = (uint32_t) PRM_CALC_COEF_OUT / AVG;}
+	return RPM;
 }
 
 // Корзина овердрайва.
 // Прерывание по захвату сигнала таймером 4.
 ISR (TIMER4_CAPT_vect) {
-	TCNT4 = 0;						// Обнулить счётный регистр.
-	OverDriveDrumPeriodPrev = OverDriveDrumPeriod;
-	OverDriveDrumPeriod = ICR4;		// Результат из регистра захвата.
+	TCNT4 = 0;				// Обнулить счётный регистр.
+
+	if (DrumBufferReady && ICR4 > MIN_RAW_VALUE_OD) {
+		// Записываем значение в кольцевой буфер.	
+		DrumArray[DrumPos] = ICR4;
+		DrumPos++;
+		if (DrumPos >= SENSOR_BUFFER_SIZE) {DrumPos = 0;}
+	}
 }
 // Прерывание по переполнению таймера 4.
-ISR (TIMER4_OVF_vect) {OverDriveDrumPeriod = UINT16_MAX;}
+ISR (TIMER4_OVF_vect) {
+	for (uint8_t i = 0; i < SENSOR_BUFFER_SIZE; i++) {
+		DrumArray[i] = UINT16_MAX;
+	}
+}
 
 // Выходной вал.
 // Прерывание по захвату сигнала таймером 5.
 ISR (TIMER5_CAPT_vect) {
 	TCNT5 = 0;						// Обнулить счётный регистр.
-	OutputShaftPeriodPrev = OutputShaftPeriod;
-	OutputShaftPeriod = ICR5;		// Результат из регистра захвата.
+
+	if (OutputBufferReady && ICR5 > MIN_RAW_VALUE_OUT) {
+		// Записываем значение в кольцевой буфер.	
+		OutputArray[OutputPos] = ICR5;
+		OutputPos++;
+		if (OutputPos >= SENSOR_BUFFER_SIZE) {OutputPos = 0;}
+	}
 }
 // Прерывание по переполнению таймера 5.
-ISR (TIMER5_OVF_vect) {OutputShaftPeriod = UINT16_MAX;}
+ISR (TIMER5_OVF_vect) {
+	for (uint8_t i = 0; i < SENSOR_BUFFER_SIZE; i++) {
+		OutputArray[i] = UINT16_MAX;
+	}
+}

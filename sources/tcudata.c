@@ -47,7 +47,6 @@ void calculate_tcu_data() {
 	TCU.SpdTimerVal = get_speed_timer_value();
 	
 	TCU.OilTemp = get_oil_temp();
-	TCU.TPS = get_tps();
 
 	TCU.S1 = PIN_READ(SOLENOID_S1_PIN) ? 1 : 0;
 	TCU.S2 = PIN_READ(SOLENOID_S2_PIN) ? 1 : 0;
@@ -88,12 +87,15 @@ int16_t get_oil_temp() {
 }
 
 // Положение дросселя.
-uint16_t get_tps() {
+void calc_tps() {
 	// ДПДЗ на ADC1.
 	int16_t TempValue = get_adc_value(1);
 	uint8_t ArraySize = sizeof(TPSGraph) / sizeof(TPSGraph[0]);
-	//return TempValue;
-	return get_interpolated_value(TempValue, TPSGraph, TPSGrid, ArraySize);
+
+	TempValue = get_interpolated_value(TempValue, TPSGraph, TPSGrid, ArraySize);
+
+	if (TempValue >= TCU.TPS) {TCU.TPS = TempValue;}
+	else {TCU.TPS -= 1;}
 }
 
 uint8_t get_slt_value() {

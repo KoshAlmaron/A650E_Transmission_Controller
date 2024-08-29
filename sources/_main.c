@@ -24,12 +24,14 @@
 volatile uint8_t MainTimer = 0;
 
 // Счетчики времени.
-uint16_t UartTimer = 0;
-uint16_t SensorTimer = 0;
-uint16_t SelectorTimer = 0;
-uint16_t DataUpdateTimer = 0;
-uint16_t AtModeTimer = 0;
-uint16_t GearsTimer = 0;
+int16_t UartTimer = 0;
+int16_t SensorTimer = 0;
+int16_t SelectorTimer = 0;
+int16_t DataUpdateTimer = 0;
+int16_t AtModeTimer = 0;
+int16_t GearsTimer = 0;
+int16_t TPSTimer = 0;
+int16_t GlockTimer = 0;
 
 // Таймер ожидания.
 extern int16_t WaitTimer;
@@ -78,8 +80,10 @@ void loop_main() {
 		DataUpdateTimer += TimerAdd;
 		AtModeTimer += TimerAdd;
 		DebugTimer += TimerAdd;
-		WaitTimer += TimerAdd;	// Внешняя переменная из tculogic.h.
+		WaitTimer += TimerAdd;	// Внешняя переменная из gears.c.
 		GearsTimer += TimerAdd;
+		TPSTimer += TimerAdd;
+		GlockTimer += TimerAdd;
 	}
 
 	// Таймер ожидание д.б. <= 0.
@@ -89,7 +93,6 @@ void loop_main() {
 	if (SensorTimer >= 4) {
 		SensorTimer = 0;
 		adc_read();					// Считывание значений АЦП.
-		speed_sensors_read();		// Считывание датчиков скорости.
 	}
 
 	if (SelectorTimer >= 202) {
@@ -105,6 +108,11 @@ void loop_main() {
 		speedometer_control();		// Выход на спидометр.
 	}
 
+	if (TPSTimer >= 21) {
+		TPSTimer = 0;
+		calc_tps();					// Расчет ДПДЗ с замедлением.
+	}
+
 	// Отправка данных в UART.
 	if (UartTimer >= 24) {
 		if(uart_tx_ready()) {
@@ -115,7 +123,6 @@ void loop_main() {
 }
 
 static void loop_add() {
-
 	// Режим отладки.
 	if (DebugTimer >= 250) {
 		DebugTimer = 0;
@@ -157,7 +164,6 @@ static void loop_add() {
 		}
 	}
 
-
 	if (DebugMode == 2) {return;}	// Ручное управление соленоидами.
 
 	// При неработающем двигателе выключаем все соленоиды
@@ -174,6 +180,7 @@ static void loop_add() {
 
 		TCU.ATMode = 0;	// Состояние АКПП.
 		TCU.Gear = 0;
+		TCU.Glock = 0;
 		return;
 	}
 
@@ -186,7 +193,13 @@ static void loop_add() {
 	if (GearsTimer >= 203) {
 		GearsTimer = 0;
 		gear_control();
-	}		
+	}
+
+
+	if (GlockTimer >= 100) {
+		glock_control(GlockTimer);
+		GlockTimer = 0;
+	}
 }
 
 // Прерывание при совпадении регистра сравнения OCR0A на таймере 0 каждую 1мс. 

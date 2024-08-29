@@ -8,6 +8,10 @@
 #include "tcudata.h"		// Расчет и хранение всех необходимых параметров.
 #include "configuration.h"	// Настройки.
 
+
+#define DELAY_AFTER_SHIFT 500
+#define SLN_MIN_VALUE 25
+
 // Таймер ожидания.
 int16_t WaitTimer = 0;
 
@@ -19,6 +23,7 @@ const int8_t MinGear[] = {0, 0, -1, 0, 1, 1, 1, 2, 1, 0, 1};
 
 // Прототипы функций.
 void loop_main();	// Прототип функций из main.c.
+
 static void gear_up();
 static void gear_down();
 static void loop_wait(int16_t Delay);
@@ -27,6 +32,7 @@ static void set_slt(uint8_t Value);
 static void set_sln(uint8_t Value);
 static void set_slu(uint8_t Value);
 static uint8_t get_interpolated_value_uint8_t(uint16_t x, uint8_t* ArrayY, uint8_t ArraySize);
+static uint16_t get_interpolated_value_uint16_t(uint16_t x, uint16_t* ArrayY, uint8_t ArraySize);
 
 static void gear_change_1_2();
 static void gear_change_2_3();
@@ -90,18 +96,21 @@ void gear_control() {
 static void gear_up() {
 	if (TCU.Gear >= MaxGear[TCU.ATMode]) {return;}
 
+	uint8_t ArraySize = sizeof(GearChangeTime) / sizeof(GearChangeTime[0]);
+	uint16_t ChangeTime = get_interpolated_value_uint16_t(TCU.TPS, GearChangeTime, ArraySize);
+
 	switch (TCU.Gear) {
 		case 1:
-			gear_change_1_2(500);
+			gear_change_1_2(ChangeTime);
 			break;
 		case 2:
-			gear_change_2_3(500);
+			gear_change_2_3(ChangeTime);
 			break;
 		case 3:
-			gear_change_3_4(500);
+			gear_change_3_4(ChangeTime);
 			break;
 		case 4:
-			gear_change_4_5(500);
+			gear_change_4_5(ChangeTime);
 			break;
 	}
 }
@@ -110,18 +119,21 @@ static void gear_up() {
 static void gear_down() {
 	if (TCU.Gear <= MinGear[TCU.ATMode]) {return;}
 
+	uint8_t ArraySize = sizeof(GearChangeTime) / sizeof(GearChangeTime[0]);
+	uint16_t ChangeTime = get_interpolated_value_uint16_t(TCU.TPS, GearChangeTime, ArraySize);
+
 	switch (TCU.Gear) {
 		case 2:
-			gear_change_2_1(500);
+			gear_change_2_1(ChangeTime);
 			break;
 		case 3:
-			gear_change_3_2(500);
+			gear_change_3_2(ChangeTime);
 			break;
 		case 4:
-			gear_change_4_3(500);
+			gear_change_4_3(ChangeTime);
 			break;
 		case 5:
-			gear_change_5_4(500);
+			gear_change_5_4(ChangeTime);
 			break;
 	}	
 }
@@ -153,16 +165,16 @@ void set_gear_1(int16_t Delay) {
 	// Отличие для режима L2. 
 	if (TCU.ATMode == 7) {SET_PIN_HIGH(SOLENOID_S3_PIN);}
 
-	loop_wait(500);		// Ждем 500 мс.
-	set_slt(255);		// Соленоид SLT 100% (дожимаем).
-	set_sln(0); 		// Соленоид SLN 0%.
+	loop_wait(500);			// Ждем 500 мс.
+	set_slt(255);			// Соленоид SLT 100% (дожимаем).
+	set_sln(SLN_MIN_VALUE); // Соленоид SLN минимум.
 
 	if (Delay) {loop_wait(Delay);}	// Пауза после включения передачи.
 	TCU.Gear = 1;
 	TCU.GearChange = 0;
 }
 
-// Включение первой передачи.
+// Включение задней передачи.
 void set_gear_r(int16_t Delay) {
 	TCU.GearChange = 1;
 	
@@ -171,9 +183,9 @@ void set_gear_r(int16_t Delay) {
 	SET_PIN_LOW(SOLENOID_S3_PIN);
 	SET_PIN_LOW(SOLENOID_S4_PIN);
 
-	loop_wait(500);		// Ждем 500 мс.
-	set_slt(255);		// Соленоид SLT 100% (дожимаем).
-	set_sln(0); 		// Соленоид SLN 0%.
+	loop_wait(500);				// Ждем 500 мс.
+	set_slt(255);				// Соленоид SLT 100% (дожимаем).
+	set_sln(SLN_MIN_VALUE); 	// Соленоид SLN минимум.
 
 	if (Delay) {loop_wait(Delay);}	// Пауза после включения передачи.
 	TCU.Gear = -1;
@@ -190,13 +202,13 @@ static void gear_change_1_2(int16_t Delay) {
 	SET_PIN_LOW(SOLENOID_S4_PIN);
 
 	set_slu(100);	// Порог схватывания фрикциона.
-	loop_wait(200);
+	loop_wait(Delay / 2);
 
 	SET_PIN_HIGH(REQUEST_POWER_DOWN_PIN);	// Запрос снижения мощности.
 	// Плавно добавляем значение.
 	for (uint8_t i = 0; i < 8; i++) {
 		set_slu(MIN(TCU.SLU + 20, 255));
-		loop_wait(50);
+		loop_wait(Delay / 10);
 	}
 
 	set_slt(255);					// Соленоид SLT 100% (дожимаем).
@@ -205,7 +217,7 @@ static void gear_change_1_2(int16_t Delay) {
 
 	SET_PIN_LOW(REQUEST_POWER_DOWN_PIN);
 
-	if (Delay) {loop_wait(Delay);}	// Пауза после включения передачи.
+	if (Delay) {loop_wait(DELAY_AFTER_SHIFT);}	// Пауза после включения передачи.
 	TCU.Gear = 2;
 	TCU.GearChange = 0;
 }
@@ -214,7 +226,7 @@ static void gear_change_2_3(int16_t Delay) {
 	TCU.GearChange = 1;
 
 	set_sln(get_sln_value()); 		// Соленоид SLN.
-	loop_wait(250);
+	loop_wait(Delay / 2);
 
 	SET_PIN_LOW(SOLENOID_S1_PIN);
 	SET_PIN_HIGH(SOLENOID_S2_PIN);
@@ -225,13 +237,13 @@ static void gear_change_2_3(int16_t Delay) {
 
 	SET_PIN_HIGH(REQUEST_POWER_DOWN_PIN);	// Запрос снижения мощности.
 
-	loop_wait(500);		// Ждем 500 мс.
-	set_slt(255);		// Соленоид SLT 100% (дожимаем).
-	set_sln(0); 		// Соленоид SLN 0%.
+	loop_wait(Delay);			// Ждем 500 мс.
+	set_slt(255);				// Соленоид SLT 100% (дожимаем).
+	set_sln(SLN_MIN_VALUE); 	// Соленоид SLN минимум.
 
 	SET_PIN_LOW(REQUEST_POWER_DOWN_PIN);
 
-	if (Delay) {loop_wait(Delay);}	// Пауза после включения передачи.
+	if (Delay) {loop_wait(DELAY_AFTER_SHIFT);}	// Пауза после включения передачи.
 	TCU.Gear = 3;
 	TCU.GearChange = 0;
 }
@@ -240,7 +252,7 @@ static void gear_change_3_4(int16_t Delay) {
 	TCU.GearChange = 1;
 
 	set_sln(get_sln_value()); 		// Соленоид SLN.
-	loop_wait(250);
+	loop_wait(Delay / 2);
 
 	SET_PIN_LOW(SOLENOID_S1_PIN);
 	SET_PIN_LOW(SOLENOID_S2_PIN);
@@ -249,13 +261,13 @@ static void gear_change_3_4(int16_t Delay) {
 
 	SET_PIN_HIGH(REQUEST_POWER_DOWN_PIN);	// Запрос снижения мощности.
 
-	loop_wait(500);		// Ждем 500 мс.
+	loop_wait(Delay);		// Ждем 500 мс.
 	set_slt(255);		// Соленоид SLT 100% (дожимаем).
-	set_sln(0); 		// Соленоид SLN 0%.
+	set_sln(SLN_MIN_VALUE); // Соленоид SLN минимум.
 
 	SET_PIN_LOW(REQUEST_POWER_DOWN_PIN);
 
-	if (Delay) {loop_wait(Delay);}	// Пауза после включения передачи.
+	if (Delay) {loop_wait(DELAY_AFTER_SHIFT);}	// Пауза после включения передачи.
 	TCU.Gear = 4;
 	TCU.GearChange = 0;	
 }
@@ -264,7 +276,7 @@ static void gear_change_4_5(int16_t Delay) {
 	TCU.GearChange = 1;
 
 	set_sln(get_sln_value()); 		// Соленоид SLN.
-	loop_wait(250);
+	loop_wait(Delay / 2);
 
 	SET_PIN_LOW(SOLENOID_S1_PIN);
 	SET_PIN_LOW(SOLENOID_S2_PIN);
@@ -273,13 +285,13 @@ static void gear_change_4_5(int16_t Delay) {
 
 	SET_PIN_HIGH(REQUEST_POWER_DOWN_PIN);	// Запрос снижения мощности.
 
-	loop_wait(500);		// Ждем 500 мс.
-	set_slt(255);		// Соленоид SLT 100% (дожимаем).
-	set_sln(0); 		// Соленоид SLN 0%.
+	loop_wait(Delay);			// Ждем 500 мс.
+	set_slt(255);				// Соленоид SLT 100% (дожимаем).
+	set_sln(SLN_MIN_VALUE); 	// Соленоид SLN минимум.
 
 	SET_PIN_LOW(REQUEST_POWER_DOWN_PIN);
 
-	if (Delay) {loop_wait(Delay);}	// Пауза после включения передачи.
+	if (Delay) {loop_wait(DELAY_AFTER_SHIFT);}	// Пауза после включения передачи.
 	TCU.Gear = 5;
 	TCU.GearChange = 0;	
 }
@@ -289,18 +301,18 @@ static void gear_change_5_4(int16_t Delay) {
 	TCU.GearChange = 1;
 
 	set_sln(get_sln_value()); 		// Соленоид SLN.
-	loop_wait(250);
+	loop_wait(Delay / 2);
 
 	SET_PIN_LOW(SOLENOID_S1_PIN);
 	SET_PIN_LOW(SOLENOID_S2_PIN);
 	SET_PIN_HIGH(SOLENOID_S3_PIN);
 	SET_PIN_LOW(SOLENOID_S4_PIN);
 
-	loop_wait(500);		// Ждем 500 мс.
-	set_slt(255);		// Соленоид SLT 100% (дожимаем).
-	set_sln(0); 		// Соленоид SLN 0%.
+	loop_wait(Delay);			// Ждем 500 мс.
+	set_slt(255);				// Соленоид SLT 100% (дожимаем).
+	set_sln(SLN_MIN_VALUE); 	// Соленоид SLN минимум.
 
-	if (Delay) {loop_wait(Delay);}	// Пауза после включения передачи.
+	if (Delay) {loop_wait(DELAY_AFTER_SHIFT);}	// Пауза после включения передачи.
 	TCU.Gear = 4;
 	TCU.GearChange = 0;		
 }
@@ -309,7 +321,7 @@ static void gear_change_4_3(int16_t Delay) {
 	TCU.GearChange = 1;
 
 	set_sln(get_sln_value()); 		// Соленоид SLN.
-	loop_wait(250);
+	loop_wait(Delay / 2);
 
 	SET_PIN_LOW(SOLENOID_S1_PIN);
 	SET_PIN_HIGH(SOLENOID_S2_PIN);
@@ -318,11 +330,11 @@ static void gear_change_4_3(int16_t Delay) {
 	// Отличие для режима 3. 
 	if (TCU.ATMode == 6) {SET_PIN_HIGH(SOLENOID_S3_PIN);}
 
-	loop_wait(500);		// Ждем 500 мс.
-	set_slt(255);		// Соленоид SLT 100% (дожимаем).
-	set_sln(0); 		// Соленоид SLN 0%.
+	loop_wait(Delay);			// Ждем 500 мс.
+	set_slt(255);				// Соленоид SLT 100% (дожимаем).
+	set_sln(SLN_MIN_VALUE); 	// Соленоид SLN минимум.
 
-	if (Delay) {loop_wait(Delay);}	// Пауза после включения передачи.
+	if (Delay) {loop_wait(DELAY_AFTER_SHIFT);}	// Пауза после включения передачи.
 	TCU.Gear = 3;
 	TCU.GearChange = 0;	
 }
@@ -336,19 +348,19 @@ static void gear_change_3_2(int16_t Delay) {
 	SET_PIN_LOW(SOLENOID_S4_PIN);
 
 	set_slu(100);	// Порог схватывания фрикциона.
-	loop_wait(200);
+	loop_wait(Delay / 2);
 
 	// Плавно добавляем значение.
 	for (uint8_t i = 0; i < 8; i++) {
 		set_slu(MIN(TCU.SLU + 20, 255));
-		loop_wait(50);
+		loop_wait(Delay / 10);
 	}
 
 	set_slt(255);					// Соленоид SLT 100% (дожимаем).
 	SET_PIN_LOW(SOLENOID_S3_PIN);	// Отключение SLU.
 	set_slu(0);
 
-	if (Delay) {loop_wait(Delay);}	// Пауза после включения передачи.
+	if (Delay) {loop_wait(DELAY_AFTER_SHIFT);}	// Пауза после включения передачи.
 	TCU.Gear = 2;
 	TCU.GearChange = 0;	
 }
@@ -357,7 +369,7 @@ static void gear_change_2_1(int16_t Delay) {
 	TCU.GearChange = 1;
 
 	set_sln(get_sln_value()); 		// Соленоид SLN.
-	loop_wait(250);
+	loop_wait(Delay / 2);
 
 	SET_PIN_HIGH(SOLENOID_S1_PIN);
 	SET_PIN_LOW(SOLENOID_S2_PIN);
@@ -366,11 +378,11 @@ static void gear_change_2_1(int16_t Delay) {
 	// Отличие для режима L2. 
 	if (TCU.ATMode == 7) {SET_PIN_HIGH(SOLENOID_S3_PIN);}
 
-	loop_wait(500);		// Ждем 500 мс.
-	set_slt(255);		// Соленоид SLT 100% (дожимаем).
-	set_sln(0); 		// Соленоид SLN 0%.
+	loop_wait(Delay);			// Ждем 500 мс.
+	set_slt(255);				// Соленоид SLT 100% (дожимаем).
+	set_sln(SLN_MIN_VALUE); 	// Соленоид SLN минимум.
 
-	if (Delay) {loop_wait(Delay);}	// Пауза после включения передачи.
+	if (Delay) {loop_wait(DELAY_AFTER_SHIFT);}	// Пауза после включения передачи.
 	TCU.Gear = 1;
 	TCU.GearChange = 0;
 }
@@ -483,8 +495,35 @@ static void set_slu(uint8_t Value) {
 	OCR1C = TCU.SLU;	// SLU - выход C таймера 1.	
 }
 
-// Возвращаент интерполированное значение из графика
+// Возвращаент интерполированное значение uint8_t из графика.
 static uint8_t get_interpolated_value_uint8_t(uint16_t x, uint8_t* ArrayY, uint8_t ArraySize) {
+	uint16_t Result = 0;
+	uint8_t StepX = 10; 
+
+	if (x <= 0) {return ArrayY[0];}
+	if (x >= (ArraySize - 1) * StepX) {return ArrayY[ArraySize - 1];}		
+
+	// Находим позицию в графике.
+	for (uint8_t i = 0; i < ArraySize; i++) {
+		if (x <= i * StepX) {
+			// Находим значение с помощью интерполяции.
+			uint16_t x0 = (i - 1) * StepX;
+			uint16_t x1 = i * StepX;
+			
+			uint16_t y0 = ArrayY[i - 1];
+			uint16_t y1 = ArrayY[i];
+			Result = y0 * 16 + (((y1 - y0) * 16) * (x - x0)) / (x1 - x0);
+			break;
+		}
+	}
+
+	Result /= 16;
+	return Result;
+}
+
+
+// Возвращаент интерполированное значение uint16_t из графика.
+static uint16_t get_interpolated_value_uint16_t(uint16_t x, uint16_t* ArrayY, uint8_t ArraySize) {
 	uint16_t Result = 0;
 	uint8_t StepX = 10; 
 

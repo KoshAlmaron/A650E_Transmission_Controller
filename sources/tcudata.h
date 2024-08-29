@@ -5,7 +5,7 @@
 
 	void calculate_tcu_data();
 	int16_t get_oil_temp();
-	uint16_t get_tps();
+	void calc_tps();
 	uint8_t get_slt_value();
 	uint8_t get_sln_value();
 	void slip_detect();
