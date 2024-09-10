@@ -10,11 +10,51 @@
 #include "i2c.h"			// I2C (TWI).
 #include "tcudata.h"		// Расчет и хранение всех необходимых параметров.
 #include "adc.h"			// АЦП.
+#include "eeprom.h"			// Чтение и запись EEPROM.
+
+extern uint8_t DebugMode;	// Переменная из main.
+
+// Номер экрана для отображения:
+// 0 - основной,
+// 1 - настройка давления переключени на вторую перередачу,
+// 2 - настройка давления переключени на тетью перередачу.
+uint8_t ScreenMode = 0;
 
 char LCDArray[21] = {0};	// Массив для отправки на дисплей.
 
 // Обозначение режимов на экране.
 int8_t ATModeChar[] = {'I', 'P', 'R', 'N', 'D', '4', '3', '2', 'L', 'E', 'M'};
+
+/*
+	Состояние кнопок:
+		0 - не нажата,
+		1..99 - ожидание после нажатия,
+		100 - событие обработано,
+		101..149 - откат после срабатывания,
+		201 - короткое нажатие,
+		202 - длинное нажатие.
+*/
+uint8_t ButtonState[4] = {0};	// Ввер/внизх, вправо/влево.
+uint8_t CursorPos = 0;			// Позици курсора на экране.
+int8_t ValueDelta = 0;			// Флаг изменения значения.
+
+extern uint8_t LastGearChangeTPS;	// Значение ДПДЗ при последнем переключении 1>2 или 2>3.
+extern uint8_t LastGearChangeSLU;	// Значение SLU при последнем переключении 1>2 или 2>3
+
+// Прототипы функций.
+static void lcd_start();
+static void print_data();
+static void print_dispay_main();
+static void print_config_gear2_slu_pressure();
+static void print_config_gear3_slu_pressure();
+static void print_config_gear3_slt_add();
+
+static void solenoid_manual_control();
+
+static void button_action();
+static void buttons_clear();
+static void buttons_update();
+static void button_read(uint8_t State, uint8_t N);
 
 // Настройка портов для режима отладки.
 void debug_mode_init() {
@@ -36,11 +76,80 @@ void debug_mode_init() {
 	i2c_init();		// Настройка интерфейса I2C (TWI).
 }
 
-void debug_lcd_init() {
+void debug_loop() {
+	// Переключение режимов.
+	switch (DebugMode)	{
+		case 0:
+			if (!PIN_READ(DEBUG_LCD_ON_PIN)) {
+				DebugMode = 1;
+				lcd_start();
+			}
+			break;
+		case 1:
+			buttons_update();
+			button_action();
+			buttons_clear();
+
+			print_data();
+			if (!PIN_READ(DEBUG_MODE_ON_PIN)) {
+				DebugMode = 2;			// Ручной режим управления.
+				ScreenMode = 0;
+				add_channels_on(1);	// Увeличить количество каналов ADC.
+				TCU.ATMode = 0;
+				TCU.Gear = 0;
+			}
+			if (PIN_READ(DEBUG_LCD_ON_PIN)) {
+				DebugMode = 0;
+				add_channels_on(0);	// Уменьшить количество каналов ADC.
+			}
+			break;
+		case 2:
+			if (PIN_READ(DEBUG_MODE_ON_PIN)) {
+				DebugMode = 1;
+				add_channels_on(0);	// Уменьшить количество каналов ADC.
+			}
+			if (PIN_READ(DEBUG_LCD_ON_PIN)) {
+				DebugMode = 0;
+				add_channels_on(0);	// Уменьшить количество каналов ADC.
+			}
+
+			TCU.EngineWork = 1;
+			solenoid_manual_control();		// Ручное управление соленоидами.
+			print_data();				// Отправка данных на дисплей.
+			break;
+	}
+}
+
+static void lcd_start() {
 	lcd_init(0x3f);
 }
 
-void debug_print_data() {
+static void print_data() {
+	static uint8_t Counter = 0;
+	Counter++;
+	if (Counter < 4) {return;}
+	Counter = 0;
+
+	switch (ScreenMode)	{
+		case 0:
+			print_dispay_main();
+			break;
+		case 1:
+			print_config_gear2_slu_pressure();
+			break;
+		case 2:
+			print_config_gear3_slu_pressure();
+			break;
+		case 3:
+			print_config_gear3_slt_add();
+			break;			
+	}
+
+	ValueDelta = 0;
+}
+
+// Основной экран.
+static void print_dispay_main() {
 	//|12345678901234567890|
 	//|O 070| 00 01 |I 1000|
 	//|T 120| P 110 |O 0900|
@@ -61,7 +170,7 @@ void debug_print_data() {
 	lcd_send_string(LCDArray, 20);
 
 	lcd_set_cursor(1, 0);
-	snprintf(LCDArray, 21, "T %3u| A %3u |O %4u", TCU.SLT, TCU.TPS, TCU.OutputRPM);
+	snprintf(LCDArray, 21, "T %3u| A %3u |O %4u",TCU.SLT, TCU.TPS, TCU.OutputRPM);
 	lcd_send_string(LCDArray, 20);
 
 	lcd_set_cursor(2, 0);
@@ -73,7 +182,144 @@ void debug_print_data() {
 	lcd_send_string(LCDArray, 20);
 }
 
-void solenoid_manual_control() {
+// Экран настройки давления в тормозе B3 для включения второй передачи.
+static void print_config_gear2_slu_pressure() {
+	//|12345678901234567890|
+	//|  Gear 2 Pressure   |
+	//|O 99 A 99 U 101 C -3|
+	//|60 60 60 60 60 60 60|
+	//|60 60 60 60 60 60 60|
+	//|12345678901234567890|
+
+	// row,  col
+	lcd_set_cursor(0, 0);
+	lcd_send_string("  Gear 2 Pressure   ", 20);	// Заголовок.
+
+	// Строка с необходимыми значениями.
+	int8_t OilTempCorr = get_slu_b3_temp_corr();
+	lcd_set_cursor(1, 0);
+	snprintf(LCDArray, 21, "O %3i|A %2u|U%3u|C %2i", 
+		CONSTRAIN(TCU.OilTemp, -30, 150), MIN(99, LastGearChangeTPS), LastGearChangeSLU, CONSTRAIN(OilTempCorr, -9, 9));
+	lcd_send_string(LCDArray, 20);
+
+	// Изменяемые значения.
+	uint8_t Row = 2;
+	uint8_t Half = 0;
+	for (uint8_t i = 0; i < 14; i++) {
+		if (i == 7) {
+			Row = 3;
+			Half = 7;
+		}
+
+		lcd_set_cursor(Row, (i - Half) * 3);
+		snprintf(LCDArray, 4, "%2u ", MIN(99, SLUB3Graph[i]));
+		if (i - Half == 6) {lcd_send_string(LCDArray, 2);}
+		else {lcd_send_string(LCDArray, 3);}
+
+		if (CursorPos == i) {
+			if (ValueDelta) {
+				SLUB3Graph[i] = CONSTRAIN(SLUB3Graph[i] + ValueDelta, 40, 99);
+				ValueDelta = 0;
+			}
+
+			if (i - Half == 0) {
+				lcd_set_cursor(Row, 2);
+				lcd_send_char('<');
+			}
+			else {
+				lcd_set_cursor(Row, (i - Half) * 3 - 1);
+				lcd_send_char('>');
+			}
+		}
+	} 
+}
+
+// Экран настройки давления в тормозе B3 для включения третьей передачи.
+static void print_config_gear3_slu_pressure() {
+	//|12345678901234567890|
+	//|  Gear 3 Pressure   |
+	//|O 99 A 99 U 101 C -3|
+	//|60 60 60 60 60 60 60|
+	//|60 60 60 60 60 60 60|
+	//|12345678901234567890|
+
+	// row,  col
+	lcd_set_cursor(0, 0);
+	lcd_send_string("  Gear 3 Pressure   ", 20);	// Заголовок.
+
+	// Строка с необходимыми значениями.
+	int8_t OilTempCorr = get_slu_b3_temp_corr();
+	lcd_set_cursor(1, 0);
+	snprintf(LCDArray, 21, " O %2i|A %2u|U%3u|C %2i", 
+		CONSTRAIN(TCU.OilTemp, -9, 99), MIN(99, LastGearChangeTPS), LastGearChangeSLU, CONSTRAIN(OilTempCorr, -9, 9));
+	lcd_send_string(LCDArray, 20);
+
+	// Изменяемые значения.
+	uint8_t Row = 2;
+	uint8_t Half = 0;
+	for (uint8_t i = 0; i < 14; i++) {
+		if (i == 7) {
+			Row = 3;
+			Half = 7;
+		}
+
+		lcd_set_cursor(Row, (i - Half) * 3);
+		snprintf(LCDArray, 4, "%2u ", MIN(99, SLUB2Graph[i]));
+		if (i - Half == 6) {lcd_send_string(LCDArray, 2);}
+		else {lcd_send_string(LCDArray, 3);}
+
+		if (CursorPos == i) {
+			if (ValueDelta) {
+				SLUB2Graph[i] = CONSTRAIN(SLUB2Graph[i] + ValueDelta, 40, 99);
+				ValueDelta = 0;
+			}
+
+			if (i - Half == 0) {
+				lcd_set_cursor(Row, 2);
+				lcd_send_char('<');
+			}
+			else {
+				lcd_set_cursor(Row, (i - Half) * 3 - 1);
+				lcd_send_char('>');
+			}
+		}
+	} 
+}
+
+// Экран настройки давления в тормозе B3 для включения третьей передачи.
+static void print_config_gear3_slt_add() {
+	//|12345678901234567890|
+	//| Gear 3 Set SLT Add |
+	//|O 99 A 99 U 101 C -3|
+	//|                    |
+	//|                    |
+	//|12345678901234567890|
+
+	// row,  col
+	lcd_set_cursor(0, 0);
+	lcd_send_string(" Gear 3 Set SLT Add ", 20);	// Заголовок.
+
+	// Строка с необходимыми значениями.
+	int8_t OilTempCorr = get_slt_temp_corr();
+	lcd_set_cursor(1, 0);
+	snprintf(LCDArray, 21, " O %2i|A %2u|T%3u|C %2i", 
+		CONSTRAIN(TCU.OilTemp, -9, 99), MIN(99, TCU.TPS), TCU.SLT, CONSTRAIN(OilTempCorr, -9, 9));
+	lcd_send_string(LCDArray, 20);
+
+	lcd_set_cursor(2, 0);
+	snprintf(LCDArray, 21, "SLT Add %3u         ", SLTB2Add);
+	lcd_send_string(LCDArray, 20);
+
+	lcd_set_cursor(3, 0);
+	lcd_send_string("                    ", 20);
+
+	if (ValueDelta) {
+		SLTB2Add = CONSTRAIN(SLTB2Add + ValueDelta, 0, 255);
+		ValueDelta = 0;
+	}
+}
+
+static void solenoid_manual_control() {
 	if (PIN_READ(DEBUG_S1_PIN)) {SET_PIN_LOW(SOLENOID_S1_PIN);}
 	else {SET_PIN_HIGH(SOLENOID_S1_PIN);}
 
@@ -96,10 +342,64 @@ void solenoid_manual_control() {
 	if (TCU.SLN <= 2) {TCU.SLN = 0;}
 	if (TCU.SLN >= 253) {TCU.SLN = 255;}
 
-	TCU.SLU = 50 + (get_adc_value(4) >> 5);
+	TCU.SLU = 55 + (get_adc_value(4) >> 5);
 
 	// Устанавливаем ШИМ на соленоидах.
 	OCR1A = TCU.SLT;
 	OCR1B = TCU.SLN;
 	OCR1C = TCU.SLU;
+}
+
+static void button_action() {
+	if (ButtonState[0] == 201) {ValueDelta = 1;}	// S1 Значение +.
+	if (ButtonState[1] == 201) {ValueDelta = -1;}	// S2 Значение -.
+		
+	if (ButtonState[2] == 201) {	// S3 Перемещение курсора.
+		CursorPos += 1;
+		if (CursorPos > 13	) {CursorPos = 0;}
+	}
+	if (ButtonState[3] == 201) {	// S4 Смена экрана.
+		CursorPos = 0;
+		ScreenMode += 1;
+		if (ScreenMode > 3) {
+			ScreenMode = 0;		// Сброс экрана.
+			update_eeprom();	// Запись в EEPROM.
+		}
+	}
+}
+
+static void buttons_clear() {
+	if (PIN_READ(DEBUG_S1_PIN) && ButtonState[0] > 200) {ButtonState[0] = 100;}
+	if (PIN_READ(DEBUG_S2_PIN) && ButtonState[1] > 200) {ButtonState[1] = 100;}
+	if (PIN_READ(DEBUG_S3_PIN) && ButtonState[2] > 200) {ButtonState[2] = 100;}
+	if (PIN_READ(DEBUG_S4_PIN) && ButtonState[3] > 200) {ButtonState[3] = 100;}
+}
+
+// Вызов каждые 100 мс.
+static void buttons_update() {
+	button_read(0, PIN_READ(DEBUG_S1_PIN));
+	button_read(1, PIN_READ(DEBUG_S2_PIN));
+	button_read(2, PIN_READ(DEBUG_S3_PIN));
+	button_read(3, PIN_READ(DEBUG_S4_PIN));
+}
+
+static void button_read(uint8_t N, uint8_t State) {
+	if (ButtonState[N] < 100) {
+		if (!State) {
+			ButtonState[N]++;
+			if (ButtonState[N] >= 60) {ButtonState[N] = 202;}	// Длиное нажатие.
+		}
+		else {
+			if (ButtonState[N] >= 2) {ButtonState[N] = 201;}	// Короткое нажатие.
+		}
+		return;
+	}
+
+	if (ButtonState[N] < 150 && State) {
+		ButtonState[N]++;
+		if (ButtonState[N] >= 108) {
+			ButtonState[N] = 0;		// Сброс состояния кнопки.
+		}
+		return;		
+	}
 }

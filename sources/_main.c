@@ -15,6 +15,7 @@
 #include "spdsens.h"		// Датчики скорости валов.
 #include "selector.h"		// Положение селектора АКПП.
 #include "tcudata.h"		// Расчет и хранение всех необходимых параметров.
+#include "eeprom.h"			// Чтение и запись EEPROM.
 #include "tculogic.h"		// Управление режимами АКПП.
 #include "gears.h"			// Фунции переключения передач.
 #include "debug.h"			// Модуль отладки.
@@ -55,6 +56,7 @@ int main() {
 		selector_init();	// Настройка выводов для селектора.
 		solenoid_init();	// Настройка выходов селеноидов, а также лампы заднего хода.
 		debug_mode_init();	// Настройка перефирии для режима отладки.
+		read_eeprom();		// Чтение параметров из EEPROM.
 	sei();				// Включаем глобальные прерывания
 
 	while(1) {
@@ -127,44 +129,9 @@ void loop_main() {
 
 static void loop_add() {
 	// Режим отладки.
-	if (DebugTimer >= 250) {
+	if (DebugTimer >= 50) {
 		DebugTimer = 0;
-
-		// Переключение режимов.
-		switch (DebugMode)	{
-			case 0:
-				if (!PIN_READ(DEBUG_LCD_ON_PIN)) {
-					DebugMode = 1;
-					debug_lcd_init();
-				}
-				break;
-			case 1:
-				debug_print_data();
-				if (!PIN_READ(DEBUG_MODE_ON_PIN)) {
-					DebugMode = 2;			// Ручной режим управления.
-					add_channels_on(1);	// Увeличить количество каналов ADC.
-					TCU.ATMode = 0;
-					TCU.Gear = 0;
-				}
-				if (PIN_READ(DEBUG_LCD_ON_PIN)) {
-					DebugMode = 0;
-					add_channels_on(0);	// Уменьшить количество каналов ADC.
-				}
-				break;
-			case 2:
-				TCU.EngineWork = 1;
-				solenoid_manual_control();		// Ручное управление соленоидами.
-				debug_print_data();				// Отправка данных на дисплей.
-				if (PIN_READ(DEBUG_MODE_ON_PIN)) {
-					DebugMode = 1;
-					add_channels_on(0);	// Уменьшить количество каналов ADC.
-				}
-				if (PIN_READ(DEBUG_LCD_ON_PIN)) {
-					DebugMode = 0;
-					add_channels_on(0);	// Уменьшить количество каналов ADC.
-				}
-				break;
-		}
+		debug_loop();
 	}
 
 	if (DebugMode == 2) {return;}	// Ручное управление соленоидами.

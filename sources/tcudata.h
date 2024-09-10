@@ -6,8 +6,16 @@
 	void calculate_tcu_data();
 	int16_t get_oil_temp();
 	void calc_tps();
-	uint8_t get_slt_value();
-	uint8_t get_sln_value();
+
+	uint8_t get_slt_pressure();
+	int8_t get_slt_temp_corr();
+
+	uint8_t get_sln_pressure();
+
+	uint8_t get_slu_pressure_b3();
+	uint8_t get_slu_pressure_b2();
+	int8_t get_slu_b3_temp_corr();
+
 	void slip_detect();
 
 	// Структура для хранения переменных.
@@ -39,5 +47,15 @@
 	} TCU_t;
 	
 	extern struct TCU_t TCU; 		// Делаем структуру внешней.
+
+	// Сетки стандартных осей.
+	extern int16_t TempGrid[];
+	extern int16_t TPSGrid[];
+
+
+	extern uint16_t SLUB3Graph[];	// Давление для переключения 1>2.
+	extern uint16_t SLUB2Graph[];	// Давление для переключения 2>3.
+
+	extern uint8_t SLTB2Add;	// Добавка в SLT для переключения 2>3.
 
 #endif

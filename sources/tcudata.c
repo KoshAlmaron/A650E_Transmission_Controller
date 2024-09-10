@@ -101,19 +101,17 @@ void calc_tps() {
 	else {TCU.TPS -= 1;}
 }
 
-uint8_t get_slt_value() {
+uint8_t get_slt_pressure() {
 	// Управление соленоида SLT инвертирование,
 	// но инверсия уже реализована на уровне таймера ШИМ.
 	// Потому здесь все линейно, больше значение -> больше давление.
 
 	// Вычисляем значение в зависимости от ДПДЗ.
 	uint8_t ArraySize = sizeof(SLTGraph) / sizeof(SLTGraph[0]);
-	uint8_t SLT = get_interpolated_value_uint8_t(TCU.InstTPS, SLTGraph, ArraySize);
+	uint8_t SLT = get_interpolated_value_uint16_t(TCU.InstTPS, TPSGrid, SLTGraph, ArraySize);
 
 	// Применяем коррекцию по температуре.
-	ArraySize = sizeof(SLTTempCorrGraph) / sizeof(SLTTempCorrGraph[0]);
-	int8_t OilTempCorr = get_interpolated_value_int16_t(TCU.OilTemp, TempGrid, SLTTempCorrGraph, ArraySize);
-	SLT = CONSTRAIN(SLT + OilTempCorr, 0, 255);
+	SLT = CONSTRAIN(SLT + get_slt_temp_corr(), 0, 255);
 
 	// Добавка давления SLT в режиме "R" и "1". +10%.
 	if (TCU.Gear == -1 || TCU.Gear == 1) {
@@ -122,11 +120,47 @@ uint8_t get_slt_value() {
 	return SLT;
 }
 
-uint8_t get_sln_value() {
+int8_t get_slt_temp_corr() {
+	uint8_t ArraySize = sizeof(SLTTempCorrGraph) / sizeof(SLTTempCorrGraph[0]);
+	int8_t OilTempCorr = get_interpolated_value_int16_t(TCU.OilTemp, TempGrid, SLTTempCorrGraph, ArraySize);
+	return OilTempCorr;
+}
+
+uint8_t get_sln_pressure() {
 	// Вычисляем значение в зависимости от ДПДЗ.
 	uint8_t ArraySize = sizeof(SLNGraph) / sizeof(SLNGraph[0]);
-	uint8_t SLN = get_interpolated_value_uint8_t(TCU.InstTPS, SLNGraph, ArraySize);
+	uint8_t SLN = get_interpolated_value_uint16_t(TCU.InstTPS, TPSGrid, SLNGraph, ArraySize);
 	return SLN;
+}
+
+// Давление включения и работы второй передачи SLU B3.
+uint8_t get_slu_pressure_b3() {
+	if (TCU.InstTPS < TPS_IDLE_LIMIT) {return SLU_B3_MIN_VALUE;}
+
+	uint8_t ArraySize = sizeof(SLUB3Graph) / sizeof(SLUB3Graph[0]);
+	uint8_t PressureB3 = get_interpolated_value_uint16_t(TCU.InstTPS, TPSGrid, SLUB3Graph, ArraySize);
+
+	PressureB3 += get_slu_b3_temp_corr();
+
+	return PressureB3;
+}
+
+// Давление включения третьей передачи SLU B2.
+uint8_t get_slu_pressure_b2() {
+	uint8_t ArraySize = sizeof(SLUB2Graph) / sizeof(SLUB2Graph[0]);
+	uint8_t PressureB2 = get_interpolated_value_uint16_t(TCU.InstTPS, TPSGrid, SLUB2Graph, ArraySize);
+
+	// Применяем коррекцию по температуре.
+	PressureB2 += get_slu_b3_temp_corr();
+
+	return PressureB2;
+}
+
+int8_t get_slu_b3_temp_corr() {
+	// Применяем коррекцию по температуре.
+	uint8_t ArraySize = sizeof(B3TempCorrGraph) / sizeof(B3TempCorrGraph[0]);
+	int8_t OilTempCorr = get_interpolated_value_int16_t(TCU.OilTemp, TempGrid, B3TempCorrGraph, ArraySize);
+	return OilTempCorr;
 }
 
 void slip_detect() {

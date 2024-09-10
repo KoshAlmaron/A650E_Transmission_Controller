@@ -13,7 +13,7 @@ static void engine_brake_solenoid();
 
 // Управление линейным давлением SLT.
 void slt_control() {
-	TCU.SLT = get_slt_value();
+	TCU.SLT = get_slt_pressure();
 	OCR1A = TCU.SLT;	// SLT - выход A таймера 1.
 }
 
@@ -106,13 +106,13 @@ static void engine_brake_solenoid() {
 	switch (TCU.Gear) {
 		case 1:
 			// Дополнительный соленоид первой передачи.		
-			if (TCU.ATMode == 4) {SET_PIN_LOW(SOLENOID_S3_PIN);}		// D
-			else if (TCU.ATMode == 7) {SET_PIN_HIGH(SOLENOID_S3_PIN);}	// 2
+			if (TCU.ATMode == 7) {SET_PIN_HIGH(SOLENOID_S3_PIN);}		// 2
+			else {SET_PIN_LOW(SOLENOID_S3_PIN);}
 			break;
 		case 3:
 			// Дополнительный соленоид третьей передачи.
-			if (TCU.ATMode == 4) {SET_PIN_LOW(SOLENOID_S3_PIN);}		// D
-			else if (TCU.ATMode == 6) {SET_PIN_HIGH(SOLENOID_S3_PIN);}	// 3		
+			if (TCU.ATMode == 6) {SET_PIN_HIGH(SOLENOID_S3_PIN);}		// D
+			else {SET_PIN_LOW(SOLENOID_S3_PIN);}	
 			break;
 	}
 }
@@ -123,7 +123,7 @@ void glock_control(uint8_t Timer) {
 	// Условия для включения блокировки гидротрансформатора.
 	if (!TCU.Break 
 			&& TCU.Gear >= 4 
-			&& TCU.TPS >= 5 
+			&& TCU.TPS >= 4 
 			&& TCU.TPS <= GLOCK_MAX_TPS 
 			&& TCU.CarSpeed >= 40) {
 		if (!TCU.Glock) {GTimer += Timer;}
@@ -139,18 +139,18 @@ void glock_control(uint8_t Timer) {
 	}
 
 	// Задержка включения блокировки.
-	if (!TCU.Glock && GTimer > 3000) {
-		if (TCU.SLU <= SLU_MIN_VALUE) {
-			TCU.SLU = SLU_START_VALUE;	// Начальное значение схватывания.
+	if (GTimer > 3000) {
+		if (!TCU.Glock) {
+			TCU.SLU = SLU_GLOCK_START_VALUE;	// Начальное значение схватывания.
+			TCU.Glock = 1;
 		}
 		else {
+			if (TCU.SLU >= SLU_GLOCK_MAX_VALUE) {return;}
 			uint8_t PressureAdd = 5;
 			if (TCU.SLU < 80) {PressureAdd = 2;}
-
-			if (TCU.SLU < 180) {TCU.SLU = MIN(180, TCU.SLU + PressureAdd);}
-			else {TCU.Glock = 1;}
+			TCU.SLU = MIN(SLU_GLOCK_MAX_VALUE, TCU.SLU + PressureAdd);
+			OCR1C = TCU.SLU;	// Применение значения.
 		}
-		OCR1C = TCU.SLU;	// Применение значения.
 	}
 }
 
