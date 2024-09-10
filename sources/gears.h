@@ -14,7 +14,6 @@
 	void solenoid_init();
 	void update_gear_speed();
 	uint16_t gear_control();
-	void slu_gear2_control(uint8_t Add);
-	void slu_gear3_control(uint8_t Add);
+	void slu_gear2_control();
 
 #endif

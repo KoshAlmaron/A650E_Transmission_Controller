@@ -138,7 +138,7 @@ uint8_t get_slu_pressure_gear3() {
 	return PressureGear3;
 }
 
-// Давление включения и работы второй передачи SLU B3.
+// Давление включения и работы второй передачи SLT B3.
 uint8_t get_slt_pressure_gear3() {
 	uint8_t PressureGear3 = get_interpolated_value_uint16_t(TCU.InstTPS, TPSGrid, SLTGear3Graph, TPS_GRID_SIZE);
 	return PressureGear3;

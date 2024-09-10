@@ -656,7 +656,6 @@ static void print_config_gear3_slt_pressure() {
 	}
 }
 
-
 static uint8_t get_tps_index(uint8_t TPS) {
 	if (TPS < 3) {return 0;}
 
@@ -778,16 +777,14 @@ static void button_read(uint8_t N, uint8_t State) {
 			if (ButtonState[N] >= 10) {ButtonState[N] = 202;}	// Длиное нажатие.
 		}
 		else {
-			if (ButtonState[N] >= 2) {ButtonState[N] = 201;}	// Короткое нажатие.
+			if (ButtonState[N] >= 1) {ButtonState[N] = 201;}	// Короткое нажатие.
 		}
 		return;
 	}
 
 	if (ButtonState[N] < 150 && State) {
 		ButtonState[N]++;
-		if (ButtonState[N] >= 104) {
-			ButtonState[N] = 0;		// Сброс состояния кнопки.
-		}
+		if (ButtonState[N] >= 103) {ButtonState[N] = 0;}	// Сброс состояния кнопки.
 		return;		
 	}
 }
