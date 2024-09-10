@@ -109,7 +109,7 @@ void set_gear_r() {
 	SET_PIN_LOW(SOLENOID_S4_PIN);
 
 	TCU.Gear = -1;
-	loop_wait(1500);				// Пауза после включения передачи.
+	loop_wait(1300);				// Пауза после включения передачи.
 	set_sln(SLN_1V_VALUE);
 
 	TCU.GearChange = 0;
@@ -145,11 +145,6 @@ static void gear_change_1_2() {
 
     set_sln(SLN_1V_VALUE);
 
-
-	// SET_PIN_HIGH(REQUEST_POWER_DOWN_PIN);	// Запрос снижения УОЗ.
-	// loop_wait(GearChangeStep * 10);			// Ожидаем срабатывания фрикциона.
-	// SET_PIN_LOW(REQUEST_POWER_DOWN_PIN);	// Возврат УОЗ.
-
  	TCU.GearChange = 0;
 }
 
@@ -163,7 +158,7 @@ static void gear_change_2_3() {
 	LastGear3ChangeTPS = TCU.InstTPS;
 	LastGear3ChangeSLU = TCU.SLU;
 
-	loop_wait(GearChangeStep * 11);			// Ждем повышения давления.
+	loop_wait(GearChangeStep * 12);			// Ждем повышения давления.
 	set_sln(SLN_4V_VALUE);
 	set_slu(get_slu_pressure_gear2());
 
@@ -173,11 +168,8 @@ static void gear_change_2_3() {
 	SET_PIN_LOW(SOLENOID_S4_PIN);
 	TCU.Gear = 3;
 
-	// SET_PIN_HIGH(REQUEST_POWER_DOWN_PIN);	// Запрос снижения УОЗ.
-	loop_wait(GearChangeStep * 5);			// Ожидаем срабатывания фрикциона.
+	loop_wait(GearChangeStep * 6);			// Ожидаем срабатывания фрикциона.
 	set_slu(SLU_MIN_VALUE);
-	// loop_wait(GearChangeStep * 5);			// Ожидаем срабатывания фрикциона.
-	// SET_PIN_LOW(REQUEST_POWER_DOWN_PIN);	// Возврат УОЗ.
 	
 	TCU.GearChange = 0;
 }
@@ -196,10 +188,6 @@ static void gear_change_3_4() {
 	SET_PIN_LOW(SOLENOID_S4_PIN);
 	TCU.Gear = 4;
 
-	// SET_PIN_HIGH(REQUEST_POWER_DOWN_PIN);	// Запрос снижения УОЗ.
-	// loop_wait(GearChangeStep * 10);			// Ожидаем срабатывания фрикциона.
-	// SET_PIN_LOW(REQUEST_POWER_DOWN_PIN);	// Возврат УОЗ.
-	
 	loop_wait(GearChangeStep * 18);
 	set_sln(SLN_1V_VALUE);
 
@@ -217,10 +205,6 @@ static void gear_change_4_5() {
 	SET_PIN_LOW(SOLENOID_S3_PIN);
 	SET_PIN_HIGH(SOLENOID_S4_PIN);
 	TCU.Gear = 5;
-
-	// SET_PIN_HIGH(REQUEST_POWER_DOWN_PIN);	// Запрос снижения УОЗ.
-	// loop_wait(GearChangeStep * 10);			// Ожидаем срабатывания фрикциона.
-	// SET_PIN_LOW(REQUEST_POWER_DOWN_PIN);	// Возврат УОЗ.
 
 	loop_wait(GearChangeStep * 18);
 	set_sln(SLN_1V_VALUE);

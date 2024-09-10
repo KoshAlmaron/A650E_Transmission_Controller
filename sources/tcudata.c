@@ -105,13 +105,25 @@ uint8_t get_slt_pressure() {
 	uint8_t SLT = get_interpolated_value_uint16_t(TCU.InstTPS, TPSGrid, SLTGraph, TPS_GRID_SIZE);
 
 	// Применяем коррекцию по температуре.
-	SLT = CONSTRAIN(SLT + get_slt_temp_corr(), 0, 255);
-
+	int8_t AddHalf = 0;
+	int16_t TempCorr = get_slt_temp_corr();		// В процентах.
 	// Добавка давления SLT в режиме "R" и "1". +10%.
-	if (TCU.Gear == -1 || TCU.Gear == 1) {SLT = CONSTRAIN(SLT + SLT_ADD_R1, 0, 255);}
+	if (TCU.Gear == -1 || TCU.Gear == 1) {TempCorr += 10;}
+	TempCorr *= SLT;
+
+	if (ABS(TempCorr) % 100 >= 50) {		// Добавка 1, если дробная часть >= 0.5.
+		if (TempCorr > 0) {AddHalf = 1;}
+		else if (TempCorr < 0) {AddHalf = -1;}
+	}
+
+	TempCorr = (int16_t) TempCorr / 100 + AddHalf;    // Коррекция в значениях ШИМ.
+
+	// Применяем коррекцию по температуре.
+	SLT = CONSTRAIN(SLT + TempCorr, 0, 255);
 	return SLT;
 }
 
+// Возращает коррекуцию в процентах.
 int8_t get_slt_temp_corr() {
 	int8_t OilTempCorr = get_interpolated_value_int16_t(TCU.OilTemp, TempGrid, SLTTempCorrGraph, TEMP_GRID_SIZE);
 	return OilTempCorr;
@@ -120,11 +132,24 @@ int8_t get_slt_temp_corr() {
 // Давление включения и работы второй передачи SLU B3.
 uint8_t get_slu_pressure_gear2() {
 	uint8_t PressureGear2 = get_interpolated_value_uint16_t(TCU.InstTPS, TPSGrid, SLUGear2Graph, TPS_GRID_SIZE);
+	
 	// Применяем коррекцию по температуре.
-	PressureGear2 = CONSTRAIN(PressureGear2 + get_slu_gear2_temp_corr(), 0, 255);
+	int8_t AddHalf = 0;
+	int16_t TempCorr = get_slu_gear2_temp_corr();
+	TempCorr *= PressureGear2;
+
+	if (ABS(TempCorr) % 100 >= 50) {		// Добавка 1, если дробная часть >= 0.5.
+		if (TempCorr > 0) {AddHalf = 1;}
+		else if (TempCorr < 0) {AddHalf = -1;}
+	}
+
+	TempCorr = (int16_t) TempCorr / 100 + AddHalf;    // Коррекция в значениях ШИМ.
+
+	PressureGear2 = CONSTRAIN(PressureGear2 + TempCorr, 0, 255);
 	return PressureGear2;
 }
-	
+
+// Возращает коррекуцию в процентах.
 int8_t get_slu_gear2_temp_corr() {
 	int8_t OilTempCorr = get_interpolated_value_int16_t(TCU.OilTemp, TempGrid, SLUGear2TempCorrGraph, TEMP_GRID_SIZE);
 	return OilTempCorr;
@@ -133,12 +158,25 @@ int8_t get_slu_gear2_temp_corr() {
 // Давление включения третьей передачи SLU B2.
 uint8_t get_slu_pressure_gear3() {
 	uint8_t PressureGear3 = get_interpolated_value_uint16_t(TCU.InstTPS, TPSGrid, SLUGear3Graph, TPS_GRID_SIZE);
+		
 	// Применяем коррекцию по температуре.
-	PressureGear3 = CONSTRAIN(PressureGear3 + get_slu_gear2_temp_corr(), 0, 255);
+	int8_t AddHalf = 0;
+	int16_t TempCorr = get_slu_gear2_temp_corr();
+	TempCorr *= PressureGear3;
+
+	if (ABS(TempCorr) % 100 >= 50) {		// Добавка 1, если дробная часть >= 0.5.
+		if (TempCorr > 0) {AddHalf = 1;}
+		else if (TempCorr < 0) {AddHalf = -1;}
+	}
+
+	TempCorr = (int16_t) TempCorr / 100 + AddHalf;    // Коррекция в значении ШИМ.
+
+	// Применяем коррекцию по температуре.
+	PressureGear3 = CONSTRAIN(PressureGear3 + TempCorr, 0, 255);
 	return PressureGear3;
 }
 
-// Давление включения и работы второй передачи SLT B3.
+// Давление включения третьей передачи SLT B3.
 uint8_t get_slt_pressure_gear3() {
 	uint8_t PressureGear3 = get_interpolated_value_uint16_t(TCU.InstTPS, TPSGrid, SLTGear3Graph, TPS_GRID_SIZE);
 	return PressureGear3;
