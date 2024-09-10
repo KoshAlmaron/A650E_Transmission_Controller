@@ -11,9 +11,19 @@
 // Прототипы локальных функций.
 static void engine_brake_solenoid();
 
+// Управление линейным давлением SLT.
 void slt_control() {
 	TCU.SLT = get_slt_value();
 	OCR1A = TCU.SLT;	// SLT - выход A таймера 1.
+}
+
+// Управление давлением в гидроаккумуляторах SLN.
+void sln_control() {
+	// Данная функция плавно уменьшает давление после переключения передачи.
+	if (TCU.SLN > SLN_MIN_VALUE && TCU.Gear != 0) {
+		TCU.SLN -= 1;
+		OCR1B = TCU.SLN;	// SLN - выход B таймера 1.	
+	}
 }
 
 void at_mode_control() {
@@ -26,8 +36,8 @@ void at_mode_control() {
 	// При этом можно будет двигаться вперед и назад.
 	if (TCU.Selector == 9) {
 		TCU.ATMode = TCU.Selector;
-		set_gear_n(250);
-		set_gear_1(250);
+		set_gear_n();
+		set_gear_1();
 		return;
 	}
 
@@ -35,7 +45,7 @@ void at_mode_control() {
 	switch (TCU.ATMode) {
 		case 0:
 			// В любом случае устанавливаем соленойды в режим N.
-			set_gear_n(500);
+			set_gear_n();
 			// Если селектор в положении P или N.
 			if (TCU.Selector == 1 || TCU.Selector == 3) {TCU.ATMode = TCU.Selector;}
 			else {TCU.ATMode = 9;}	// Иначе устанавливаем ошибку.
@@ -45,7 +55,7 @@ void at_mode_control() {
 			if (TCU.OutputRPM == 0 && (TCU.Selector == 1 || TCU.Selector == 3)) {
 				TCU.ATMode = TCU.Selector;
 				// Устанавливаем соленойды в режим N.
-				set_gear_n(250);
+				set_gear_n();
 			}
 			break;
 	}
@@ -57,7 +67,7 @@ void at_mode_control() {
 	// Измение состояния АКПП по положению селектора.
 	if (TCU.Selector == 1 || TCU.Selector == 3) {	// Нейтраль включается всегда.
 		TCU.ATMode = TCU.Selector;
-		set_gear_n(0);
+		set_gear_n();
 		return;
 	}
 
@@ -77,19 +87,17 @@ void at_mode_control() {
 		switch (TCU.Gear) {
 			case 0:			// С нейтрали.
 				TCU.ATMode = TCU.Selector;
-				set_gear_1(500);
+				set_gear_1();
 				break;
 			case -1:		// С задней передачи.
 				TCU.ATMode = TCU.Selector;
-				set_gear_n(100);
-				set_gear_1(500);
+				set_gear_n();
+				set_gear_1();
 				break;
 			default:		// В остальных случаях просто меняем режим АКПП.
 				TCU.ATMode = TCU.Selector;
 				// Проверка дополнительных соленоидов торможения двигателем.
 				engine_brake_solenoid();
-
-
 		}
 	}
 }
@@ -113,7 +121,11 @@ void glock_control(uint8_t Timer) {
 	static uint16_t GTimer = 0;
 
 	// Условия для включения блокировки гидротрансформатора.
-	if (!TCU.Break && TCU.Gear >= 4 && TCU.TPS >= 5 && TCU.TPS <= GLOCK_MAX_TPS && TCU.CarSpeed >= 40) {
+	if (!TCU.Break 
+			&& TCU.Gear >= 4 
+			&& TCU.TPS >= 5 
+			&& TCU.TPS <= GLOCK_MAX_TPS 
+			&& TCU.CarSpeed >= 40) {
 		if (!TCU.Glock) {GTimer += Timer;}
 	}
 	else {	// Отключение блокировки при нарушении условий.
@@ -127,7 +139,7 @@ void glock_control(uint8_t Timer) {
 	}
 
 	// Задержка включения блокировки.
-	if (!TCU.Glock && GTimer > 5000) {
+	if (!TCU.Glock && GTimer > 3000) {
 		if (TCU.SLU <= SLU_MIN_VALUE) {
 			TCU.SLU = SLU_START_VALUE;	// Начальное значение схватывания.
 		}

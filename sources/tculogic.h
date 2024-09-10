@@ -4,6 +4,7 @@
 	#define _TCULOGIC_H_
 
 	void slt_control();
+	void sln_control();
 	void at_mode_control();
 	void glock_control(uint8_t Timer);
 

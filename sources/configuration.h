@@ -3,12 +3,7 @@
 #ifndef _CONFIGURATION_H_
 	#define _CONFIGURATION_H_
 
-	// Количество зубов на валах.
-	#define OVERDRIVE_DRUM_TEETH_COUNT 16
-	#define OUTPUT_SHAFT_TEETH_COUNT 12
 
-	// Колитчество импульсов на 1 км для спидометра.
-	#define SPEED_INPULS_PER_KM 6000
 
 	// Добавка давления SLT в режиме "R" и "1". +10% 255 * 0.1 = 26.
 	#define SLT_ADD_R1 22
@@ -17,17 +12,12 @@
 	#define RPM_MIN	1000
 	#define RPM_MAX	4700
 
-	// Передаточные числа x1024.
-	#define GEAR_1_RATIO 3438
-	#define GEAR_2_RATIO 2232
-	#define GEAR_3_RATIO 1458
-	#define GEAR_4_RATIO 1024
-	#define GEAR_5_RATIO 771
+	#define TPS_IDLE_LIMIT 4	// Порог значения ДПДЗ для ХХ.
+	
+	#define MAX_SLIP_RPM 100	// Разница в оборотах валов для обнаружения проскальзывания.
 
-	// Разница в оборотах валов для обнаружения проскальзывания.
-	#define MAX_SLIP_RPM 100
-
-	#define SLT_START_VALUE 30	// Стартовое значение SLT при включении 1 или R.
+	#define SLT_START_VALUE 30		// Стартовое значение SLT при включении 1 или R.
+	#define SLT_GEAR_DOWN_VALUE 30	// Значение SLT при включении понижении передачи.
 
 	#define SLN_MIN_VALUE 25	// Постоянное минимальное давление в гидроаккумуляторах.
 
@@ -36,6 +26,25 @@
 	#define SLU_B3_WORK 127		// Рабочее давление тормоза B3.
 
 	#define GLOCK_MAX_TPS 26	// Максимальное положение дросселя для блокировки гидротрансформатора.
+
+
+//=============================================================================
+//===================== Неизменяемые параметры АКПП ===========================
+//=============================================================================
+
+	// Передаточные числа x1024.
+	#define GEAR_1_RATIO 3438
+	#define GEAR_2_RATIO 2232
+	#define GEAR_3_RATIO 1458
+	#define GEAR_4_RATIO 1024
+	#define GEAR_5_RATIO 771
+
+	// Количество зубов на валах.
+	#define OVERDRIVE_DRUM_TEETH_COUNT 16
+	#define OUTPUT_SHAFT_TEETH_COUNT 12
+
+	// Количество импульсов на 1 км для спидометра.
+	#define SPEED_INPULS_PER_KM 6000
 
 #endif
 /*

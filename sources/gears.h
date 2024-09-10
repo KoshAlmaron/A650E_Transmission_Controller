@@ -10,8 +10,6 @@
 
 	void solenoid_init();
 	void update_gear_speed();
-	void gear_control();
-	uint8_t get_gear_min_speed();
-	uint8_t get_gear_max_speed();
+	uint16_t gear_control();
 
 #endif

@@ -3,9 +3,7 @@
 #include "configuration.h"		// Настройки.
 #include "spdsens.h"			// Свой заголовок.
 
-
 // Минимальное сырое значения для фильтрации ошибочных значений.
-
 // Шаг 4мкс (1/64).
 // #define MIN_RAW_VALUE_OD 132
 // #define MIN_RAW_VALUE_OUT 152

@@ -49,7 +49,7 @@ void debug_print_data() {
 	//|12345678901234567890|
 
 	char GearRatioChar[5] = {'-', '.', '-', '-', ' '};
-	if (TCU.OutputRPM > 10) {
+	if (TCU.OutputRPM > 100) {
 		snprintf(GearRatioChar, 5, "%1u.%02u", 
 			MIN(9, TCU.DrumRPM / TCU.OutputRPM), MIN(99, ((TCU.DrumRPM % TCU.OutputRPM) * 100) / TCU.OutputRPM));
 	}
@@ -96,7 +96,7 @@ void solenoid_manual_control() {
 	if (TCU.SLN <= 2) {TCU.SLN = 0;}
 	if (TCU.SLN >= 253) {TCU.SLN = 255;}
 
-	TCU.SLU = 50 + (get_adc_value(4) >> 4);
+	TCU.SLU = 50 + (get_adc_value(4) >> 5);
 
 	// Устанавливаем ШИМ на соленоидах.
 	OCR1A = TCU.SLT;

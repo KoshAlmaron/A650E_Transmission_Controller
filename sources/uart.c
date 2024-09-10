@@ -22,7 +22,7 @@ volatile uint16_t TxBuffPos = 0;					// Позиция в буфере.
 volatile uint8_t TXReady = 1;						// UART готов к отправке.
 
 // Использовать спецсимволы начала/конца пакета.
-uint8_t UseMarkers = 0;
+volatile uint8_t UseMarkers = 0;
 // Признак, что предыдущий символ был заменен.
 volatile uint8_t MarkerByte = 0;
 
@@ -57,7 +57,7 @@ void uart_init(uint8_t mode) {
 			// 3 - прием / передача.
 			UCSR0B |= (1 << TXEN0);		// Прием.
 			UCSR0B |= (1 << RXEN0);		// Передача.
-			UCSR0B |= (1 << RXCIE0);		// Прерывание по завершеию приёма.
+			UCSR0B |= (1 << RXCIE0);	// Прерывание по завершеию приёма.
 			UCSR0B |= (1 << TXCIE0);	// Прерывание по завершеию передачи.
 			break;
 	}

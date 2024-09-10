@@ -191,9 +191,9 @@ static void loop_add() {
 		slt_control();			// Управление линейными давлением.
 	}
 
-	if (GearsTimer >= 203) {
-		GearsTimer = 0;
-		gear_control();
+	if (GearsTimer >= 111) {
+		GearsTimer = -1 * gear_control();
+		sln_control();
 	}
 
 	if (GlockTimer >= 100) {
