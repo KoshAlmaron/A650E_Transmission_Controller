@@ -17,15 +17,6 @@ void slt_control() {
 	OCR1A = TCU.SLT;	// SLT - выход A таймера 1.
 }
 
-// Управление давлением в гидроаккумуляторах SLN.
-void sln_control() {
-	// Данная функция уменьшает давление после переключения передачи.
-	if (TCU.SLN > SLN_MIN_VALUE && !TCU.GearChange) {
-		TCU.SLN = SLN_MIN_VALUE;
-		OCR1B = TCU.SLN;	// SLN - выход B таймера 1.	
-	}
-}
-
 void at_mode_control() {
 	// Если ничего не поменялось, валим.
 	if (TCU.ATMode == TCU.Selector) {return;}
@@ -128,19 +119,26 @@ void glock_control(uint8_t Timer) {
 			&& TCU.TPS <= GLOCK_MAX_TPS 
 			&& TCU.OilTemp >= 50
 			&& TCU.CarSpeed >= 40) {
-		if (!TCU.Glock) {GTimer += Timer;}
+				if(!TCU.Glock) {GTimer += Timer;}
 	}
 	else {	// Отключение блокировки при нарушении условий.
 		if (TCU.Glock) {
-			if (TCU.SLU > SLU_GLOCK_START_VALUE) { // Сначала снижаем давление.
-				TCU.SLU = SLU_GLOCK_START_VALUE;
+			if (TCU.SLU > SLU_GLOCK_START_VALUE + 5) {
+				// Устанавливаем давление схватывания + 5.
+				TCU.SLU = SLU_GLOCK_START_VALUE + 5;
 			}
-			else {	// Потом выключаем поностью.
+			else if (TCU.SLU > SLU_GLOCK_START_VALUE - 5) {
+				// Плавно снижаем на 10 единиц.
+				TCU.SLU -= 1;
+			}
+			else {
+				// Потом выключаем полностью.
 				GTimer = 0;
 				TCU.Glock = 0;
 				TCU.SLU = 0;
 				OCR1C = TCU.SLU;	// SLU - выход C таймера 1.
 			}
+			OCR1C = TCU.SLU;	// Применение значения.
 		}
 		return;
 	}
@@ -148,17 +146,57 @@ void glock_control(uint8_t Timer) {
 	// Задержка включения блокировки.
 	if (GTimer > 3000) {
 		if (!TCU.Glock) {
-			// Начальное значение схватывания + температурная коррекция от B3.
+			// Начальное значение схватывания.
 			TCU.SLU = SLU_GLOCK_START_VALUE;
 			TCU.Glock = 1;
 		}
 		else {
 			if (TCU.SLU >= SLU_GLOCK_MAX_VALUE) {return;}
 			uint8_t PressureAdd = 5;
-			if (TCU.SLU < 100) {PressureAdd = 1;}
+			if (TCU.SLU < SLU_GLOCK_START_VALUE + 15) {PressureAdd = 1;}
 			TCU.SLU = MIN(SLU_GLOCK_MAX_VALUE, TCU.SLU + PressureAdd);
 			OCR1C = TCU.SLU;	// Применение значения.
 		}
+	}
+}
+
+void slip_detect() {
+	if (TCU.GearChange) {		// Не проверять при смене передачи.
+		TCU.SlipDetected = 0;
+		return;
+	}
+
+	if (TCU.InstTPS < 6) {		// Не проверять на малом газу.
+		TCU.SlipDetected = 0;
+		return;		
+	}
+
+	// Расчетная скорость входного вала.
+	uint16_t CalcDrumRPM = 0;
+
+	switch (TCU.Gear) {
+		case 1:
+			CalcDrumRPM = ((uint32_t) TCU.OutputRPM * GEAR_1_RATIO) >> 10;
+			break;
+		case 2:
+			CalcDrumRPM = ((uint32_t) TCU.OutputRPM * GEAR_2_RATIO) >> 10;
+			break;
+		case 3:
+			CalcDrumRPM = ((uint32_t) TCU.OutputRPM * GEAR_3_RATIO) >> 10;
+			break;
+		case 4:
+			CalcDrumRPM = ((uint32_t) TCU.OutputRPM * GEAR_4_RATIO) >> 10;
+			break;
+		default:
+			TCU.SlipDetected = 0;
+			return;
+	}
+
+	if (TCU.DrumRPM > CalcDrumRPM && TCU.DrumRPM - CalcDrumRPM > MAX_SLIP_RPM) {
+		TCU.SlipDetected = 1;
+	}
+	else {
+		TCU.SlipDetected = 0;
 	}
 }
 

@@ -118,6 +118,11 @@ void loop_main() {
 		calc_tps();					// Расчет ДПДЗ с замедлением.
 	}
 
+	if (GlockTimer >= 100) {
+		glock_control(GlockTimer);
+		GlockTimer = 0;
+	}
+
 	// Отправка данных в UART.
 	if (UartTimer >= 24) {
 		if(uart_tx_ready()) {
@@ -159,21 +164,20 @@ static void loop_add() {
 		at_mode_control();		// Управление режимами АКПП.
 	}
 
-	if (GearsTimer >= 111) {
-		GearsTimer = -1 * gear_control();
+	if (GearsTimer >= 95) {
+		//GearsTimer = -1 * gear_control();
+		gear_control();
+		slip_detect();
+		GearsTimer = 0;
 	}
 
 	if (PressureControlTimer >= 97) {
+		slt_control();								// Управление линейными давлением.
+		slu_gear2_control(PressureControlTimer); 	// Управление давлением SLU для второй передачи.
+		slu_gear3_control(PressureControlTimer);	// Управление давлением SLU для третьей передачи.
 		PressureControlTimer = 0;
-		slt_control();			// Управление линейными давлением.
-		sln_control();
-		slu_gear2_control(); 	// Управление давлением SLU для второй передачи.
 	}
 
-	if (GlockTimer >= 100) {
-		glock_control(GlockTimer);
-		GlockTimer = 0;
-	}
 }
 
 // Прерывание при совпадении регистра сравнения OCR0A на таймере 0 каждую 1мс. 

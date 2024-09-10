@@ -24,13 +24,14 @@ uint8_t LastGear2ChangeSLU = 0;	// Значение SLU при последне�
 
 uint8_t LastGear3ChangeTPS = 0;	// Значение ДПДЗ при последнем переключении 2>3.
 uint8_t LastGear3ChangeSLU = 0; // Значение SLT при последнем переключении 2>3.
+uint8_t LastGear3ChangeSLT = 0; // Значение SLT при последнем переключении 2>3.
 
 uint8_t LastGear4ChangeTPS = 0;	// Значение ДПДЗ при последнем переключении 3>4.
 uint8_t LastGear4ChangeSLT = 0;	// Значение SLT при последнем переключении 3>4.
 uint8_t LastGear4ChangeSLN = 0;	// Значение SLN при последнем переключении 3>4.
 
 // Прототипы функций.
-void loop_main();	// Прототип функций из main.c.
+void loop_main();					// Прототип функций из main.c.
 void glock_control(uint8_t Timer);	// Прототип функций из tculogic.c.
 
 static void gear_change_1_2();
@@ -51,32 +52,35 @@ static void loop_wait(int16_t Delay);
 
 static uint8_t rpm_after_ok(uint8_t Shift);
 
-//static void set_slt(uint8_t Value);
+static void set_slt(uint8_t Value);
 static void set_sln(uint8_t Value);
 static void set_slu(uint8_t Value);
 
 //============================ Начальные передачи =============================
 // Включение нейтрали.
 void set_gear_n() {
-	set_slu(SLU_MIN_VALUE);			// Выключение SLU на случай переключения со второй передачи.
-	set_sln(get_sln_pressure()); 	// Заранее устанавливаем давление в гидроаккумуляторах SLN.
-
 	TCU.GearChange = 1;
+
+	set_slu(SLU_MIN_VALUE);		// Выключение SLU на случай переключения со второй передачи.
+	set_sln(SLN_1V_VALUE); 		// Минимальное давление в гидроаккумуляторах SLN.
+
 	SET_PIN_HIGH(SOLENOID_S1_PIN);
 	SET_PIN_LOW(SOLENOID_S2_PIN);
 	SET_PIN_HIGH(SOLENOID_S3_PIN);
 	SET_PIN_LOW(SOLENOID_S4_PIN);
 
 	TCU.Gear = 0;
+	loop_wait(1000);				// Пауза после включения нейтрали.
+
 	TCU.GearChange = 0;
-	loop_wait(800);				// Пауза после включения нейтрали.
 }
 
 // Включение первой передачи.
 void set_gear_1() {
-	set_slu(SLU_MIN_VALUE);
-
 	TCU.GearChange = 1;
+
+	set_slu(SLU_MIN_VALUE);		// Выключение SLU на случай переключения со второй передачи.
+	set_sln(SLN_4V_VALUE);
 
 	SET_PIN_HIGH(SOLENOID_S1_PIN);
 	SET_PIN_LOW(SOLENOID_S2_PIN);
@@ -84,31 +88,37 @@ void set_gear_1() {
 	SET_PIN_LOW(SOLENOID_S4_PIN);
 	// Отличие для режима L2. 
 	if (TCU.ATMode == 7) {SET_PIN_HIGH(SOLENOID_S3_PIN);}
-
 	TCU.Gear = 1;
+
+	loop_wait(1500);				// Пауза после включения передачи.
+	set_sln(SLN_1V_VALUE);
+
 	TCU.GearChange = 0;
-	loop_wait(800);				// Пауза после включения передачи.
 }
 
 // Включение задней передачи.
 void set_gear_r() {
-	set_slu(SLU_MIN_VALUE);
-
 	TCU.GearChange = 1;
-	
+
+	set_slu(SLU_MIN_VALUE);		// Выключение SLU на случай переключения со второй передачи.
+	set_sln(SLN_4V_VALUE);
+
 	SET_PIN_HIGH(SOLENOID_S1_PIN);
 	SET_PIN_LOW(SOLENOID_S2_PIN);
 	SET_PIN_LOW(SOLENOID_S3_PIN);
 	SET_PIN_LOW(SOLENOID_S4_PIN);
 
 	TCU.Gear = -1;
+	loop_wait(1500);				// Пауза после включения передачи.
+	set_sln(SLN_1V_VALUE);
+
 	TCU.GearChange = 0;
-	loop_wait(500);				// Пауза после включения передачи.
 }
 
 // Блокировка задней передачи.
 void disable_gear_r() {
 	set_slu(SLU_MIN_VALUE);
+	set_sln(SLN_1V_VALUE); 		// Минимальное давление в гидроаккумуляторах SLN.
 	
 	SET_PIN_HIGH(SOLENOID_S1_PIN);
 	SET_PIN_HIGH(SOLENOID_S2_PIN);	// S2 выключает привод.
@@ -119,89 +129,102 @@ void disable_gear_r() {
 //=========================== Переключения вверх ==============================
 static void gear_change_1_2() {
 	TCU.GearChange = 1;
-	SET_PIN_HIGH(SOLENOID_S1_PIN);
-	SET_PIN_HIGH(SOLENOID_S2_PIN);
-	SET_PIN_LOW(SOLENOID_S3_PIN);
-	SET_PIN_LOW(SOLENOID_S4_PIN);
 
 	set_slu(get_slu_pressure_gear2());		// Давление включения и работы второй предачи.
+	set_sln(SLN_6V_VALUE);
+	loop_wait(GearChangeStep * 10);
+
+	SET_PIN_HIGH(SOLENOID_S1_PIN);
+	SET_PIN_HIGH(SOLENOID_S2_PIN);
+	SET_PIN_HIGH(SOLENOID_S3_PIN);			// Включаем систему "Clutch to Clutch".
+	SET_PIN_LOW(SOLENOID_S4_PIN);
+	TCU.Gear = 2;
 
 	LastGear2ChangeTPS = TCU.InstTPS;
 	LastGear2ChangeSLU = TCU.SLU;
 
 	SET_PIN_HIGH(REQUEST_POWER_DOWN_PIN);	// Запрос снижения УОЗ.
-	loop_wait(GearChangeStep * 8);			// Ожидаем срабатывания фрикциона.
+	loop_wait(GearChangeStep * 10);			// Ожидаем срабатывания фрикциона.
 	SET_PIN_LOW(REQUEST_POWER_DOWN_PIN);	// Возврат УОЗ.
+    set_sln(SLN_1V_VALUE);
 
-	TCU.Gear = 2;
-	TCU.GearChange = 0;
+ 	TCU.GearChange = 0;
 }
 
 static void gear_change_2_3() {
 	TCU.GearChange = 1;
 
-	set_sln(get_sln_pressure()); 		// Соленоид SLN.
-	set_slu(get_slu_pressure_gear3());	// Давление включения и работы второй предачи.
-	loop_wait(GearChangeStep * 800);		// Ждем повышения давления в гидроаккумуляторе.
+	//set_slt(get_slt_pressure_gear3());		// Давления SLT для включение третьей передачи.
+	LastGear3ChangeSLT = TCU.SLT;
+
+	set_sln(SLN_6V_VALUE);
+	set_slu(get_slu_pressure_gear3());		// Давление включения и работы второй предачи.
+
+	loop_wait(GearChangeStep * 10);			// Ждем повышения давления.
+	set_sln(SLN_4V_VALUE);
+
+	SET_PIN_LOW(SOLENOID_S1_PIN);
+	SET_PIN_HIGH(SOLENOID_S2_PIN);
+	SET_PIN_HIGH(SOLENOID_S3_PIN);		// Включаем систему "Clutch to Clutch".
+	SET_PIN_LOW(SOLENOID_S4_PIN);
+
+	TCU.Gear = 3;
 
 	LastGear3ChangeTPS = TCU.InstTPS;
 	LastGear3ChangeSLU = TCU.SLU;
 
-	SET_PIN_LOW(SOLENOID_S1_PIN);
-	SET_PIN_HIGH(SOLENOID_S2_PIN);
-	SET_PIN_LOW(SOLENOID_S3_PIN);
-	SET_PIN_LOW(SOLENOID_S4_PIN);
-	// Отличие для режима 3. 
-	if (TCU.ATMode == 6) {SET_PIN_HIGH(SOLENOID_S3_PIN);}
-
 	SET_PIN_HIGH(REQUEST_POWER_DOWN_PIN);	// Запрос снижения УОЗ.
-	loop_wait(GearChangeStep * 10);			// Ожидаем срабатывания фрикциона.
+	loop_wait(GearChangeStep * 8);			// Ожидаем срабатывания фрикциона.
 	SET_PIN_LOW(REQUEST_POWER_DOWN_PIN);	// Возврат УОЗ.
-	set_slu(SLU_MIN_VALUE);					// Отключаем давление на B3.
+	
+	set_sln(SLN_1V_VALUE);
 
-	TCU.Gear = 3;
 	TCU.GearChange = 0;
 }
 
 static void gear_change_3_4() {
 	TCU.GearChange = 1;
-	set_sln(get_sln_pressure()); 		// Соленоид SLN.
-	loop_wait(GearChangeStep * 10);		// Ждем повышения давления в гидроаккумуляторе.
 
-	LastGear4ChangeTPS = TCU.InstTPS;
-	LastGear4ChangeSLT = TCU.SLT;
-	LastGear4ChangeSLN = TCU.SLN;
+	set_sln(SLN_4V_VALUE);
 
 	SET_PIN_LOW(SOLENOID_S1_PIN);
 	SET_PIN_LOW(SOLENOID_S2_PIN);
 	SET_PIN_HIGH(SOLENOID_S3_PIN);
 	SET_PIN_LOW(SOLENOID_S4_PIN);
+	TCU.Gear = 4;
+
+	LastGear4ChangeTPS = TCU.InstTPS;
+	LastGear4ChangeSLT = TCU.SLT;
 
 	SET_PIN_HIGH(REQUEST_POWER_DOWN_PIN);	// Запрос снижения УОЗ.
-	loop_wait(GearChangeStep * 8);			// Ожидаем срабатывания фрикциона.
+	loop_wait(GearChangeStep * 10);			// Ожидаем срабатывания фрикциона.
 	SET_PIN_LOW(REQUEST_POWER_DOWN_PIN);	// Возврат УОЗ.
+	
+	loop_wait(GearChangeStep * 8);
+	set_sln(SLN_1V_VALUE);
 
-	TCU.Gear = 4;
 	TCU.GearChange = 0;	
 }
 
 static void gear_change_4_5() {
 	TCU.GearChange = 1;
 	glock_control(100);				// Снижаем давление блокировки гидротрансформатора.
-	set_sln(get_sln_pressure()); 	// Соленоид SLN.
-	loop_wait(GearChangeStep * 10);	// Ждем повышения давления в гидроаккумуляторе.
-	glock_control(100);				// Выключаем блокировку гидротрансформатора.
+
+	set_sln(SLN_4V_VALUE);
 
 	SET_PIN_LOW(SOLENOID_S1_PIN);
 	SET_PIN_LOW(SOLENOID_S2_PIN);
 	SET_PIN_LOW(SOLENOID_S3_PIN);
 	SET_PIN_HIGH(SOLENOID_S4_PIN);
+	TCU.Gear = 5;
 
 	SET_PIN_HIGH(REQUEST_POWER_DOWN_PIN);	// Запрос снижения УОЗ.
-	loop_wait(GearChangeStep * 8);			// Ожидаем срабатывания фрикциона.
+	loop_wait(GearChangeStep * 10);			// Ожидаем срабатывания фрикциона.
 	SET_PIN_LOW(REQUEST_POWER_DOWN_PIN);	// Возврат УОЗ.
 
-	TCU.Gear = 5;
+	loop_wait(GearChangeStep * 8);
+	set_sln(SLN_1V_VALUE);
+
 	TCU.GearChange = 0;	
 }
 
@@ -209,25 +232,28 @@ static void gear_change_4_5() {
 static void gear_change_5_4() {
 	TCU.GearChange = 1;
 	glock_control(100);	// Снижаем давление блокировки гидротрансформатора.
-	set_sln(get_sln_pressure()); 		// Соленоид SLN.
-	loop_wait(GearChangeStep * 10);	// Ждем повышения давления в гидроаккумуляторе.
-	glock_control(100);	// Выключаем блокировку гидротрансформатора.
+	
+	set_sln(SLN_4V_VALUE);
+	loop_wait(GearChangeStep * 8);
 
 	SET_PIN_LOW(SOLENOID_S1_PIN);
 	SET_PIN_LOW(SOLENOID_S2_PIN);
 	SET_PIN_HIGH(SOLENOID_S3_PIN);
 	SET_PIN_LOW(SOLENOID_S4_PIN);
-
 	TCU.Gear = 4;
+
+	loop_wait(GearChangeStep * 18);
+	set_sln(SLN_1V_VALUE);
+
 	TCU.GearChange = 0;		
 }
 
 static void gear_change_4_3() {
 	TCU.GearChange = 1;
 	glock_control(100);	// Снижаем давление блокировки гидротрансформатора.
-	set_sln(get_sln_pressure()); 		// Соленоид SLN.
-	loop_wait(GearChangeStep * 10);	// Ждем повышения давления в гидроаккумуляторе.
-	glock_control(100);	// Выключаем блокировку гидротрансформатора.
+	
+	set_sln(SLN_4V_VALUE);
+	loop_wait(GearChangeStep * 8);
 
 	SET_PIN_LOW(SOLENOID_S1_PIN);
 	SET_PIN_HIGH(SOLENOID_S2_PIN);
@@ -235,32 +261,37 @@ static void gear_change_4_3() {
 	SET_PIN_LOW(SOLENOID_S4_PIN);
 	// Отличие для режима 3. 
 	if (TCU.ATMode == 6) {SET_PIN_HIGH(SOLENOID_S3_PIN);}
-
 	TCU.Gear = 3;
+
+	loop_wait(GearChangeStep * 18);
+	set_sln(SLN_1V_VALUE);
+
 	TCU.GearChange = 0;	
 }
 
 static void gear_change_3_2() {
 	TCU.GearChange = 1;
 
+	set_slu(get_slu_pressure_gear2());
+	set_sln(SLN_6V_VALUE);
+	loop_wait(GearChangeStep * 10);
+	set_sln(SLN_1V_VALUE);
+
 	SET_PIN_HIGH(SOLENOID_S1_PIN);
 	SET_PIN_HIGH(SOLENOID_S2_PIN);
 	SET_PIN_HIGH(SOLENOID_S3_PIN);		// Включаем систему "Clutch to Clutch".
 	SET_PIN_LOW(SOLENOID_S4_PIN);
-
-	set_slu(get_slu_pressure_gear2());
-	loop_wait(GearChangeStep * 12);		// Ждем снижение давления в тормозе B2.
-
-	SET_PIN_LOW(SOLENOID_S3_PIN);		// Отключаем систему "Clutch to Clutch".
-
 	TCU.Gear = 2;
+
+	loop_wait(GearChangeStep * 8);		// Ждем снижение давления в тормозе B2.
+
 	TCU.GearChange = 0;	
 }
 
 static void gear_change_2_1() {
 	TCU.GearChange = 1;
-	set_sln(get_sln_pressure()); 		// Соленоид SLN.
-	loop_wait(GearChangeStep * 10);		// Ждем повышения давления в гидроаккумуляторе.
+
+	set_sln(SLN_4V_VALUE);
 	
 	SET_PIN_HIGH(SOLENOID_S1_PIN);
 	SET_PIN_LOW(SOLENOID_S2_PIN);
@@ -268,9 +299,12 @@ static void gear_change_2_1() {
 	SET_PIN_LOW(SOLENOID_S4_PIN);
 	// Отличие для режима L2. 
 	if (TCU.ATMode == 7) {SET_PIN_HIGH(SOLENOID_S3_PIN);}
-	set_slu(SLU_MIN_VALUE);
-
 	TCU.Gear = 1;
+
+	loop_wait(GearChangeStep * 18);
+	set_slu(SLU_MIN_VALUE);
+	set_sln(SLN_1V_VALUE);
+
 	TCU.GearChange = 0;
 }
 
@@ -340,10 +374,54 @@ uint16_t gear_control() {
 	return 0;
 }
 
-// Управление давлением SLU B3 для работы второй передачи.
-void slu_gear2_control() {
-	if (TCU.Gear != 2) {return;}	// Управление давлением SLU для второй передачи.
+// Управление давлением SLU B3 для работы второй передачи,
+// а также управление добавочным соленоидом S3
+void slu_gear2_control(uint8_t Time) {
+	static int16_t Timer = 0;
+	if (TCU.Gear != 2) {	// Управление давлением SLU для второй передачи.
+		Timer = 0;
+		return;
+	}
+
 	set_slu(get_slu_pressure_gear2());
+
+	// Включаем систему "Clutch to Clutch" на ХХ, 
+	// чтобы при добавлении газа вторая передача плавно включилась.
+	if (TCU.TPS < TPS_IDLE_LIMIT) {
+		Timer = 0;
+		SET_PIN_HIGH(SOLENOID_S3_PIN);
+	}
+	
+	// Через двойное значение задержки отключаем систему "Clutch to Clutch".
+	if (Timer > AfterChangeDelay * 2) {SET_PIN_LOW(SOLENOID_S3_PIN);}
+	else {Timer += Time;}
+}
+
+// Управление давлением SLU B3 для включения третьей передачи,
+// а также управление добавочным соленоидом S3
+void slu_gear3_control(uint8_t Time) {
+	static int16_t Timer = 0;
+
+	// Отличие для режима 3, здесь выключать S3 не надо. 
+	if (TCU.ATMode == 6) {return;}
+
+	if (TCU.Gear != 3) {	// Управление давлением SLU для второй передачи.
+		Timer = 0;
+		return;
+	}
+
+	// Через значение задержки отключаем систему "Clutch to Clutch".
+	if (Timer > AfterChangeDelay) {
+		if (PIN_READ(SOLENOID_S3_PIN)) {
+			SET_PIN_LOW(SOLENOID_S3_PIN);
+			Timer = 0;
+			return;
+		}
+		set_slu(SLU_MIN_VALUE);
+	}
+	else {
+		Timer += Time;
+	}
 }
 
 // Переключение вверх.
@@ -476,10 +554,10 @@ static uint8_t rpm_after_ok(uint8_t Shift) {
 	else {return 0;}
 }
 
-// static void set_slt(uint8_t Value) {
-// 	TCU.SLT = Value;
-// 	OCR1A = TCU.SLT;	// SLT - выход A таймера 1.	
-// }
+static void set_slt(uint8_t Value) {
+	TCU.SLT = Value;
+	OCR1A = TCU.SLT;	// SLN - выход A таймера 1.	
+}
 
 static void set_sln(uint8_t Value) {
 	TCU.SLN = Value;

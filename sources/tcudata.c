@@ -55,8 +55,6 @@ void calculate_tcu_data() {
 	TCU.S2 = PIN_READ(SOLENOID_S2_PIN) ? 1 : 0;
 	TCU.S3 = PIN_READ(SOLENOID_S3_PIN) ? 1 : 0;
 	TCU.S4 = PIN_READ(SOLENOID_S4_PIN) ? 1 : 0;
-
-	slip_detect();
 }
 
 // Расчет скорости авто.
@@ -119,12 +117,6 @@ int8_t get_slt_temp_corr() {
 	return OilTempCorr;
 }
 
-uint8_t get_sln_pressure() {
-	// Вычисляем значение в зависимости от ДПДЗ.
-	uint8_t SLN = get_interpolated_value_uint16_t(TCU.InstTPS, TPSGrid, SLNGraph, TPS_GRID_SIZE);
-	return SLN;
-}
-
 // Давление включения и работы второй передачи SLU B3.
 uint8_t get_slu_pressure_gear2() {
 	uint8_t PressureGear2 = get_interpolated_value_uint16_t(TCU.InstTPS, TPSGrid, SLUGear2Graph, TPS_GRID_SIZE);
@@ -144,43 +136,10 @@ uint8_t get_slu_pressure_gear3() {
 	return PressureGear3;
 }
 
-void slip_detect() {
-	if (TCU.GearChange) {		// Не проверять при смене передачи.
-		TCU.SlipDetected = 0;
-		return;
-	}
-
-	if (TCU.InstTPS < 6) {		// Не проверять на малом газу.
-		TCU.SlipDetected = 0;
-		return;		
-	}
-
-	// Расчетная скорость входного вала.
-	uint16_t CalcDrumRPM = 0;
-
-	switch (TCU.Gear) {
-		case 1:
-			CalcDrumRPM = ((uint32_t) TCU.OutputRPM * GEAR_1_RATIO) >> 10;
-			break;
-		case 2:
-			CalcDrumRPM = ((uint32_t) TCU.OutputRPM * GEAR_2_RATIO) >> 10;
-			break;
-		case 3:
-			CalcDrumRPM = ((uint32_t) TCU.OutputRPM * GEAR_3_RATIO) >> 10;
-			break;
-		case 4:
-			CalcDrumRPM = ((uint32_t) TCU.OutputRPM * GEAR_4_RATIO) >> 10;
-			break;
-		default:
-			TCU.SlipDetected = 0;
-			return;
-	}
-
-	if (TCU.DrumRPM > CalcDrumRPM && TCU.DrumRPM - CalcDrumRPM > MAX_SLIP_RPM) {
-		TCU.SlipDetected = 1;
-	}
-	else {
-		TCU.SlipDetected = 0;
-	}
+// Давление включения и работы второй передачи SLU B3.
+uint8_t get_slt_pressure_gear3() {
+	uint8_t PressureGear3 = get_interpolated_value_uint16_t(TCU.InstTPS, TPSGrid, SLTGear3Graph, TPS_GRID_SIZE);
+	return PressureGear3;
 }
+
 
