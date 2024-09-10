@@ -32,6 +32,7 @@ int16_t AtModeTimer = 0;
 int16_t GearsTimer = 0;
 int16_t TPSTimer = 0;
 int16_t GlockTimer = 0;
+int16_t PressureControlTimer = 0;
 
 // Таймер ожидания.
 extern int16_t WaitTimer;
@@ -84,6 +85,7 @@ void loop_main() {
 		GearsTimer += TimerAdd;
 		TPSTimer += TimerAdd;
 		GlockTimer += TimerAdd;
+		PressureControlTimer += TimerAdd;
 	}
 
 	// Таймер ожидание д.б. <= 0.
@@ -188,12 +190,17 @@ static void loop_add() {
 	if (AtModeTimer >= 67) {
 		AtModeTimer = 0;
 		at_mode_control();		// Управление режимами АКПП.
-		slt_control();			// Управление линейными давлением.
 	}
 
 	if (GearsTimer >= 111) {
 		GearsTimer = -1 * gear_control();
+	}
+
+	if (PressureControlTimer >= 97) {
+		PressureControlTimer = 0;
+		slt_control();			// Управление линейными давлением.
 		sln_control();
+		slu_b3_control(); 		// Управление давлением SLU для второй передачи.
 	}
 
 	if (GlockTimer >= 100) {

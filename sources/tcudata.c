@@ -1,8 +1,8 @@
 #include <stdint.h>				// Коротние название int.
 #include <avr/io.h>				// Названия регистров и номера бит.
 
-#include "tcudata.h"			// Свой заголовок.
 #include "tcudata_tables.h"		// Таблицы TCUData.
+#include "tcudata.h"			// Свой заголовок.
 #include "spdsens.h"			// Датчики скорости валов.
 #include "adc.h"				// АЦП.
 #include "macros.h"				// Макросы.
@@ -108,7 +108,7 @@ uint8_t get_slt_value() {
 
 	// Вычисляем значение в зависимости от ДПДЗ.
 	uint8_t ArraySize = sizeof(SLTGraph) / sizeof(SLTGraph[0]);
-	uint8_t SLT = get_interpolated_value_uint8_t(TCU.TPS, SLTGraph, ArraySize);
+	uint8_t SLT = get_interpolated_value_uint8_t(TCU.InstTPS, SLTGraph, ArraySize);
 
 	// Применяем коррекцию по температуре.
 	ArraySize = sizeof(SLTTempCorrGraph) / sizeof(SLTTempCorrGraph[0]);
@@ -125,7 +125,7 @@ uint8_t get_slt_value() {
 uint8_t get_sln_value() {
 	// Вычисляем значение в зависимости от ДПДЗ.
 	uint8_t ArraySize = sizeof(SLNGraph) / sizeof(SLNGraph[0]);
-	uint8_t SLN = get_interpolated_value_uint8_t(TCU.TPS, SLNGraph, ArraySize);
+	uint8_t SLN = get_interpolated_value_uint8_t(TCU.InstTPS, SLNGraph, ArraySize);
 	return SLN;
 }
 

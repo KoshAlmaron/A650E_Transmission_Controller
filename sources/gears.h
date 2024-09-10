@@ -11,5 +11,6 @@
 	void solenoid_init();
 	void update_gear_speed();
 	uint16_t gear_control();
+	void slu_b3_control();
 
 #endif
