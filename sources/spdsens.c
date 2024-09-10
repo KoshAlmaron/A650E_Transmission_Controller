@@ -5,12 +5,18 @@
 
 
 // Минимальное сырое значения для фильтрации ошибочных значений.
-#define MIN_RAW_VALUE_OD 132
-#define MIN_RAW_VALUE_OUT 152
+
+// Шаг 4мкс (1/64).
+// #define MIN_RAW_VALUE_OD 132
+// #define MIN_RAW_VALUE_OUT 152
+
+// Шаг 0.5мкс (1/8).
+#define MIN_RAW_VALUE_OD 1380
+#define MIN_RAW_VALUE_OUT 1380
 
 // Размер буфера и размер битового сдвига для деления.
-#define SENSOR_BUFFER_SIZE 16 + 4
-#define SENSOR_BUFFER_SHIFT 4
+#define SENSOR_BUFFER_SIZE 32 + 4
+#define SENSOR_BUFFER_SHIFT 5
 
 // Кольцевые буферы для замера оборотов, прохождение 1 зуба шагах таймера (4 мкс).
 volatile uint16_t DrumArray[SENSOR_BUFFER_SIZE] = {0};
@@ -24,10 +30,12 @@ volatile uint8_t OutputBufferReady = 1;
 
 // Расчет скорости корзины овердрайва АКПП.
 uint16_t get_overdrive_drum_rpm() {
+	// Делитель 8
 	// 1000000 * 60 / ([Шаг таймера, мкс] * [Кол-во зубов] * [Кол-во шагов])
 	// Шаг таймера = 1000000 / [Частота таймера]
 	// (1000000 * 60) / (4 * 16)
-	#define PRM_CALC_COEF_OD 937500UL
+	//#define PRM_CALC_COEF_OD 937500UL	// Шаг 4мкс (1/64).
+	#define PRM_CALC_COEF_OD 7500000UL	// Шаг 0.5мкс (1/8).
 
 	DrumBufferReady = 0;	// Запрещаем обновление буфера в прерываниях.
 
@@ -61,7 +69,7 @@ uint16_t get_overdrive_drum_rpm() {
 
 	// Рассчитываем обороты вала.
 	uint16_t RPM = 0;
-	if (AVG < UINT16_MAX - 100) {RPM = (uint32_t) PRM_CALC_COEF_OD / AVG;}
+	if (AVG < UINT16_MAX) {RPM = (uint32_t) PRM_CALC_COEF_OD / AVG;}
 	return RPM;
 }
 
@@ -70,7 +78,8 @@ uint16_t get_output_shaft_rpm() {
 	// 1000000 * 60 / ([Шаг таймера, мкс] * [Кол-во зубов] * [Кол-во шагов])
 	// Шаг таймера = 1000000 / [Частота таймера]
 	// (1000000 * 60) / (4 * 12)
-	#define PRM_CALC_COEF_OUT 1250000UL
+	//#define PRM_CALC_COEF_OUT 1250000UL		// Шаг 4мкс (1/64).
+	#define PRM_CALC_COEF_OUT 10000000UL		// Шаг 0.5мкс (1/8).
 
 	OutputBufferReady = 0;	// Запрещаем обновление буфера в прерываниях.
 
@@ -104,7 +113,7 @@ uint16_t get_output_shaft_rpm() {
 
 	// Рассчитываем обороты вала.
 	uint16_t RPM = 0;
-	if (AVG < UINT16_MAX - 100) {RPM = (uint32_t) PRM_CALC_COEF_OUT / AVG;}
+	if (AVG < UINT16_MAX) {RPM = (uint32_t) PRM_CALC_COEF_OUT / AVG;}
 	return RPM;
 }
 

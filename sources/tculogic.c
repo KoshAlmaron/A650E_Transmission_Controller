@@ -64,10 +64,11 @@ void at_mode_control() {
 	// Задняя скорость включается только стоя на тормозе.
 	if (TCU.Selector == 2) {
 		if (TCU.CarSpeed < 5 && TCU.Break) {
-			set_gear_n(100);
-			set_gear_r(500);
+			set_gear_n();
+			set_gear_r();
 			TCU.ATMode = TCU.Selector;
 		}
+		else {disable_gear_r();}	 // Принудительно выключаем задний ход.
 		return;
 	}
 
@@ -109,28 +110,32 @@ static void engine_brake_solenoid() {
 }
 
 void glock_control(uint8_t Timer) {
-	#define SLU_START_VALUE 50
 	static uint16_t GTimer = 0;
 
 	// Условия для включения блокировки гидротрансформатора.
-	if (!TCU.Break && TCU.Gear >= 4 && TCU.TPS >= 5 && TCU.TPS <= 16 && TCU.CarSpeed >= 40) {
+	if (!TCU.Break && TCU.Gear >= 4 && TCU.TPS >= 5 && TCU.TPS <= GLOCK_MAX_TPS && TCU.CarSpeed >= 40) {
 		if (!TCU.Glock) {GTimer += Timer;}
 	}
 	else {	// Отключение блокировки при нарушении условий.
-		GTimer = 0;
-		TCU.Glock = 0;
-		TCU.SLU = 0;
-		OCR1C = TCU.SLU;	// SLU - выход C таймера 1.
+		if (TCU.Glock) {
+			GTimer = 0;
+			TCU.Glock = 0;
+			TCU.SLU = 0;
+			OCR1C = TCU.SLU;	// SLU - выход C таймера 1.
+		}
 		return;
 	}
 
 	// Задержка включения блокировки.
 	if (!TCU.Glock && GTimer > 5000) {
-		if (!TCU.SLU) {
+		if (TCU.SLU <= SLU_MIN_VALUE) {
 			TCU.SLU = SLU_START_VALUE;	// Начальное значение схватывания.
 		}
 		else {
-			if (TCU.SLU < 255) {TCU.SLU = MIN(255, TCU.SLU + 20);}
+			uint8_t PressureAdd = 5;
+			if (TCU.SLU < 80) {PressureAdd = 2;}
+
+			if (TCU.SLU < 180) {TCU.SLU = MIN(180, TCU.SLU + PressureAdd);}
 			else {TCU.Glock = 1;}
 		}
 		OCR1C = TCU.SLU;	// Применение значения.

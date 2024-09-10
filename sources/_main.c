@@ -106,9 +106,10 @@ void loop_main() {
 		DataUpdateTimer = 0;
 		calculate_tcu_data();		// Расчет значений TCU.
 		speedometer_control();		// Выход на спидометр.
+		update_gear_speed();		// Обновление порогов переключения передач.
 	}
 
-	if (TPSTimer >= 21) {
+	if (TPSTimer >= 103) {
 		TPSTimer = 0;
 		calc_tps();					// Расчет ДПДЗ с замедлением.
 	}
@@ -194,7 +195,6 @@ static void loop_add() {
 		GearsTimer = 0;
 		gear_control();
 	}
-
 
 	if (GlockTimer >= 100) {
 		glock_control(GlockTimer);

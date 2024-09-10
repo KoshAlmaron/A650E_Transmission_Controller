@@ -2,7 +2,7 @@
 #include <avr/io.h>				// Названия регистров и номера бит.
 
 #include "tcudata.h"			// Свой заголовок.
-#include "tcudata_tables.h"		// Таблицы.
+#include "tcudata_tables.h"		// Таблицы TCUData.
 #include "spdsens.h"			// Датчики скорости валов.
 #include "adc.h"				// АЦП.
 #include "macros.h"				// Макросы.
@@ -22,6 +22,7 @@ TCU_t TCU = {
 	.SpdTimerVal = 0,
 	.OilTemp = 0,
 	.TPS = 0,
+	.InstTPS = 0,
 	.SLT = 0,
 	.SLN = 0,
 	.SLU = 0,
@@ -36,7 +37,9 @@ TCU_t TCU = {
 	.Break = 0,
 	.EngineWork = 0,
 	.SlipDetected = 0,
-	.Glock = 0
+	.Glock = 0,
+	.GearUpSpeed = 0,
+	.GearDownSpeed = 0
 };
 
 // Расчет параметров на основе датчиков и таблиц.
@@ -63,7 +66,7 @@ static uint16_t get_car_speed() {
 	// Длина окружности колеса - 1.807 м,
 	// Коэффициент для оборотов = 1 / 3.909 * 1.807 * 60 / 1000 = 0.027735994
 	// Умножаем на 4096 (смещение 12 бит) = 113.6066309
-	return ((uint32_t) TCU.OutputRPM * 113) >> 12;
+	return ((uint32_t) TCU.OutputRPM * 114) >> 12;
 }
 
 // Расчет значения регистра сравнения для таймера спидометра.
@@ -83,7 +86,7 @@ int16_t get_oil_temp() {
 	// Датчик температуры находтся на ADC0.
 	int16_t TempValue = get_adc_value(0);
 	uint8_t ArraySize = sizeof(OilTempGraph) / sizeof(OilTempGraph[0]);
-	return get_interpolated_value(TempValue, OilTempGraph, TempGrid, ArraySize);
+	return get_interpolated_value_int16_t(TempValue, OilTempGraph, TempGrid, ArraySize);
 }
 
 // Положение дросселя.
@@ -92,9 +95,9 @@ void calc_tps() {
 	int16_t TempValue = get_adc_value(1);
 	uint8_t ArraySize = sizeof(TPSGraph) / sizeof(TPSGraph[0]);
 
-	TempValue = get_interpolated_value(TempValue, TPSGraph, TPSGrid, ArraySize);
+	TCU.InstTPS = get_interpolated_value_int16_t(TempValue, TPSGraph, TPSGrid, ArraySize);
 
-	if (TempValue >= TCU.TPS) {TCU.TPS = TempValue;}
+	if (TCU.InstTPS >= TCU.TPS) {TCU.TPS = TCU.InstTPS;}
 	else {TCU.TPS -= 1;}
 }
 
@@ -105,11 +108,11 @@ uint8_t get_slt_value() {
 
 	// Вычисляем значение в зависимости от ДАД.
 	uint8_t ArraySize = sizeof(SLTGraph) / sizeof(SLTGraph[0]);
-	uint8_t SLT = get_interpolated_value(TCU.TPS, TPSGrid, SLTGraph, ArraySize);
+	uint8_t SLT = get_interpolated_value_int16_t(TCU.TPS, TPSGrid, SLTGraph, ArraySize);
 
 	// Применяем коррекцию по температуре.
-	ArraySize = sizeof(TempCorrGraph) / sizeof(TempCorrGraph[0]);
-	int8_t OilTempCorr = get_interpolated_value(TCU.OilTemp, TempGrid, TempCorrGraph, ArraySize);
+	ArraySize = sizeof(SLTTempCorrGraph) / sizeof(SLTTempCorrGraph[0]);
+	int8_t OilTempCorr = get_interpolated_value_int16_t(TCU.OilTemp, TempGrid, SLTTempCorrGraph, ArraySize);
 	SLT = CONSTRAIN(SLT + OilTempCorr, 0, 255);
 
 	// Добавка давления SLT в режиме "R" и "1". +10%.
@@ -120,13 +123,18 @@ uint8_t get_slt_value() {
 }
 
 uint8_t get_sln_value() {
-	return 127;
+	return 120;
 }
 
 void slip_detect() {
-	if (TCU.GearChange) {
+	if (TCU.GearChange) {		// Не проверять при смене передачи.
 		TCU.SlipDetected = 0;
 		return;
+	}
+
+	if (TCU.InstTPS < 6) {		// Не проверять на малом газу.
+		TCU.SlipDetected = 0;
+		return;		
 	}
 
 	// Расчетная скорость входного вала.
@@ -134,23 +142,23 @@ void slip_detect() {
 
 	switch (TCU.Gear) {
 		case 1:
-			CalcDrumRPM = (uint32_t) (TCU.OutputRPM * GEAR_1_RATIO) >> 10;
+			CalcDrumRPM = ((uint32_t) (TCU.OutputRPM * GEAR_1_RATIO)) >> 10;
 			break;
 		case 2:
-			CalcDrumRPM = (uint32_t) (TCU.OutputRPM * GEAR_2_RATIO) >> 10;
+			CalcDrumRPM = ((uint32_t) (TCU.OutputRPM * GEAR_2_RATIO)) >> 10;
 			break;
 		case 3:
-			CalcDrumRPM = (uint32_t) (TCU.OutputRPM * GEAR_3_RATIO) >> 10;
+			CalcDrumRPM = ((uint32_t) (TCU.OutputRPM * GEAR_3_RATIO)) >> 10;
 			break;
 		case 4:
-			CalcDrumRPM = (uint32_t) (TCU.OutputRPM * GEAR_4_RATIO) >> 10;
+			CalcDrumRPM = ((uint32_t) (TCU.OutputRPM * GEAR_4_RATIO)) >> 10;
 			break;
 		default:
 			TCU.SlipDetected = 0;
 			return;
 	}
 
-	if (ABS(TCU.DrumRPM - CalcDrumRPM) > MAX_SLIP_RPM) {
+	if (TCU.DrumRPM > CalcDrumRPM && TCU.DrumRPM - CalcDrumRPM > MAX_SLIP_RPM) {
 		TCU.SlipDetected = 1;
 	}
 	else {

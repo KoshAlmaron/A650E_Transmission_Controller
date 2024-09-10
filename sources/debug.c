@@ -48,9 +48,9 @@ void debug_print_data() {
 	//|U 120| Gr  4 |R 1.00|
 	//|12345678901234567890|
 
-	char GearRatioChar[5] = {0};
+	char GearRatioChar[5] = {'-', '.', '-', '-', ' '};
 	if (TCU.OutputRPM > 10) {
-		snprintf(GearRatioChar, 5, "%1u.%2u", 
+		snprintf(GearRatioChar, 5, "%1u.%02u", 
 			MIN(9, TCU.DrumRPM / TCU.OutputRPM), MIN(99, ((TCU.DrumRPM % TCU.OutputRPM) * 100) / TCU.OutputRPM));
 	}
 
@@ -61,7 +61,7 @@ void debug_print_data() {
 	lcd_send_string(LCDArray, 20);
 
 	lcd_set_cursor(1, 0);
-	snprintf(LCDArray, 21, "T %3u| A%3u |O %4u", TCU.SLT, TCU.TPS, TCU.OutputRPM);
+	snprintf(LCDArray, 21, "T %3u| A %3u |O %4u", TCU.SLT, TCU.TPS, TCU.OutputRPM);
 	lcd_send_string(LCDArray, 20);
 
 	lcd_set_cursor(2, 0);
@@ -89,8 +89,14 @@ void solenoid_manual_control() {
 
 	// Считываем положение потенциометров.
 	TCU.SLT = get_adc_value(2) >> 2;
+	if (TCU.SLT <= 2) {TCU.SLT = 0;}
+	if (TCU.SLT >= 253) {TCU.SLT = 255;}
+
 	TCU.SLN = get_adc_value(3) >> 2;
-	TCU.SLU = get_adc_value(4) >> 2;
+	if (TCU.SLN <= 2) {TCU.SLN = 0;}
+	if (TCU.SLN >= 253) {TCU.SLN = 255;}
+
+	TCU.SLU = 50 + (get_adc_value(4) >> 4);
 
 	// Устанавливаем ШИМ на соленоидах.
 	OCR1A = TCU.SLT;
