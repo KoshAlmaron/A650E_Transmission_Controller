@@ -127,22 +127,20 @@ uint8_t get_sln_pressure() {
 
 // Давление включения и работы второй передачи SLU B3.
 uint8_t get_slu_pressure_gear2() {
-	//if (TCU.InstTPS < TPS_IDLE_LIMIT) {return SLU_B3_MIN_VALUE;}
 	uint8_t PressureGear2 = get_interpolated_value_uint16_t(TCU.InstTPS, TPSGrid, SLUGear2Graph, TPS_GRID_SIZE);
-
-	PressureGear2 += get_slu_gear2_temp_corr();
+	// Применяем коррекцию по температуре.
+	PressureGear2 = CONSTRAIN(PressureGear2 + get_slu_gear2_temp_corr(), 0, 255);
 	return PressureGear2;
 }
-
-// Коррекция по температуре второй передачи SLU B3.
+	
 int8_t get_slu_gear2_temp_corr() {
-	int8_t OilTempCorr = get_interpolated_value_int16_t(TCU.OilTemp, TempGrid, Gear2TempCorrGraph, TEMP_GRID_SIZE);
+	int8_t OilTempCorr = get_interpolated_value_int16_t(TCU.OilTemp, TempGrid, SLUGear2TempCorrGraph, TEMP_GRID_SIZE);
 	return OilTempCorr;
 }
 
-// Давление включения и работы второй передачи SLU B3.
-uint8_t get_slt_pressure_gear3() {
-	uint8_t PressureGear3 = get_interpolated_value_uint16_t(TCU.InstTPS, TPSGrid, SLTGear3Graph, TPS_GRID_SIZE);
+// Давление включения третьей передачи SLU B2.
+uint8_t get_slu_pressure_gear3() {
+	uint8_t PressureGear3 = get_interpolated_value_uint16_t(TCU.InstTPS, TPSGrid, SLUGear3Graph, TPS_GRID_SIZE);
 	return PressureGear3;
 }
 

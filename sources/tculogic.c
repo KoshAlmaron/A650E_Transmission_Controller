@@ -14,26 +14,14 @@ static void engine_brake_solenoid();
 // Управление линейным давлением SLT.
 void slt_control() {
 	TCU.SLT = get_slt_pressure();
-
-	// Давление для включения второй передачи.
-	if (TCU.Gear == 2 && TCU.InstTPS > TPS_IDLE_LIMIT) {
-		// Средняя точка между переключениями.
-		uint8_t GearLenCenter = get_gear_min_speed(2) + (get_gear_max_speed(2) - get_gear_min_speed(2)) / 2;
-		// Более ранее срабатывание при повышении нажатии газа.
-		GearLenCenter -= TCU.InstTPS / 10;
-		// Если скорость преавысила среднюю точку, повышаем давление перед переключением.
-		if (TCU.CarSpeed > GearLenCenter) {
-			TCU.SLT = get_slt_pressure_gear3();
-		}
-	}
 	OCR1A = TCU.SLT;	// SLT - выход A таймера 1.
 }
 
 // Управление давлением в гидроаккумуляторах SLN.
 void sln_control() {
-	// Данная функция плавно уменьшает давление после переключения передачи.
-	if (TCU.SLN > SLN_MIN_VALUE && TCU.Gear != 0) {
-		TCU.SLN -= 1;
+	// Данная функция уменьшает давление после переключения передачи.
+	if (TCU.SLN > SLN_MIN_VALUE && !TCU.GearChange) {
+		TCU.SLN = SLN_MIN_VALUE;
 		OCR1B = TCU.SLN;	// SLN - выход B таймера 1.	
 	}
 }
@@ -134,7 +122,8 @@ void glock_control(uint8_t Timer) {
 
 	// Условия для включения блокировки гидротрансформатора.
 	if (!TCU.Break 
-			&& TCU.Gear >= 4 
+			&& TCU.Gear >= 4
+			&& !TCU.GearChange
 			&& TCU.TPS >= TPS_IDLE_LIMIT 
 			&& TCU.TPS <= GLOCK_MAX_TPS 
 			&& TCU.OilTemp >= 50
@@ -143,10 +132,15 @@ void glock_control(uint8_t Timer) {
 	}
 	else {	// Отключение блокировки при нарушении условий.
 		if (TCU.Glock) {
-			GTimer = 0;
-			TCU.Glock = 0;
-			TCU.SLU = 0;
-			OCR1C = TCU.SLU;	// SLU - выход C таймера 1.
+			if (TCU.SLU > SLU_GLOCK_START_VALUE) { // Сначала снижаем давление.
+				TCU.SLU = SLU_GLOCK_START_VALUE;
+			}
+			else {	// Потом выключаем поностью.
+				GTimer = 0;
+				TCU.Glock = 0;
+				TCU.SLU = 0;
+				OCR1C = TCU.SLU;	// SLU - выход C таймера 1.
+			}
 		}
 		return;
 	}
@@ -155,7 +149,7 @@ void glock_control(uint8_t Timer) {
 	if (GTimer > 3000) {
 		if (!TCU.Glock) {
 			// Начальное значение схватывания + температурная коррекция от B3.
-			TCU.SLU = SLU_GLOCK_START_VALUE + get_slu_gear2_temp_corr();
+			TCU.SLU = SLU_GLOCK_START_VALUE;
 			TCU.Glock = 1;
 		}
 		else {

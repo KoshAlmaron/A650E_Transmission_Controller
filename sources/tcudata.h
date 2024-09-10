@@ -9,17 +9,14 @@
 
 	uint8_t get_slt_pressure();
 	int8_t get_slt_temp_corr();
-
 	uint8_t get_sln_pressure();
-
 	uint8_t get_slu_pressure_gear2();
 	int8_t get_slu_gear2_temp_corr();
-	uint8_t get_slt_pressure_gear3();
+	uint8_t get_slu_pressure_gear3();
 
 	void slip_detect();
 
 	extern struct TCU_t TCU; 		// Делаем структуру внешней.
-
 
 	// Размеры массивов.
 	#define TPS_GRID_SIZE 21 
@@ -29,10 +26,12 @@
 	extern int16_t TempGrid[];
 	extern int16_t TPSGrid[];
 
-	extern uint16_t SLUGear2Graph[];		// Давление для переключения 1>2.
-	extern int16_t Gear2TempCorrGraph[];	// Корекция давления в тормозе B3 от температуры.
-	extern uint16_t SLTGear3Graph[];	// Давление SLT включения третье передачи от ДПДЗ.
-
+	extern uint16_t SLTGraph[];
+	extern int16_t SLTTempCorrGraph[];
+	extern uint16_t SLNGraph[];
+	extern uint16_t SLUGear2Graph[];
+	extern int16_t SLUGear2TempCorrGraph[];
+	extern uint16_t SLUGear3Graph[];
 
 	// Структура для хранения переменных.
 	typedef struct TCU_t {
