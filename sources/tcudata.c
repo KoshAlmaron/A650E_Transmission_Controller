@@ -133,6 +133,8 @@ int8_t get_slu_gear2_temp_corr() {
 // Давление включения третьей передачи SLU B2.
 uint8_t get_slu_pressure_gear3() {
 	uint8_t PressureGear3 = get_interpolated_value_uint16_t(TCU.InstTPS, TPSGrid, SLUGear3Graph, TPS_GRID_SIZE);
+	// Применяем коррекцию по температуре.
+	PressureGear3 = CONSTRAIN(PressureGear3 + get_slu_gear2_temp_corr(), 0, 255);
 	return PressureGear3;
 }
 

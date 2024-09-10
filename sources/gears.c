@@ -52,7 +52,7 @@ static void loop_wait(int16_t Delay);
 
 static uint8_t rpm_after_ok(uint8_t Shift);
 
-static void set_slt(uint8_t Value);
+//static void set_slt(uint8_t Value);
 static void set_sln(uint8_t Value);
 static void set_slu(uint8_t Value);
 
@@ -140,13 +140,14 @@ static void gear_change_1_2() {
 	SET_PIN_LOW(SOLENOID_S4_PIN);
 	TCU.Gear = 2;
 
+    set_sln(SLN_1V_VALUE);
+
 	LastGear2ChangeTPS = TCU.InstTPS;
 	LastGear2ChangeSLU = TCU.SLU;
 
 	SET_PIN_HIGH(REQUEST_POWER_DOWN_PIN);	// Запрос снижения УОЗ.
 	loop_wait(GearChangeStep * 10);			// Ожидаем срабатывания фрикциона.
 	SET_PIN_LOW(REQUEST_POWER_DOWN_PIN);	// Возврат УОЗ.
-    set_sln(SLN_1V_VALUE);
 
  	TCU.GearChange = 0;
 }
@@ -154,31 +155,28 @@ static void gear_change_1_2() {
 static void gear_change_2_3() {
 	TCU.GearChange = 1;
 
-	//set_slt(get_slt_pressure_gear3());		// Давления SLT для включение третьей передачи.
-	LastGear3ChangeSLT = TCU.SLT;
-
+	set_slu(get_slu_pressure_gear3());
 	set_sln(SLN_6V_VALUE);
-	set_slu(get_slu_pressure_gear3());		// Давление включения и работы второй предачи.
 
 	loop_wait(GearChangeStep * 10);			// Ждем повышения давления.
 	set_sln(SLN_4V_VALUE);
+	set_slu(get_slu_pressure_gear2());
 
 	SET_PIN_LOW(SOLENOID_S1_PIN);
 	SET_PIN_HIGH(SOLENOID_S2_PIN);
 	SET_PIN_HIGH(SOLENOID_S3_PIN);		// Включаем систему "Clutch to Clutch".
 	SET_PIN_LOW(SOLENOID_S4_PIN);
-
 	TCU.Gear = 3;
 
 	LastGear3ChangeTPS = TCU.InstTPS;
 	LastGear3ChangeSLU = TCU.SLU;
 
 	SET_PIN_HIGH(REQUEST_POWER_DOWN_PIN);	// Запрос снижения УОЗ.
-	loop_wait(GearChangeStep * 8);			// Ожидаем срабатывания фрикциона.
+	loop_wait(GearChangeStep * 5);			// Ожидаем срабатывания фрикциона.
+	set_slu(SLU_MIN_VALUE);
+	loop_wait(GearChangeStep * 5);			// Ожидаем срабатывания фрикциона.
 	SET_PIN_LOW(REQUEST_POWER_DOWN_PIN);	// Возврат УОЗ.
 	
-	set_sln(SLN_1V_VALUE);
-
 	TCU.GearChange = 0;
 }
 
@@ -242,7 +240,7 @@ static void gear_change_5_4() {
 	SET_PIN_LOW(SOLENOID_S4_PIN);
 	TCU.Gear = 4;
 
-	loop_wait(GearChangeStep * 18);
+	loop_wait(GearChangeStep * 10);
 	set_sln(SLN_1V_VALUE);
 
 	TCU.GearChange = 0;		
@@ -263,7 +261,7 @@ static void gear_change_4_3() {
 	if (TCU.ATMode == 6) {SET_PIN_HIGH(SOLENOID_S3_PIN);}
 	TCU.Gear = 3;
 
-	loop_wait(GearChangeStep * 18);
+	loop_wait(GearChangeStep * 10);
 	set_sln(SLN_1V_VALUE);
 
 	TCU.GearChange = 0;	
@@ -301,7 +299,7 @@ static void gear_change_2_1() {
 	if (TCU.ATMode == 7) {SET_PIN_HIGH(SOLENOID_S3_PIN);}
 	TCU.Gear = 1;
 
-	loop_wait(GearChangeStep * 18);
+	loop_wait(GearChangeStep * 15);
 	set_slu(SLU_MIN_VALUE);
 	set_sln(SLN_1V_VALUE);
 
@@ -376,14 +374,14 @@ uint16_t gear_control() {
 
 // Управление давлением SLU B3 для работы второй передачи,
 // а также управление добавочным соленоидом S3
-void slu_gear2_control(uint8_t Time) {
+void slu_gear2_control(uint8_t Add) {
 	static int16_t Timer = 0;
 	if (TCU.Gear != 2) {	// Управление давлением SLU для второй передачи.
 		Timer = 0;
 		return;
 	}
 
-	set_slu(get_slu_pressure_gear2());
+	set_slu(get_slu_pressure_gear2());	// Регулировка давления SLU для второй передачи.
 
 	// Включаем систему "Clutch to Clutch" на ХХ, 
 	// чтобы при добавлении газа вторая передача плавно включилась.
@@ -393,35 +391,28 @@ void slu_gear2_control(uint8_t Time) {
 	}
 	
 	// Через двойное значение задержки отключаем систему "Clutch to Clutch".
-	if (Timer > AfterChangeDelay * 2) {SET_PIN_LOW(SOLENOID_S3_PIN);}
-	else {Timer += Time;}
+	if (Timer > AfterChangeDelay * 2) {
+		SET_PIN_LOW(SOLENOID_S3_PIN);
+		set_sln(SLN_1V_VALUE);
+	}
+	else {Timer += Add;}
 }
 
 // Управление давлением SLU B3 для включения третьей передачи,
 // а также управление добавочным соленоидом S3
-void slu_gear3_control(uint8_t Time) {
+void slu_gear3_control(uint8_t Add) {
 	static int16_t Timer = 0;
-
-	// Отличие для режима 3, здесь выключать S3 не надо. 
-	if (TCU.ATMode == 6) {return;}
-
-	if (TCU.Gear != 3) {	// Управление давлением SLU для второй передачи.
+	if (TCU.Gear != 3) {
 		Timer = 0;
 		return;
 	}
 
 	// Через значение задержки отключаем систему "Clutch to Clutch".
 	if (Timer > AfterChangeDelay) {
-		if (PIN_READ(SOLENOID_S3_PIN)) {
-			SET_PIN_LOW(SOLENOID_S3_PIN);
-			Timer = 0;
-			return;
-		}
-		set_slu(SLU_MIN_VALUE);
+		if (TCU.ATMode != 6) {SET_PIN_LOW(SOLENOID_S3_PIN);}
+		set_sln(SLN_1V_VALUE);
 	}
-	else {
-		Timer += Time;
-	}
+	else {Timer += Add;}
 }
 
 // Переключение вверх.
@@ -554,10 +545,10 @@ static uint8_t rpm_after_ok(uint8_t Shift) {
 	else {return 0;}
 }
 
-static void set_slt(uint8_t Value) {
-	TCU.SLT = Value;
-	OCR1A = TCU.SLT;	// SLN - выход A таймера 1.	
-}
+// static void set_slt(uint8_t Value) {
+// 	TCU.SLT = Value;
+// 	OCR1A = TCU.SLT;	// SLN - выход A таймера 1.	
+// }
 
 static void set_sln(uint8_t Value) {
 	TCU.SLN = Value;
