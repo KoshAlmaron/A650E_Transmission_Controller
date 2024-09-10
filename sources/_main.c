@@ -167,7 +167,7 @@ static void loop_add() {
 		PressureControlTimer = 0;
 		slt_control();			// Управление линейными давлением.
 		sln_control();
-		slu_b3_control(); 		// Управление давлением SLU для второй передачи.
+		slu_gear2_control(); 	// Управление давлением SLU для второй передачи.
 	}
 
 	if (GlockTimer >= 100) {

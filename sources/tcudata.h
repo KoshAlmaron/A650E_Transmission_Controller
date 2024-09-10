@@ -12,11 +12,27 @@
 
 	uint8_t get_sln_pressure();
 
-	uint8_t get_slu_pressure_b3();
-	uint8_t get_slu_pressure_b2();
-	int8_t get_slu_b3_temp_corr();
+	uint8_t get_slu_pressure_gear2();
+	int8_t get_slu_gear2_temp_corr();
+	uint8_t get_slt_pressure_gear3();
 
 	void slip_detect();
+
+	extern struct TCU_t TCU; 		// Делаем структуру внешней.
+
+
+	// Размеры массивов.
+	#define TPS_GRID_SIZE 21 
+	#define TEMP_GRID_SIZE 37
+
+	// Сетки стандартных осей.
+	extern int16_t TempGrid[];
+	extern int16_t TPSGrid[];
+
+	extern uint16_t SLUGear2Graph[];		// Давление для переключения 1>2.
+	extern int16_t Gear2TempCorrGraph[];	// Корекция давления в тормозе B3 от температуры.
+	extern uint16_t SLTGear3Graph[];	// Давление SLT включения третье передачи от ДПДЗ.
+
 
 	// Структура для хранения переменных.
 	typedef struct TCU_t {
@@ -45,17 +61,5 @@
 		uint8_t	GearUpSpeed;		// Скорость переключения вверх.
 		uint8_t	GearDownSpeed;		// Скорость переключения вниз.
 	} TCU_t;
-	
-	extern struct TCU_t TCU; 		// Делаем структуру внешней.
-
-	// Сетки стандартных осей.
-	extern int16_t TempGrid[];
-	extern int16_t TPSGrid[];
-
-
-	extern uint16_t SLUB3Graph[];	// Давление для переключения 1>2.
-	extern uint16_t SLUB2Graph[];	// Давление для переключения 2>3.
-
-	extern uint8_t SLTB2Add;	// Добавка в SLT для переключения 2>3.
 
 #endif

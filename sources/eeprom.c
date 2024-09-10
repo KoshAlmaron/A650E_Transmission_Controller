@@ -4,15 +4,23 @@
 
 // Чтение EEPROM
 void read_eeprom() {
-					 // Адрес массива	  адрес ячейки	   кол-во.	
-	eeprom_read_block((void*)&SLUB3Graph, (const void*) 0, 14);		// 0-13 - SLUB3Graph.
-	eeprom_read_block((void*)&SLUB2Graph, (const void*) 14, 14);	// 14-27 - SLUB2Graph.
-	SLTB2Add = eeprom_read_byte((uint8_t*) 28);						// 28 - SLTB2Add
+	//update_eeprom();
+
+	// Адрес массива, адрес ячейки, кол-во байт.
+	// 0-41 - SLUGear2Graph.
+	eeprom_read_block((void*)&SLUGear2Graph, (const void*) 0, TPS_GRID_SIZE * 2);
+	// 42-115 - Gear2TempCorrGraph.
+	eeprom_read_block((void*)&Gear2TempCorrGraph, (const void*) 42, TEMP_GRID_SIZE * 2);
+	// 116-157 - SLTGear3Graph.
+	eeprom_read_block((void*)&SLTGear3Graph, (const void*) 116, TPS_GRID_SIZE * 2);
 }
 
-// Запись EEPROM
+// Запись EEPROM.
 void update_eeprom() {
-	eeprom_update_block((void*)&SLUB3Graph, (void*) 0, 14);			// 0-13 - SLUB3Graph.
-	eeprom_update_block((void*)&SLUB2Graph, (void*) 14, 14);		// 14-27 - SLUB2Graph.
-	eeprom_write_byte((uint8_t*) 28, SLTB2Add);				// 28 - SLTB2Add
+	// 0-41 - SLUGear2Graph.
+	eeprom_update_block((void*)&SLUGear2Graph, (void*) 0, TPS_GRID_SIZE * 2);
+	// 42-115 - Gear2TempCorrGraph.
+	eeprom_update_block((void*)&Gear2TempCorrGraph, (void*) 42, TEMP_GRID_SIZE * 2);
+	// 116-157 - SLTGear3Graph.
+	eeprom_update_block((void*)&SLTGear3Graph, (void*) 116, TPS_GRID_SIZE * 2);
 }

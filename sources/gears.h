@@ -8,9 +8,12 @@
 	void set_gear_r();
 	void disable_gear_r();
 
+	uint8_t get_gear_min_speed(int8_t Gear);
+	uint8_t get_gear_max_speed(int8_t Gear);
+
 	void solenoid_init();
 	void update_gear_speed();
 	uint16_t gear_control();
-	void slu_b3_control();
+	void slu_gear2_control();
 
 #endif

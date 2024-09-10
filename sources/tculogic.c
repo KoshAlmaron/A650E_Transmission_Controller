@@ -14,6 +14,18 @@ static void engine_brake_solenoid();
 // Управление линейным давлением SLT.
 void slt_control() {
 	TCU.SLT = get_slt_pressure();
+
+	// Давление для включения второй передачи.
+	if (TCU.Gear == 2 && TCU.InstTPS > TPS_IDLE_LIMIT) {
+		// Средняя точка между переключениями.
+		uint8_t GearLenCenter = get_gear_min_speed(2) + (get_gear_max_speed(2) - get_gear_min_speed(2)) / 2;
+		// Более ранее срабатывание при повышении нажатии газа.
+		GearLenCenter -= TCU.InstTPS / 10;
+		// Если скорость преавысила среднюю точку, повышаем давление перед переключением.
+		if (TCU.CarSpeed > GearLenCenter) {
+			TCU.SLT = get_slt_pressure_gear3();
+		}
+	}
 	OCR1A = TCU.SLT;	// SLT - выход A таймера 1.
 }
 
@@ -142,13 +154,14 @@ void glock_control(uint8_t Timer) {
 	// Задержка включения блокировки.
 	if (GTimer > 3000) {
 		if (!TCU.Glock) {
-			TCU.SLU = SLU_GLOCK_START_VALUE;	// Начальное значение схватывания.
+			// Начальное значение схватывания + температурная коррекция от B3.
+			TCU.SLU = SLU_GLOCK_START_VALUE + get_slu_gear2_temp_corr();
 			TCU.Glock = 1;
 		}
 		else {
 			if (TCU.SLU >= SLU_GLOCK_MAX_VALUE) {return;}
 			uint8_t PressureAdd = 5;
-			if (TCU.SLU < 80) {PressureAdd = 2;}
+			if (TCU.SLU < 100) {PressureAdd = 1;}
 			TCU.SLU = MIN(SLU_GLOCK_MAX_VALUE, TCU.SLU + PressureAdd);
 			OCR1C = TCU.SLU;	// Применение значения.
 		}

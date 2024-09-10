@@ -15,10 +15,10 @@
 extern uint8_t DebugMode;	// Переменная из main.
 
 // Номер экрана для отображения:
-// 0 - основной,
-// 1 - настройка давления SLU переключени на вторую перередачу,
-// 2 - настройка давления SLU переключени на третью перередачу.
-// 3 - настройка добавочного давления SLT переключени на третью перередачу.
+// 0 - Основной,
+// 1 - Экран настройки давления в тормозе B3 для включения второй передачи,
+// 2 - Экран настройки температурной корекции давления в тормозе B3,
+// 3 - Экран настройки добавочного давления SLT для включения третьей передачи.
 uint8_t ScreenMode = 0;
 
 char LCDArray[21] = {0};	// Массив для отправки на дисплей.
@@ -37,23 +37,28 @@ int8_t ATModeChar[] = {'I', 'P', 'R', 'N', 'D', '4', '3', '2', 'L', 'E', 'M'};
 */
 uint8_t ButtonState[5] = {0};	// Ввер/внизх, вправо/влево, смена экрана.
 uint8_t CursorPos = 0;			// Позици курсора на экране.
+uint8_t StartCol = 0;			// Начальная позиция данных
 int8_t ValueDelta = 0;			// Флаг изменения значения.
 
-extern uint8_t LastGearChangeTPS;	// Значение ДПДЗ при последнем переключении 1>2 или 2>3.
-extern uint8_t LastGearChangeSLU;	// Значение SLU при последнем переключении 1>2 или 2>3.
+extern uint8_t LastGear2ChangeTPS;	// Значение ДПДЗ при последнем переключении 1>2.
+extern uint8_t LastGear2ChangeSLU;	// Значение SLU при последнем переключении 1>2.
+extern uint8_t LastGear3ChangeSLT; // Значение SLT при последнем переключении 2>3.
+
 // Локальные значения для хранения, так как переменные из gears.c будут обнуляться 
 // после считывания значений.
-uint8_t GearChangeTPS;	
-uint8_t GearChangeSLU;
+uint8_t Gear2ChangeTPS;	
+uint8_t Gear2ChangeSLU;
+uint8_t Gear3ChangeSLT;
 
 // Прототипы функций.
 static void lcd_start();
 static void print_data();
 static void print_dispay_main();
 static void print_config_gear2_slu_pressure();
-static void print_config_gear3_slu_pressure();
-static void print_config_gear3_slt_add();
+static void print_config_gear2_slu_temp_corr();
+static void print_config_gear3_slt_pressure();
 static uint8_t get_tps_index(uint8_t TPS);
+static uint8_t get_temp_index(int16_t Temp);
 
 static void solenoid_manual_control();
 
@@ -144,13 +149,12 @@ static void print_data() {
 			print_config_gear2_slu_pressure();
 			break;
 		case 2:
-			print_config_gear3_slu_pressure();
-			break;
+			print_config_gear2_slu_temp_corr();
+			break;	
 		case 3:
-			print_config_gear3_slt_add();
-			break;			
+			print_config_gear3_slt_pressure();
+			break;	
 	}
-
 	ValueDelta = 0;
 }
 
@@ -190,24 +194,31 @@ static void print_dispay_main() {
 
 // Экран настройки давления в тормозе B3 для включения второй передачи.
 static void print_config_gear2_slu_pressure() {
-	//|12345678901234567890|
+	//|01234567890123456789|
 	//|Gear 2 SLU |100|1.00|
-	//|O 99|A 99|U 101|C -3|
-	//|60 60 60 60 60 60 60|
-	//|60 60 60 60 60 60 60|
-	//|12345678901234567890|
+	//|O 99 A 99 U101 C  -3|
+	//|  0|  5| 10| 15| 20||
+	//| 67| 72| 74| 77| 81||
+	//|01234567890123456789|
+
+	#define COLUMN_COUNT 5
 
 	// После переключения передачи считываем параметры и обнуляем.
 	// Находим по ДПДЗ позицию в массиве.
-	if (LastGearChangeTPS) {
-		GearChangeTPS = LastGearChangeTPS;
-		LastGearChangeTPS = 0;
-		CursorPos = get_tps_index(GearChangeTPS);
+	if (LastGear2ChangeTPS) {
+		Gear2ChangeTPS = LastGear2ChangeTPS;
+		LastGear2ChangeTPS = 0;
+		CursorPos = get_tps_index(Gear2ChangeTPS);
 	}
-	if (LastGearChangeSLU) {
-		GearChangeSLU = LastGearChangeSLU;
-		LastGearChangeSLU = 0;
+	if (LastGear2ChangeSLU) {
+		Gear2ChangeSLU = LastGear2ChangeSLU;
+		LastGear2ChangeSLU = 0;
 	}
+
+	if (CursorPos >= TPS_GRID_SIZE) {CursorPos = 0;} // Ограничение по длине массива.
+
+	if (CursorPos < StartCol) {StartCol = CursorPos;}
+	if (CursorPos > StartCol + COLUMN_COUNT - 1) {StartCol = CursorPos + 1 - COLUMN_COUNT;}
 
 	char GearRatioChar[5] = {'-', '.', '-', '-', ' '};
 	if (TCU.OutputRPM > 100) {
@@ -221,63 +232,68 @@ static void print_config_gear2_slu_pressure() {
 	lcd_send_string(LCDArray, 20);
 
 	// Строка с необходимыми значениями.
-	int8_t OilTempCorr = get_slu_b3_temp_corr();
+	int8_t OilTempCorr = get_slu_gear2_temp_corr();
 	lcd_set_cursor(1, 0);
-	snprintf(LCDArray, 21, "O %3i|A %2u|U%3u|C %2i", 
-		CONSTRAIN(TCU.OilTemp, -30, 150), MIN(99, GearChangeTPS), GearChangeSLU, CONSTRAIN(OilTempCorr, -9, 9));
+	snprintf(LCDArray, 21, "O%3i A %2u U%3u C %3i", 
+		CONSTRAIN(TCU.OilTemp, -30, 150), MIN(99, Gear2ChangeTPS), Gear2ChangeSLU, CONSTRAIN(OilTempCorr, -99, 99));
 	lcd_send_string(LCDArray, 20);
 
 	// Изменяемые значения.
-	uint8_t Row = 2;
-	uint8_t Half = 0;
-	for (uint8_t i = 0; i < 14; i++) {
-		if (i == 7) {
-			Row = 3;
-			Half = 7;
-		}
+	for (uint8_t i = 0; i < COLUMN_COUNT; i++) {
 
-		lcd_set_cursor(Row, (i - Half) * 3);
-		snprintf(LCDArray, 4, "%2u ", MIN(99, SLUB3Graph[i]));
-		if (i - Half == 6) {lcd_send_string(LCDArray, 2);}
-		else {lcd_send_string(LCDArray, 3);}
+		lcd_set_cursor(2, i * 4);
+		snprintf(LCDArray, 4, "%3u", TPSGrid[StartCol + i]);
+		lcd_send_string(LCDArray, 3);
 
-		if (CursorPos == i) {
+		lcd_set_cursor(3, i * 4);
+		snprintf(LCDArray, 4, "%3u", SLUGear2Graph[StartCol + i]);
+		lcd_send_string(LCDArray, 3);
+
+		if (CursorPos == StartCol + i) {
 			if (ValueDelta) {
-				SLUB3Graph[i] = CONSTRAIN(SLUB3Graph[i] + ValueDelta, 40, 99);
+				SLUGear2Graph[CursorPos] = CONSTRAIN(SLUGear2Graph[CursorPos] + ValueDelta, 0, 255);
 				ValueDelta = 0;
 			}
-
-			if (i - Half == 0) {
-				lcd_set_cursor(Row, 2);
-				lcd_send_char('<');
-			}
-			else {
-				lcd_set_cursor(Row, (i - Half) * 3 - 1);
-				lcd_send_char('>');
-			}
+			lcd_set_cursor(2, i * 4 + 3);
+			lcd_send_char('|');
+			lcd_set_cursor(3, i * 4 + 3);
+			lcd_send_char('<');
 		}
-	} 
+		else {
+			lcd_set_cursor(2, i * 4 + 3);
+			lcd_send_char('|');
+			lcd_set_cursor(3, i * 4 + 3);
+			lcd_send_char('|');	
+		}
+	}
 }
 
-// Экран настройки давления в тормозе B3 для включения третьей передачи.
-static void print_config_gear3_slu_pressure() {
+// Экран настройки температурной корекции давления в тормозе B3.
+static void print_config_gear2_slu_temp_corr() {
 	//|12345678901234567890|
-	//|Gear 3 SLU |100|1.00|
-	//|O 99 A 99 U 101 C -3|
-	//|60 60 60 60 60 60 60|
-	//|60 60 60 60 60 60 60|
-	//|12345678901234567890|
+	//|SLU Tmp Cor|100|1.00|
+	//|O 99 A 99 U101 C  -3|
+	//|  0|  5| 10| 15| 20||
+	//| 67| 72| 74| 77| 81||
+	//|01234567890123456789|
 
-		// После переключения передачи считываем параметры и обнуляем.
+	#define COLUMN_COUNT 5
+
+	if (CursorPos >= TEMP_GRID_SIZE) {CursorPos = 0;} // Ограничение по длине массива.
+
+	if (CursorPos < StartCol) {StartCol = CursorPos;}
+	if (CursorPos > StartCol + COLUMN_COUNT - 1) {StartCol = CursorPos + 1 - COLUMN_COUNT;}
+
+	// После переключения передачи считываем параметры и обнуляем.
 	// Находим по ДПДЗ позицию в массиве.
-	if (LastGearChangeTPS) {
-		GearChangeTPS = LastGearChangeTPS;
-		LastGearChangeTPS = 0;
-		CursorPos = get_tps_index(GearChangeTPS);
+	if (LastGear2ChangeTPS) {
+		Gear2ChangeTPS = LastGear2ChangeTPS;
+		LastGear2ChangeTPS = 0;
+		CursorPos = get_temp_index(TCU.OilTemp);
 	}
-	if (LastGearChangeSLU) {
-		GearChangeSLU = LastGearChangeSLU;
-		LastGearChangeSLU = 0;
+	if (LastGear2ChangeSLU) {
+		Gear2ChangeSLU = LastGear2ChangeSLU;
+		LastGear2ChangeSLU = 0;
 	}
 
 	char GearRatioChar[5] = {'-', '.', '-', '-', ' '};
@@ -288,79 +304,119 @@ static void print_config_gear3_slu_pressure() {
 
 	// row,  col
 	lcd_set_cursor(0, 0);
-	snprintf(LCDArray, 21, "Gear 3 SLU |%3u|%s", TCU.InstTPS, GearRatioChar);
+	snprintf(LCDArray, 21, "SLU Tmp Cor|%3u|%s", TCU.InstTPS, GearRatioChar);
 	lcd_send_string(LCDArray, 20);
 
-
 	// Строка с необходимыми значениями.
-	int8_t OilTempCorr = get_slu_b3_temp_corr();
+	int8_t OilTempCorr = get_slu_gear2_temp_corr();
 	lcd_set_cursor(1, 0);
-	snprintf(LCDArray, 21, " O %2i|A %2u|U%3u|C %2i", 
-		CONSTRAIN(TCU.OilTemp, -9, 99), MIN(99, GearChangeTPS), GearChangeSLU, CONSTRAIN(OilTempCorr, -9, 9));
+	snprintf(LCDArray, 21, "O%3i A %2u U%3u C %3i", 
+		CONSTRAIN(TCU.OilTemp, -30, 150), MIN(99, Gear2ChangeTPS), Gear2ChangeSLU, CONSTRAIN(OilTempCorr, -99, 99));
 	lcd_send_string(LCDArray, 20);
 
 	// Изменяемые значения.
-	uint8_t Row = 2;
-	uint8_t Half = 0;
-	for (uint8_t i = 0; i < 14; i++) {
-		if (i == 7) {
-			Row = 3;
-			Half = 7;
-		}
+	for (uint8_t i = 0; i < COLUMN_COUNT; i++) {
 
-		lcd_set_cursor(Row, (i - Half) * 3);
-		snprintf(LCDArray, 4, "%2u ", MIN(99, SLUB2Graph[i]));
-		if (i - Half == 6) {lcd_send_string(LCDArray, 2);}
-		else {lcd_send_string(LCDArray, 3);}
+		lcd_set_cursor(2, i * 4);
+		snprintf(LCDArray, 4, "%3i", TempGrid[StartCol + i]);
+		lcd_send_string(LCDArray, 3);
 
-		if (CursorPos == i) {
+		lcd_set_cursor(3, i * 4);
+		snprintf(LCDArray, 4, "%3i", Gear2TempCorrGraph[StartCol + i]);
+		lcd_send_string(LCDArray, 3);
+
+		if (CursorPos == StartCol + i) {
 			if (ValueDelta) {
-				SLUB2Graph[i] = CONSTRAIN(SLUB2Graph[i] + ValueDelta, 40, 99);
+				Gear2TempCorrGraph[CursorPos] = CONSTRAIN(Gear2TempCorrGraph[CursorPos] + ValueDelta, -99, 255);
 				ValueDelta = 0;
 			}
-
-			if (i - Half == 0) {
-				lcd_set_cursor(Row, 2);
-				lcd_send_char('<');
-			}
-			else {
-				lcd_set_cursor(Row, (i - Half) * 3 - 1);
-				lcd_send_char('>');
-			}
+			lcd_set_cursor(2, i * 4 + 3);
+			lcd_send_char('|');
+			lcd_set_cursor(3, i * 4 + 3);
+			lcd_send_char('<');
 		}
-	} 
+		else {
+			lcd_set_cursor(2, i * 4 + 3);
+			lcd_send_char('|');
+			lcd_set_cursor(3, i * 4 + 3);
+			lcd_send_char('|');	
+		}
+	}
 }
 
-// Экран настройки давления в тормозе B3 для включения третьей передачи.
-static void print_config_gear3_slt_add() {
+// Экран настройки добавочного давления SLT для включения третьей передачи.
+static void print_config_gear3_slt_pressure() {
 	//|12345678901234567890|
-	//| Gear 3 Set SLT Add |
-	//|O 99 A 99 U 101 C -3|
-	//|                    |
-	//|                    |
+	//|Gear 3 SLT |100|1.00|
+	//|O 99 A 99 U101 C  -3|
+	//|SLT Last 111        |
+	//|SLT Add  111        |
 	//|12345678901234567890|
+
+	#define COLUMN_COUNT 5
+
+	// После переключения передачи считываем параметры и обнуляем.
+	// Находим по ДПДЗ позицию в массиве.
+	if (LastGear2ChangeTPS) {
+		Gear2ChangeTPS = LastGear2ChangeTPS;
+		LastGear2ChangeTPS = 0;
+		CursorPos = get_tps_index(Gear2ChangeTPS);
+	}
+	if (LastGear3ChangeSLT) {
+		Gear3ChangeSLT = LastGear3ChangeSLT;
+		LastGear3ChangeSLT = 0;
+	}
+
+	if (CursorPos >= TPS_GRID_SIZE) {CursorPos = 0;} // Ограничение по длине массива.
+
+	if (CursorPos < StartCol) {StartCol = CursorPos;}
+	if (CursorPos > StartCol + COLUMN_COUNT - 1) {StartCol = CursorPos + 1 - COLUMN_COUNT;}
+
+	char GearRatioChar[5] = {'-', '.', '-', '-', ' '};
+	if (TCU.OutputRPM > 100) {
+		snprintf(GearRatioChar, 5, "%1u.%02u", 
+			MIN(9, TCU.DrumRPM / TCU.OutputRPM), MIN(99, ((TCU.DrumRPM % TCU.OutputRPM) * 100) / TCU.OutputRPM));
+	}
 
 	// row,  col
 	lcd_set_cursor(0, 0);
-	lcd_send_string(" Gear 3 Set SLT Add ", 20);	// Заголовок.
+	snprintf(LCDArray, 21, "Gear 3 SLT |%3u|%s", TCU.InstTPS, GearRatioChar);
+	lcd_send_string(LCDArray, 20);
 
 	// Строка с необходимыми значениями.
 	int8_t OilTempCorr = get_slt_temp_corr();
 	lcd_set_cursor(1, 0);
-	snprintf(LCDArray, 21, " O %2i|A %2u|T%3u|C %2i", 
-		CONSTRAIN(TCU.OilTemp, -9, 99), MIN(99, TCU.TPS), TCU.SLT, CONSTRAIN(OilTempCorr, -9, 9));
+	snprintf(LCDArray, 21, "O%3i A %2u T%3u C %3i", 
+		CONSTRAIN(TCU.OilTemp, -30, 150), MIN(99, Gear2ChangeTPS), Gear3ChangeSLT, CONSTRAIN(OilTempCorr, -99, 99));
 	lcd_send_string(LCDArray, 20);
 
-	lcd_set_cursor(2, 0);
-	snprintf(LCDArray, 21, "SLT Add %3u         ", SLTB2Add);
-	lcd_send_string(LCDArray, 20);
+	// Изменяемые значения.
+	for (uint8_t i = 0; i < COLUMN_COUNT; i++) {
 
-	lcd_set_cursor(3, 0);
-	lcd_send_string("                    ", 20);
+		lcd_set_cursor(2, i * 4);
+		snprintf(LCDArray, 4, "%3u", TPSGrid[StartCol + i]);
+		lcd_send_string(LCDArray, 3);
 
-	if (ValueDelta) {
-		SLTB2Add = CONSTRAIN(SLTB2Add + ValueDelta, 0, 255);
-		ValueDelta = 0;
+		lcd_set_cursor(3, i * 4);
+		snprintf(LCDArray, 4, "%3u", SLTGear3Graph[StartCol + i]);
+		lcd_send_string(LCDArray, 3);
+
+		if (CursorPos == StartCol + i) {
+			if (ValueDelta) {
+				SLTGear3Graph[CursorPos] = CONSTRAIN(SLTGear3Graph[CursorPos] + ValueDelta, 0, 255);
+				ValueDelta = 0;
+			}
+			lcd_set_cursor(2, i * 4 + 3);
+			lcd_send_char('|');
+			lcd_set_cursor(3, i * 4 + 3);
+			lcd_send_char('<');
+		}
+		else {
+			lcd_set_cursor(2, i * 4 + 3);
+			lcd_send_char('|');
+			lcd_set_cursor(3, i * 4 + 3);
+			lcd_send_char('|');	
+		}
 	}
 }
 
@@ -368,10 +424,25 @@ static uint8_t get_tps_index(uint8_t TPS) {
 	if (TPS < 3) {return 0;}
 
 	uint8_t Delta = 255;
-	for (uint8_t i = 1; i < 14; i++) {
+	for (uint8_t i = 1; i < TPS_GRID_SIZE; i++) {
 		uint8_t Diff = 0;
 		if (TPS > TPSGrid[i]) {Diff = TPS - TPSGrid[i];}
 		else {Diff = TPSGrid[i] - TPS;}
+
+		if (Diff < Delta) {Delta = Diff;}
+		else {return i - 1;}
+	}
+	return 0;
+}
+
+static uint8_t get_temp_index(int16_t Temp) {
+	if (Temp < -27) {return 0;}
+
+	uint8_t Delta = 255;
+	for (uint8_t i = 1; i < TEMP_GRID_SIZE; i++) {
+		uint8_t Diff = 0;
+		if (Temp > TempGrid[i]) {Diff = Temp - TempGrid[i];}
+		else {Diff = TempGrid[i] - Temp;}
 
 		if (Diff < Delta) {Delta = Diff;}
 		else {return i - 1;}
@@ -411,19 +482,31 @@ static void solenoid_manual_control() {
 }
 
 static void button_action() {
-	if (ButtonState[0] == 201) {ValueDelta = 1;}	// S1 Значение +.
-	if (ButtonState[1] == 201) {ValueDelta = -1;}	// S2 Значение -.
+	if (ButtonState[0] == 201) {ValueDelta = 1;}	// Короткое S1 Значение +.
+	if (ButtonState[0] == 202) {ValueDelta = 1;}	// Длинное S1 Значение ++.
+
+	if (ButtonState[1] == 201) {ValueDelta = -1;}	// Короткое S2 Значение -.
+	if (ButtonState[1] == 202) {ValueDelta = -1;}	// Длинное S2 Значение --.
 
 	if (ButtonState[2] == 201) {	// S3 Перемещение курсора -.
 		if (CursorPos) {CursorPos -= 1;}
 	}
+	if (ButtonState[2] == 202) {	// S3 Перемещение курсора --.
+		if (CursorPos) {CursorPos -= 1;}
+	}
+
 	if (ButtonState[3] == 201) {	// S4 Перемещение курсора +.
 		CursorPos += 1;
-		if (CursorPos > 13	) {CursorPos = 0;}
+		if (CursorPos == 255) {CursorPos = 0;}
+	}
+	if (ButtonState[3] == 202) {	// S4 Перемещение курсора ++.
+		CursorPos += 1;
+		if (CursorPos == 255) {CursorPos = 0;}
 	}
 
 	if (ButtonState[4] == 201) {	// SLN Смена экрана.
 		CursorPos = 0;
+		StartCol = 0;
 		ScreenMode += 1;
 		if (ScreenMode > 3) {
 			ScreenMode = 0;		// Сброс экрана.
@@ -441,7 +524,7 @@ static void buttons_clear() {
 	if (PIN_READ(DEBUG_SCREEN_BUTTON_PIN) && ButtonState[4] > 200) {ButtonState[4] = 100;}
 }
 
-// Вызов каждые 100 мс.
+// Вызов каждые 50 мс.
 static void buttons_update() {
 	button_read(0, PIN_READ(DEBUG_S1_PIN));
 	button_read(1, PIN_READ(DEBUG_S2_PIN));
@@ -455,7 +538,7 @@ static void button_read(uint8_t N, uint8_t State) {
 	if (ButtonState[N] < 100) {
 		if (!State) {
 			ButtonState[N]++;
-			if (ButtonState[N] >= 60) {ButtonState[N] = 202;}	// Длиное нажатие.
+			if (ButtonState[N] >= 10) {ButtonState[N] = 202;}	// Длиное нажатие.
 		}
 		else {
 			if (ButtonState[N] >= 2) {ButtonState[N] = 201;}	// Короткое нажатие.
@@ -465,7 +548,7 @@ static void button_read(uint8_t N, uint8_t State) {
 
 	if (ButtonState[N] < 150 && State) {
 		ButtonState[N]++;
-		if (ButtonState[N] >= 108) {
+		if (ButtonState[N] >= 104) {
 			ButtonState[N] = 0;		// Сброс состояния кнопки.
 		}
 		return;		
