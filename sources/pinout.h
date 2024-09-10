@@ -18,6 +18,8 @@
 	#define DEBUG_S3_PIN A, 4
 	#define DEBUG_S4_PIN A, 5
 
+	#define DEBUG_SCREEN_BUTTON_PIN K, 4
+
 	#define ENGINE_WORK_PIN J, 0
 	#define REQUEST_POWER_DOWN_PIN J, 1
 	
@@ -94,7 +96,7 @@
 	A9 PK1	(ADC9)			|	
 	A10 PK2	(ADC10)			|	
 	A11 PK3	(ADC11)			|+	Ручное управление SLT
-	A12 PK4	(ADC12)			|+	Ручное управление SLN	
+	A12 PK4	(ADC12)			|+	Ручное управление SLN / Кнопка смены экрана отладки
 	A13 PK5	(ADC13)			|+	Ручное управление SLU	
 	A14 PK6	(ADC14)			|	
 	A15 PK7	(ADC15)			|	

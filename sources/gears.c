@@ -142,9 +142,11 @@ static void gear_change_1_2() {
 static void gear_change_2_3() {
 	TCU.GearChange = 1;
 
-	set_slt(MIN(200, TCU.SLT + 40));	// Добавка давления SLT.
-	set_sln(get_sln_pressure()); 		// Соленоид SLN.
-	loop_wait(GearChangeStep * 6);		// Ждем повышения давления в гидроаккумуляторе.
+	set_slt(MIN(255, TCU.SLT + SLTB2Add));	// Добавка давления SLT.
+	set_sln(get_sln_pressure()); 			// Соленоид SLN.
+	set_slu(get_slu_pressure_b2());			// Давление включения предачи.
+
+	loop_wait(GearChangeStep * 10);			// Ждем повышения давления в гидроаккумуляторе.
 
 	SET_PIN_LOW(SOLENOID_S1_PIN);
 	SET_PIN_HIGH(SOLENOID_S2_PIN);
@@ -153,12 +155,10 @@ static void gear_change_2_3() {
 
 	SET_PIN_HIGH(REQUEST_POWER_DOWN_PIN);	// Запрос снижения мощности.
 
-	set_slu(get_slu_pressure_b2());			// Давление включения предачи.
-
 	LastGearChangeTPS = TCU.InstTPS;
 	LastGearChangeSLU = TCU.SLU;
 
-	loop_wait(GearChangeStep * 15);			// Ожидаем срабатывания фрикциона.
+	loop_wait(GearChangeStep * 12);			// Ожидаем срабатывания фрикциона.
 
 	// Отличие для режима 3. 
 	if (TCU.ATMode != 6) {SET_PIN_LOW(SOLENOID_S3_PIN);}

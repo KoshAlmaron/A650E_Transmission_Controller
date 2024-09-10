@@ -135,7 +135,7 @@ uint8_t get_sln_pressure() {
 
 // Давление включения и работы второй передачи SLU B3.
 uint8_t get_slu_pressure_b3() {
-	if (TCU.InstTPS < TPS_IDLE_LIMIT) {return SLU_B3_MIN_VALUE;}
+	//if (TCU.InstTPS < TPS_IDLE_LIMIT) {return SLU_B3_MIN_VALUE;}
 
 	uint8_t ArraySize = sizeof(SLUB3Graph) / sizeof(SLUB3Graph[0]);
 	uint8_t PressureB3 = get_interpolated_value_uint16_t(TCU.InstTPS, TPSGrid, SLUB3Graph, ArraySize);

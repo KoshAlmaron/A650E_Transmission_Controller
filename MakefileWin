@@ -7,7 +7,7 @@ PROJECT = A650E_Transmission_Controller
 DEVICE = atmega2560
 F_CPU = 16000000
 BAUD = 115200
-PORT = COM6
+PORT = COM8
 
 # Комманды и опции компиляции
 BIN = C:/avr-gcc/bin/

@@ -123,8 +123,9 @@ void glock_control(uint8_t Timer) {
 	// Условия для включения блокировки гидротрансформатора.
 	if (!TCU.Break 
 			&& TCU.Gear >= 4 
-			&& TCU.TPS >= 4 
+			&& TCU.TPS >= TPS_IDLE_LIMIT 
 			&& TCU.TPS <= GLOCK_MAX_TPS 
+			&& TCU.OilTemp >= 50
 			&& TCU.CarSpeed >= 40) {
 		if (!TCU.Glock) {GTimer += Timer;}
 	}
