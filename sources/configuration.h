@@ -3,8 +3,6 @@
 #ifndef _CONFIGURATION_H_
 	#define _CONFIGURATION_H_
 
-
-
 	// Добавка давления SLT в режиме "R" и "1". +10% 255 * 0.1 = 26.
 	#define SLT_ADD_R1 22
 
@@ -15,14 +13,18 @@
 	#define TPS_IDLE_LIMIT 3			// Порог значения ДПДЗ для ХХ.
 	#define MAX_SLIP_RPM 100			// Разница в оборотах валов для обнаружения проскальзывания.
 
-	#define SLN_1V_VALUE 34				// Постоянное минимальное давление в гидроаккумуляторах.
-	#define SLN_4V_VALUE 88
-	#define SLN_6V_VALUE 123
+	#define SOLENOID_BOOST_VALUE 220	// Значение буста при включении соленоида.
+	#define SOLENOID_BOOST_TIME 100		// Время буста в мс.
 
-	#define SLU_GLOCK_START_VALUE 76	// Давление схватвания блокировки гидротрансформатора.
-	#define SLU_GLOCK_MAX_VALUE 180		// Максимальное давление блокировки гидротрансформатора.
+
+	#define SLN_1V_VALUE 35				// Постоянное минимальное давление в гидроаккумуляторах.
+	#define SLN_4V_VALUE 90
+	#define SLN_6V_VALUE 130
 
 	#define SLU_MIN_VALUE 34			// Постоянное минимальное давление SLU.
+	#define SLU_GLOCK_START_VALUE 76	// Давление схватвания блокировки гидротрансформатора.
+	#define SLU_GLOCK_MAX_VALUE 150		// Максимальное давление блокировки гидротрансформатора.
+
 	#define GLOCK_MAX_TPS 23			// Максимальное положение дросселя для блокировки гидротрансформатора.
 
 //=============================================================================

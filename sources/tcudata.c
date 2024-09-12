@@ -103,30 +103,31 @@ uint8_t get_slt_pressure() {
 
 	// Вычисляем значение в зависимости от ДПДЗ.
 	uint8_t SLT = get_interpolated_value_uint16_t(TCU.InstTPS, TPSGrid, SLTGraph, TPS_GRID_SIZE);
-
 	// Применяем коррекцию по температуре.
-	int8_t AddHalf = 0;
-	int16_t TempCorr = get_slt_temp_corr();		// В процентах.
-	// Добавка давления SLT в режиме "R" и "1". +10%.
-	if (TCU.Gear == -1 || TCU.Gear == 1) {TempCorr += 10;}
-	TempCorr *= SLT;
-
-	if (ABS(TempCorr) % 100 >= 50) {		// Добавка 1, если дробная часть >= 0.5.
-		if (TempCorr > 0) {AddHalf = 1;}
-		else if (TempCorr < 0) {AddHalf = -1;}
-	}
-
-	TempCorr = (int16_t) TempCorr / 100 + AddHalf;    // Коррекция в значениях ШИМ.
-
-	// Применяем коррекцию по температуре.
-	SLT = CONSTRAIN(SLT + TempCorr, 0, 255);
+	SLT = CONSTRAIN(SLT + get_slt_temp_corr(SLT), 25, 230);
 	return SLT;
 }
 
-// Возращает коррекуцию в процентах.
-int8_t get_slt_temp_corr() {
-	int8_t OilTempCorr = get_interpolated_value_int16_t(TCU.OilTemp, TempGrid, SLTTempCorrGraph, TEMP_GRID_SIZE);
-	return OilTempCorr;
+// Возращает коррекцию в процентах или сразу рассчитанную добавку,
+// если передать функции базовое значение.
+int8_t get_slt_temp_corr(uint8_t Value) {
+	int16_t OilTempCorr = get_interpolated_value_int16_t(TCU.OilTemp, TempGrid, SLTTempCorrGraph, TEMP_GRID_SIZE);
+	
+	if (!Value) {return OilTempCorr;}	// Возвращаем коррекцию в %.
+	else {	// Возвращаем скорректированное значение.
+		if (!OilTempCorr) {return 0;}	// При коррекции 0 добавка также 0.
+
+		int8_t AddHalf = 0;
+		OilTempCorr *= Value;
+
+		if (ABS(OilTempCorr) % 100 >= 50) {		// Добавка 1, если дробная часть >= 0.5.
+			if (OilTempCorr > 0) {AddHalf = 1;}
+			else if (OilTempCorr < 0) {AddHalf = -1;}
+		}
+
+		OilTempCorr = (int16_t) OilTempCorr / 100 + AddHalf;    // Коррекция в значениях ШИМ.
+		return OilTempCorr;
+	}
 }
 
 // Давление включения и работы второй передачи SLU B3.
@@ -134,52 +135,68 @@ uint8_t get_slu_pressure_gear2() {
 	uint8_t PressureGear2 = get_interpolated_value_uint16_t(TCU.InstTPS, TPSGrid, SLUGear2Graph, TPS_GRID_SIZE);
 	
 	// Применяем коррекцию по температуре.
-	int8_t AddHalf = 0;
-	int16_t TempCorr = get_slu_gear2_temp_corr();
-	TempCorr *= PressureGear2;
-
-	if (ABS(TempCorr) % 100 >= 50) {		// Добавка 1, если дробная часть >= 0.5.
-		if (TempCorr > 0) {AddHalf = 1;}
-		else if (TempCorr < 0) {AddHalf = -1;}
-	}
-
-	TempCorr = (int16_t) TempCorr / 100 + AddHalf;    // Коррекция в значениях ШИМ.
-
-	PressureGear2 = CONSTRAIN(PressureGear2 + TempCorr, 0, 255);
+	PressureGear2 = CONSTRAIN(PressureGear2 + get_slu_gear2_temp_corr(PressureGear2), 25, 230);
 	return PressureGear2;
 }
 
-// Возращает коррекуцию в процентах.
-int8_t get_slu_gear2_temp_corr() {
-	int8_t OilTempCorr = get_interpolated_value_int16_t(TCU.OilTemp, TempGrid, SLUGear2TempCorrGraph, TEMP_GRID_SIZE);
-	return OilTempCorr;
+// Возращает коррекцию в процентах или сразу рассчитанную добавку,
+// если передать функции базовое значение.
+int8_t get_slu_gear2_temp_corr(uint8_t Value) {
+	int16_t OilTempCorr = get_interpolated_value_int16_t(TCU.OilTemp, TempGrid, SLUGear2TempCorrGraph, TEMP_GRID_SIZE);
+	if (!Value) {return OilTempCorr;}	// Возвращаем коррекцию в %.
+	else {	// Возвращаем скорректированное значение.
+		if (!OilTempCorr) {return 0;}	// При коррекции 0 добавка также 0.
+		int8_t AddHalf = 0;
+		OilTempCorr *= Value;
+
+		if (ABS(OilTempCorr) % 100 >= 50) {		// Добавка 1, если дробная часть >= 0.5.
+			if (OilTempCorr > 0) {AddHalf = 1;}
+			else if (OilTempCorr < 0) {AddHalf = -1;}
+		}
+
+		OilTempCorr = (int16_t) OilTempCorr / 100 + AddHalf;    // Коррекция в значениях ШИМ.
+		return OilTempCorr;
+	}
 }
 
-// Давление включения третьей передачи SLU B2.
-uint8_t get_slu_pressure_gear3() {
-	uint8_t PressureGear3 = get_interpolated_value_uint16_t(TCU.InstTPS, TPSGrid, SLUGear3Graph, TPS_GRID_SIZE);
-		
-	// Применяем коррекцию по температуре.
-	int8_t AddHalf = 0;
-	int16_t TempCorr = get_slu_gear2_temp_corr();
-	TempCorr *= PressureGear3;
+// Добавка к давлению SLU включения третьей/
+uint8_t get_slu_pressure_gear3_add(uint8_t Value) {
+	int16_t SLUGear3Add = get_interpolated_value_int16_t(TCU.InstTPS, TPSGrid, SLUGear3AddGraph, TPS_GRID_SIZE);
+	
+	if (!Value) {return SLUGear3Add;}	// Возвращаем коррекцию в %.
+	else {	// Возвращаем скорректированное значение.
+		if (!SLUGear3Add) {return 0;}	// При коррекции 0 добавка также 0.
+		int8_t AddHalf = 0;
+		SLUGear3Add *= Value;
 
-	if (ABS(TempCorr) % 100 >= 50) {		// Добавка 1, если дробная часть >= 0.5.
-		if (TempCorr > 0) {AddHalf = 1;}
-		else if (TempCorr < 0) {AddHalf = -1;}
+		if (ABS(SLUGear3Add) % 100 >= 50) {		// Добавка 1, если дробная часть >= 0.5.
+			if (SLUGear3Add > 0) {AddHalf = 1;}
+			else if (SLUGear3Add < 0) {AddHalf = -1;}
+		}
+
+		SLUGear3Add = (int16_t) SLUGear3Add / 100 + AddHalf;    // Коррекция в значениях ШИМ.
+		return SLUGear3Add;
 	}
-
-	TempCorr = (int16_t) TempCorr / 100 + AddHalf;    // Коррекция в значении ШИМ.
-
-	// Применяем коррекцию по температуре.
-	PressureGear3 = CONSTRAIN(PressureGear3 + TempCorr, 0, 255);
-	return PressureGear3;
 }
 
 // Давление включения третьей передачи SLT B3.
-uint8_t get_slt_pressure_gear3() {
-	uint8_t PressureGear3 = get_interpolated_value_uint16_t(TCU.InstTPS, TPSGrid, SLTGear3Graph, TPS_GRID_SIZE);
-	return PressureGear3;
+uint8_t get_slt_pressure_gear3_add(uint8_t Value) {
+	int16_t SLTGear3Add = get_interpolated_value_int16_t(TCU.InstTPS, TPSGrid, SLTGear3AddGraph, TPS_GRID_SIZE);
+	
+	if (!Value) {return SLTGear3Add;}	// Возвращаем коррекцию в %.
+	else {	// Возвращаем скорректированное значение.
+		if (!SLTGear3Add) {return 0;}	// При коррекции 0 добавка также 0.
+		int8_t AddHalf = 0;
+		SLTGear3Add *= Value;
+
+		if (ABS(SLTGear3Add) % 100 >= 50) {		// Добавка 1, если дробная часть >= 0.5.
+			if (SLTGear3Add > 0) {AddHalf = 1;}
+			else if (SLTGear3Add < 0) {AddHalf = -1;}
+		}
+
+		SLTGear3Add = (int16_t) SLTGear3Add / 100 + AddHalf;    // Коррекция в значениях ШИМ.
+		return SLTGear3Add;
+	}
 }
 
 

@@ -113,7 +113,7 @@ void loop_main() {
 		update_gear_speed();		// Обновление порогов переключения передач.
 	}
 
-	if (TPSTimer >= 103) {
+	if (TPSTimer >= 153) {
 		TPSTimer = 0;
 		calc_tps();					// Расчет ДПДЗ с замедлением.
 	}
@@ -172,8 +172,8 @@ static void loop_add() {
 	}
 
 	if (PressureControlTimer >= 97) {
-		slt_control();					// Управление линейными давлением.
-		slu_gear2_control(); 			// Управление давлением SLU для второй передачи.
+		slt_control();								// Управление линейными давлением.
+		slu_gear2_control(PressureControlTimer); 	// Управление давлением SLU для второй передачи.
 		PressureControlTimer = 0;
 	}
 

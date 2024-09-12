@@ -16,7 +16,7 @@ uint16_t AfterChangeDelay = 1000;	// Пауза после вклбчения п
 // Максимальная и минимальная передача для каждого режима.
 //						  I  P   R  N  D  D4 D3 L2 L  E  M
 //						  0  1   2  3  4  5  6  7  8  9  10
-const int8_t MaxGear[] = {0, 0, -1, 0, 5, 4, 3, 2, 1, 0, 5};
+int8_t MaxGear[] = {0, 0, -1, 0, 5, 4, 3, 2, 1, 0, 5};
 const int8_t MinGear[] = {0, 0, -1, 0, 1, 1, 1, 2, 1, 0, 1};
 
 uint8_t LastGear2ChangeTPS = 0;	// Значение ДПДЗ при последнем переключении 1>2.
@@ -52,7 +52,7 @@ static void loop_wait(int16_t Delay);
 
 static uint8_t rpm_after_ok(uint8_t Shift);
 
-//static void set_slt(uint8_t Value);
+static void set_slt(uint8_t Value);
 static void set_sln(uint8_t Value);
 static void set_slu(uint8_t Value);
 
@@ -130,12 +130,17 @@ void disable_gear_r() {
 static void gear_change_1_2() {
 	TCU.GearChange = 1;
 
+	// Начальная накачка давления.
+	set_sln(SOLENOID_BOOST_VALUE);
+	set_slu(SOLENOID_BOOST_VALUE);
+	loop_wait(SOLENOID_BOOST_TIME);
+
+	set_sln(SLN_6V_VALUE);
 	set_slu(get_slu_pressure_gear2());		// Давление включения и работы второй предачи.
 	LastGear2ChangeTPS = TCU.InstTPS;
 	LastGear2ChangeSLU = TCU.SLU;
 
-	set_sln(SLN_6V_VALUE);
-	loop_wait(GearChangeStep * 10);
+	loop_wait(GearChangeStep * 8);
 
 	SET_PIN_HIGH(SOLENOID_S1_PIN);
 	SET_PIN_HIGH(SOLENOID_S2_PIN);
@@ -152,14 +157,28 @@ static void gear_change_2_3() {
 	TCU.GearChange = 1;
 
 	SET_PIN_LOW(SOLENOID_S3_PIN);		// Отключаем систему "Clutch to Clutch".
+
+	// Начальная накачка давления.
+	set_sln(SOLENOID_BOOST_VALUE);
+	set_slu(SOLENOID_BOOST_VALUE);
+	loop_wait(SOLENOID_BOOST_TIME);
+
 	set_sln(SLN_6V_VALUE);
-	
-	set_slu(get_slu_pressure_gear3());
+
+	// Добавка к SLU.
+	uint8_t SLUG3 = CONSTRAIN(TCU.SLU + get_slu_pressure_gear3_add(TCU.SLU), 25, 230);
+	set_slu(SLUG3);
+	// Добавка к SLT.
+	uint8_t SLTG3 = CONSTRAIN(TCU.SLT + get_slt_pressure_gear3_add(TCU.SLT), 25, 230);
+	set_slt(SLTG3);
+
 	LastGear3ChangeTPS = TCU.InstTPS;
 	LastGear3ChangeSLU = TCU.SLU;
+	LastGear3ChangeSLT = TCU.SLT;
 
-	loop_wait(GearChangeStep * 12);			// Ждем повышения давления.
-	set_sln(SLN_4V_VALUE);
+	loop_wait(GearChangeStep * 10);			// Ждем повышения давления.
+	//set_sln(SLN_4V_VALUE);
+	set_sln(50);
 	set_slu(get_slu_pressure_gear2());
 
 	SET_PIN_LOW(SOLENOID_S1_PIN);
@@ -170,6 +189,7 @@ static void gear_change_2_3() {
 
 	loop_wait(GearChangeStep * 6);			// Ожидаем срабатывания фрикциона.
 	set_slu(SLU_MIN_VALUE);
+	set_sln(SLN_1V_VALUE);
 	
 	TCU.GearChange = 0;
 }
@@ -358,10 +378,49 @@ uint16_t gear_control() {
 	return 0;
 }
 
-// Управление давлением SLU B3 для работы второй передачи.
-void slu_gear2_control() {
-	if (TCU.Gear != 2) {return;}	// Управление давлением SLU для второй передачи.
-	set_slu(get_slu_pressure_gear2());	// Регулировка давления SLU для второй передачи.
+// Управление давлением SLU B3 для работы второй передачи,
+// а также управление добавочным соленоидом S3
+void slu_gear2_control(uint8_t Time) {
+	static int16_t Timer = 0;
+	static int8_t Step = 0;
+	if (TCU.Gear != 2) {	// Управление давлением SLU для второй передачи.
+		Timer = 0;
+		Step = 0;
+		return;
+	}
+
+	// Включаем систему "Clutch to Clutch" на ХХ,
+	// чтобы при добавлении газа вторая передача плавно включилась.
+	if (TCU.TPS < TPS_IDLE_LIMIT) {
+		Timer = 0;
+		Step = 0;
+		SET_PIN_HIGH(SOLENOID_S3_PIN);
+	}
+
+	// Плавное включение второй передачи после отключения.
+	if (Step < 3) {
+		Timer += Time;
+		if (Timer > GearChangeStep * 5) {
+			Timer = 0;
+			Step++;
+		}
+
+		switch (Step) {
+			case 0:
+				set_slu(get_slu_pressure_gear2());
+				break;
+			case 1:
+				set_slu(get_slu_pressure_gear2() + 1);
+				break;
+			case 2:
+				set_slu(get_slu_pressure_gear2() + 2);
+				break;
+			case 3:
+				SET_PIN_LOW(SOLENOID_S3_PIN);
+				break;
+		}
+	}
+	else {set_slu(get_slu_pressure_gear2());}
 }
 
 // Переключение вверх.
@@ -494,10 +553,10 @@ static uint8_t rpm_after_ok(uint8_t Shift) {
 	else {return 0;}
 }
 
-// static void set_slt(uint8_t Value) {
-// 	TCU.SLT = Value;
-// 	OCR1A = TCU.SLT;	// SLN - выход A таймера 1.	
-// }
+static void set_slt(uint8_t Value) {
+	TCU.SLT = Value;
+	OCR1A = TCU.SLT;	// SLN - выход A таймера 1.
+}
 
 static void set_sln(uint8_t Value) {
 	TCU.SLN = Value;

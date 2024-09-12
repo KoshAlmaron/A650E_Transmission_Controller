@@ -8,11 +8,11 @@
 	void calc_tps();
 
 	uint8_t get_slt_pressure();
-	int8_t get_slt_temp_corr();
+	int8_t get_slt_temp_corr(uint8_t Value);
 	uint8_t get_slu_pressure_gear2();
-	int8_t get_slu_gear2_temp_corr();
-	uint8_t get_slu_pressure_gear3();
-	uint8_t get_slt_pressure_gear3();
+	int8_t get_slu_gear2_temp_corr(uint8_t Value);
+	uint8_t get_slu_pressure_gear3_add(uint8_t Value);
+	uint8_t get_slt_pressure_gear3_add(uint8_t Value);
 
 	extern struct TCU_t TCU; 		// Делаем структуру внешней.
 
@@ -28,8 +28,8 @@
 	extern int16_t SLTTempCorrGraph[];
 	extern uint16_t SLUGear2Graph[];
 	extern int16_t SLUGear2TempCorrGraph[];
-	extern uint16_t SLUGear3Graph[];
-	extern uint16_t SLTGear3Graph[];
+	extern int16_t SLUGear3AddGraph[];
+	extern int16_t SLTGear3AddGraph[];
 
 	// Структура для хранения переменных.
 	typedef struct TCU_t {
