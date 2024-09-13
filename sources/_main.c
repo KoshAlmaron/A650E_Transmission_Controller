@@ -165,8 +165,7 @@ static void loop_add() {
 	}
 
 	if (GearsTimer >= 95) {
-		//GearsTimer = -1 * gear_control();
-		gear_control();
+		GearsTimer = -1 * gear_control();
 		slip_detect();
 		GearsTimer = 0;
 	}

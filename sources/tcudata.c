@@ -104,7 +104,7 @@ uint8_t get_slt_pressure() {
 	// Вычисляем значение в зависимости от ДПДЗ.
 	uint8_t SLT = get_interpolated_value_uint16_t(TCU.InstTPS, TPSGrid, SLTGraph, TPS_GRID_SIZE);
 	// Применяем коррекцию по температуре.
-	SLT = CONSTRAIN(SLT + get_slt_temp_corr(SLT), 25, 230);
+	SLT = CONSTRAIN(SLT + get_slt_temp_corr(SLT), 20, 230);
 	return SLT;
 }
 

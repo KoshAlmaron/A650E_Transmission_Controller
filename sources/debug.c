@@ -573,8 +573,8 @@ static void print_config_gear3_slu_add() {
 		lcd_send_string(LCDArray, 3);
 
 		if (CursorPos == StartCol + i) {
-			if (ValueDelta < 0 && SLUGear3AddGraph[CursorPos] > -60) {SLUGear3AddGraph[CursorPos] += ValueDelta;}
-			if (ValueDelta > 0 && SLUGear3AddGraph[CursorPos] < 60) {SLUGear3AddGraph[CursorPos] += ValueDelta;}
+			if (ValueDelta < 0 && SLUGear3AddGraph[CursorPos] > -99) {SLUGear3AddGraph[CursorPos] += ValueDelta;}
+			if (ValueDelta > 0 && SLUGear3AddGraph[CursorPos] < 99) {SLUGear3AddGraph[CursorPos] += ValueDelta;}
 			ValueDelta = 0;
 
 			lcd_set_cursor(2, i * 4 + 3);
@@ -629,24 +629,24 @@ static void print_config_gear3_slt_add() {
 
 	// Строка с необходимыми значениями.
 	int8_t Gear3SLTAddP = get_slt_pressure_gear3_add(0);
-	int8_t Gear3SLTAddV = get_slt_pressure_gear3_add(Gear3ChangeSLU);
+	int8_t Gear3SLTAddV = get_slt_pressure_gear3_add(Gear3ChangeSLT);
 	lcd_set_cursor(1, 0);
-	snprintf(LCDArray, 21, "UC%3i UV%3i A%2u U%3u", 
+	snprintf(LCDArray, 21, "TC%3i TV%3i A%2u T%3u", 
 		CONSTRAIN(Gear3SLTAddP, -99, 99), CONSTRAIN(Gear3SLTAddV, -99, 99), MIN(99, Gear3ChangeTPS), Gear3ChangeSLT);
 	lcd_send_string(LCDArray, 20);
 
 	// Изменяемые значения.
 	for (uint8_t i = 0; i < COLUMN_COUNT; i++) {
 		lcd_set_cursor(2, i * 4);
-		snprintf(LCDArray, 4, "%3i", TPSGrid[StartCol + i]);
+		snprintf(LCDArray, 4, "%3u", TPSGrid[StartCol + i]);
 		lcd_send_string(LCDArray, 3);
 
 		lcd_set_cursor(3, i * 4);
-		snprintf(LCDArray, 4, "%3u", SLTGear3AddGraph[StartCol + i]);
+		snprintf(LCDArray, 4, "%3i", SLTGear3AddGraph[StartCol + i]);
 		lcd_send_string(LCDArray, 3);
 
 		if (CursorPos == StartCol + i) {
-			if (ValueDelta < 0 && SLTGear3AddGraph[CursorPos] > -50) {SLTGear3AddGraph[CursorPos] += ValueDelta;}
+			if (ValueDelta < 0 && SLTGear3AddGraph[CursorPos] > -99) {SLTGear3AddGraph[CursorPos] += ValueDelta;}
 			if (ValueDelta > 0 && SLTGear3AddGraph[CursorPos] < 99) {SLTGear3AddGraph[CursorPos] += ValueDelta;}
 			ValueDelta = 0;
 

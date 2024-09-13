@@ -163,7 +163,8 @@ static void gear_change_2_3() {
 	set_slu(SOLENOID_BOOST_VALUE);
 	loop_wait(SOLENOID_BOOST_TIME);
 
-	set_sln(SLN_6V_VALUE);
+	//set_sln(SLN_6V_VALUE);
+	set_sln(160);
 
 	// Добавка к SLU.
 	uint8_t SLUG3 = CONSTRAIN(TCU.SLU + get_slu_pressure_gear3_add(TCU.SLU), 25, 230);
@@ -178,7 +179,7 @@ static void gear_change_2_3() {
 
 	loop_wait(GearChangeStep * 10);			// Ждем повышения давления.
 	//set_sln(SLN_4V_VALUE);
-	set_sln(50);
+	set_sln(32);
 	set_slu(get_slu_pressure_gear2());
 
 	SET_PIN_LOW(SOLENOID_S1_PIN);
@@ -187,8 +188,9 @@ static void gear_change_2_3() {
 	SET_PIN_LOW(SOLENOID_S4_PIN);
 	TCU.Gear = 3;
 
-	loop_wait(GearChangeStep * 6);			// Ожидаем срабатывания фрикциона.
+	loop_wait(GearChangeStep * 2);
 	set_slu(SLU_MIN_VALUE);
+	loop_wait(GearChangeStep * 4);
 	set_sln(SLN_1V_VALUE);
 	
 	TCU.GearChange = 0;
@@ -354,7 +356,7 @@ uint16_t gear_control() {
 	if (TCU.Gear > MaxGear[TCU.ATMode]) {	
 		// Проверка оборотов просле переключения.
 		if (rpm_after_ok(-1)) {gear_down();}
-		return AfterChangeDelay;
+		return 100;
 	} 
 	if (TCU.Gear < MinGear[TCU.ATMode]) {
 		// Проверка оборотов просле переключения.
@@ -362,18 +364,30 @@ uint16_t gear_control() {
 		return AfterChangeDelay;
 	}
 
-	// Скорость выше порога.
-	if (TCU.CarSpeed > TCU.GearUpSpeed) {
-		if (TCU.InstTPS > 2) {					// Не повышать передачу при сбросе газа.
-			if (rpm_after_ok(1)) {gear_up();}
+	if (TCU.InstTPS > TPS_WOT_LIMIT) {
+		// Переключение по оборотам.
+		if (TCU.DrumRPM > GearUpRPM[TCU.Gear]) {
+			gear_up();
+			return GearUpDelay[TCU.Gear];
 		}
-		return AfterChangeDelay;
+		if (TCU.DrumRPM < GearDownRPM[TCU.Gear]) {
+			gear_up();
+			return GearDownDelay[TCU.Gear];
+		}
 	}
-
-	// Скорость ниже порога.
-	if (TCU.CarSpeed < TCU.GearDownSpeed) {
-		if (rpm_after_ok(-1)) {gear_down();}
-		return AfterChangeDelay;
+	else {
+		// Скорость выше порога.
+		if (TCU.CarSpeed > TCU.GearUpSpeed) {
+			if (TCU.InstTPS > 2) {					// Не повышать передачу при сбросе газа.
+				if (rpm_after_ok(1)) {gear_up();}
+			}
+			return AfterChangeDelay;
+		}
+		// Скорость ниже порога.
+		if (TCU.CarSpeed < TCU.GearDownSpeed) {
+			if (rpm_after_ok(-1)) {gear_down();}
+			return 100;
+		}
 	}
 	return 0;
 }
@@ -395,6 +409,12 @@ void slu_gear2_control(uint8_t Time) {
 		Timer = 0;
 		Step = 0;
 		SET_PIN_HIGH(SOLENOID_S3_PIN);
+
+		// В режимах "2" и "3", должно быть торможение двигателем,
+		// в остальных случаях вторая передача на ХХ отключена.
+		if (TCU.ATMode == 6 || TCU.ATMode == 7) {set_slu(SLUGear2Graph[2]);}
+		else {set_slu(SLUGear2Graph[0]);}
+		return;
 	}
 
 	// Плавное включение второй передачи после отключения.
