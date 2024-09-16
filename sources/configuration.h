@@ -18,7 +18,6 @@
 	#define SOLENOID_BOOST_VALUE 220	// Значение буста при включении соленоида.
 	#define SOLENOID_BOOST_TIME 100		// Время буста в мс.
 
-
 	#define SLN_1V_VALUE 35				// Постоянное минимальное давление в гидроаккумуляторах.
 	#define SLN_4V_VALUE 90
 	#define SLN_6V_VALUE 130

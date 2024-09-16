@@ -595,7 +595,7 @@ static void print_config_gear3_slu_add() {
 static void print_config_gear3_slt_add() {
 	//|12345678901234567890|
 	//|G3 SLT add |100|1.00|
-	//|TP-12 TV-12 A99 U101|
+	//|TP-12 TV-12 A99 T101|
 	//|  0|  5| 10| 15| 20||
 	//| 67| 72| 74| 77| 81||
 	//|12345678901234567890|

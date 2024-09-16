@@ -160,7 +160,7 @@ int8_t get_slu_gear2_temp_corr(uint8_t Value) {
 }
 
 // Добавка к давлению SLU включения третьей/
-uint8_t get_slu_pressure_gear3_add(uint8_t Value) {
+int8_t get_slu_pressure_gear3_add(uint8_t Value) {
 	int16_t SLUGear3Add = get_interpolated_value_int16_t(TCU.InstTPS, TPSGrid, SLUGear3AddGraph, TPS_GRID_SIZE);
 	
 	if (!Value) {return SLUGear3Add;}	// Возвращаем коррекцию в %.
@@ -175,12 +175,12 @@ uint8_t get_slu_pressure_gear3_add(uint8_t Value) {
 		}
 
 		SLUGear3Add = (int16_t) SLUGear3Add / 100 + AddHalf;    // Коррекция в значениях ШИМ.
-		return SLUGear3Add;
+		return CONSTRAIN(SLUGear3Add, -127, 127);
 	}
 }
 
 // Давление включения третьей передачи SLT B3.
-uint8_t get_slt_pressure_gear3_add(uint8_t Value) {
+int8_t get_slt_pressure_gear3_add(uint8_t Value) {
 	int16_t SLTGear3Add = get_interpolated_value_int16_t(TCU.InstTPS, TPSGrid, SLTGear3AddGraph, TPS_GRID_SIZE);
 	
 	if (!Value) {return SLTGear3Add;}	// Возвращаем коррекцию в %.
@@ -195,7 +195,8 @@ uint8_t get_slt_pressure_gear3_add(uint8_t Value) {
 		}
 
 		SLTGear3Add = (int16_t) SLTGear3Add / 100 + AddHalf;    // Коррекция в значениях ШИМ.
-		return SLTGear3Add;
+
+		return CONSTRAIN(SLTGear3Add, -127, 127);
 	}
 }
 
