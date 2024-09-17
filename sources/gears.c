@@ -165,9 +165,6 @@ static void gear_change_2_3() {
 
 	set_sln(SLN_6V_VALUE);
 
-	// Базовое значение SLU.
-	set_slu(get_slu_pressure_gear2());
-
 	// Добавка к SLU.
 	uint8_t SLUG3 = CONSTRAIN(TCU.SLU + get_slu_pressure_gear3_add(TCU.SLU), 25, 230);
 	set_slu(SLUG3);
@@ -243,7 +240,6 @@ static void gear_change_5_4() {
 	glock_control(100);	// Снижаем давление блокировки гидротрансформатора.
 	
 	set_sln(SLN_4V_VALUE);
-	loop_wait(GearChangeStep * 8);
 
 	SET_PIN_LOW(SOLENOID_S1_PIN);
 	SET_PIN_LOW(SOLENOID_S2_PIN);
@@ -262,7 +258,6 @@ static void gear_change_4_3() {
 	glock_control(100);	// Снижаем давление блокировки гидротрансформатора.
 	
 	set_sln(SLN_4V_VALUE);
-	loop_wait(GearChangeStep * 8);
 
 	SET_PIN_LOW(SOLENOID_S1_PIN);
 	SET_PIN_HIGH(SOLENOID_S2_PIN);
@@ -425,7 +420,7 @@ void slu_gear2_control(uint8_t Time) {
 	// Проверка оборотов перед включением.
 	// Второрая передача не должна включаться слишком рано.
 	uint16_t NewRPM = ((uint32_t) TCU.OutputRPM * GEAR_2_RATIO) >> 10;
-	if (NewRPM > TCU.DrumRPM && NewRPM - TCU.DrumRPM > 350) {
+	if (NewRPM > TCU.DrumRPM && NewRPM - TCU.DrumRPM > 300) {
 		Timer = 0;
 		Step = 0;
 
