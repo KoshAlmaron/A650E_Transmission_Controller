@@ -140,7 +140,7 @@ static void gear_change_1_2() {
 	LastGear2ChangeTPS = TCU.InstTPS;
 	LastGear2ChangeSLU = TCU.SLU;
 
-	loop_wait(GearChangeStep * 8);
+	loop_wait(GearChangeStep * 5);
 
 	SET_PIN_HIGH(SOLENOID_S1_PIN);
 	SET_PIN_HIGH(SOLENOID_S2_PIN);
@@ -177,7 +177,7 @@ static void gear_change_2_3() {
 	LastGear3ChangeSLU = TCU.SLU;
 	LastGear3ChangeSLT = TCU.SLT;
 
-	loop_wait(GearChangeStep * 8);			// Ждем повышения давления.
+	loop_wait(GearChangeStep * 5);			// Ждем повышения давления.
 	set_sln(SLN_1V_VALUE);
 
 	SET_PIN_LOW(SOLENOID_S1_PIN);
@@ -210,7 +210,7 @@ static void gear_change_3_4() {
 	SET_PIN_LOW(SOLENOID_S4_PIN);
 	TCU.Gear = 4;
 
-	loop_wait(GearChangeStep * 18);
+	loop_wait(GearChangeStep * 13);
 	set_sln(SLN_1V_VALUE);
 
 	TCU.GearChange = 0;	
@@ -228,7 +228,7 @@ static void gear_change_4_5() {
 	SET_PIN_HIGH(SOLENOID_S4_PIN);
 	TCU.Gear = 5;
 
-	loop_wait(GearChangeStep * 18);
+	loop_wait(GearChangeStep * 13);
 	set_sln(SLN_1V_VALUE);
 
 	TCU.GearChange = 0;	
@@ -247,7 +247,7 @@ static void gear_change_5_4() {
 	SET_PIN_LOW(SOLENOID_S4_PIN);
 	TCU.Gear = 4;
 
-	loop_wait(GearChangeStep * 10);
+	loop_wait(GearChangeStep * 8);
 	set_sln(SLN_1V_VALUE);
 
 	TCU.GearChange = 0;		
@@ -267,7 +267,7 @@ static void gear_change_4_3() {
 	if (TCU.ATMode == 6) {SET_PIN_HIGH(SOLENOID_S3_PIN);}
 	TCU.Gear = 3;
 
-	loop_wait(GearChangeStep * 10);
+	loop_wait(GearChangeStep * 8);
 	set_sln(SLN_1V_VALUE);
 
 	TCU.GearChange = 0;	
@@ -305,7 +305,7 @@ static void gear_change_2_1() {
 	if (TCU.ATMode == 7) {SET_PIN_HIGH(SOLENOID_S3_PIN);}
 	TCU.Gear = 1;
 
-	loop_wait(GearChangeStep * 15);
+	loop_wait(GearChangeStep * 12);
 	set_slu(SLU_MIN_VALUE);
 	set_sln(SLN_1V_VALUE);
 

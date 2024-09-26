@@ -15,8 +15,8 @@
 
 	#define MAX_SLIP_RPM 100			// Разница в оборотах валов для обнаружения проскальзывания.
 
-	#define SOLENOID_BOOST_VALUE 220	// Значение буста при включении соленоида.
-	#define SOLENOID_BOOST_TIME 100		// Время буста в мс.
+	#define SOLENOID_BOOST_VALUE 255	// Значение буста при включении соленоида.
+	#define SOLENOID_BOOST_TIME 150		// Время буста в мс.
 
 	#define SLN_1V_VALUE 35				// Постоянное минимальное давление в гидроаккумуляторах.
 	#define SLN_4V_VALUE 90
