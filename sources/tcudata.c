@@ -130,6 +130,12 @@ int8_t get_slt_temp_corr(uint8_t Value) {
 	}
 }
 
+uint8_t get_sln_pressure() {
+	// Вычисляем значение в зависимости от ДПДЗ.
+	uint8_t SLN = get_interpolated_value_uint16_t(TCU.InstTPS, TPSGrid, SLNGraph, TPS_GRID_SIZE);
+	return SLN;
+}
+
 // Давление включения и работы второй передачи SLU B3.
 uint8_t get_slu_pressure_gear2() {
 	uint8_t PressureGear2 = get_interpolated_value_uint16_t(TCU.InstTPS, TPSGrid, SLUGear2Graph, TPS_GRID_SIZE);
