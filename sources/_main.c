@@ -170,7 +170,7 @@ static void loop_add() {
 		GearsTimer = 0;
 	}
 
-	if (PressureControlTimer >= 97) {
+	if (PressureControlTimer >= 27) {
 		slt_control();								// Управление линейными давлением.
 		slu_gear2_control(PressureControlTimer); 	// Управление давлением SLU для второй передачи.
 		PressureControlTimer = 0;

@@ -141,6 +141,7 @@ static void gear_change_1_2() {
 	LastGear2ChangeSLU = TCU.SLU;
 
 	loop_wait(GearChangeStep * 5);
+	set_slu(get_slu_pressure_gear2());
 
 	SET_PIN_HIGH(SOLENOID_S1_PIN);
 	SET_PIN_HIGH(SOLENOID_S2_PIN);
@@ -149,20 +150,14 @@ static void gear_change_1_2() {
 	TCU.Gear = 2;
 
     set_sln(SLN_MIN_VALUE);
-	loop_wait(GearChangeStep * 5);
-    slu_gear2_control(GearChangeStep * 5 + 1);
-
  	TCU.GearChange = 0;
 }
 
 static void gear_change_2_3() {
 	TCU.GearChange = 1;
 
-	SET_PIN_LOW(SOLENOID_S3_PIN);		// Отключаем систему "Clutch to Clutch".
-
 	// Начальная накачка давления.
 	set_sln(SOLENOID_BOOST_VALUE);
-	set_slu(SOLENOID_BOOST_VALUE);
 	loop_wait(SOLENOID_BOOST_TIME);
 
 	set_sln(get_sln_pressure());
@@ -179,7 +174,12 @@ static void gear_change_2_3() {
 	LastGear3ChangeSLU = TCU.SLU;
 	LastGear3ChangeSLT = TCU.SLT;
 
+	SET_PIN_LOW(SOLENOID_S3_PIN);			// Отключаем систему "Clutch to Clutch".
+
 	loop_wait(GearChangeStep * 5);			// Ждем повышения давления.
+	set_slu(SLUG3);
+	set_slt(SLTG3);
+
 	set_sln(SLN_MIN_VALUE);
 
 	SET_PIN_LOW(SOLENOID_S1_PIN);
@@ -436,34 +436,28 @@ void slu_gear2_control(uint8_t Time) {
 	}
 
 	// Плавное включение второй передачи после отключения.
-	if (Step < 3) {
+	if (Step < 7) {
 		Timer += Time;
-		if (Timer > GearChangeStep * 5) {
+		if (Timer > GearChangeStep * 3) {
 			Timer = 0;
 			Step++;
 		}
-		switch (Step) {
-			case 0:
-				// Накачка после выключения на ХХ.
-				if (AfterlIdle && TCU.SLU <= SLU_MIN_VALUE) {
-					set_slu(SOLENOID_BOOST_VALUE);
-					loop_wait(SOLENOID_BOOST_TIME);
-					AfterlIdle = 0;
-				}
-				set_slu(get_slu_pressure_gear2());
-				break;
-			case 1:
-				set_slu(get_slu_pressure_gear2() + 2);
-				break;
-			case 2:
-				set_slu(get_slu_pressure_gear2() + 4);
-				break;
-			case 3:
-				SET_PIN_LOW(SOLENOID_S3_PIN);
-				break;
+
+		if (AfterlIdle && TCU.SLU <= SLU_MIN_VALUE) {
+			set_slu(SOLENOID_BOOST_VALUE);
+			loop_wait(SOLENOID_BOOST_TIME);
+			AfterlIdle = 0;
 		}
+
+		set_slu(get_slu_pressure_gear2() + Step);
+		return;
 	}
-	else {set_slu(get_slu_pressure_gear2());}
+	else {
+		SET_PIN_LOW(SOLENOID_S3_PIN);
+		return;
+	}
+
+	set_slu(get_slu_pressure_gear2());
 }
 
 // Переключение вверх.
