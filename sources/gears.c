@@ -149,8 +149,14 @@ static void gear_change_1_2() {
 	SET_PIN_LOW(SOLENOID_S4_PIN);
 	TCU.Gear = 2;
 
-    set_sln(SLN_MIN_VALUE);
- 	TCU.GearChange = 0;
+	set_sln(SLN_MIN_VALUE);
+
+	for (uint8_t i = 0; i < 4 * 3; ++i) {
+		loop_wait(GearChangeStep);
+		slu_gear2_control(GearChangeStep + 1);
+	}
+
+	TCU.GearChange = 0;
 }
 
 static void gear_change_2_3() {
@@ -200,10 +206,11 @@ static void gear_change_2_3() {
 static void gear_change_3_4() {
 	TCU.GearChange = 1;
 
+	set_sln(get_sln_pressure());
+
 	LastGear4ChangeTPS = TCU.InstTPS;
 	LastGear4ChangeSLT = TCU.SLT;
-
-	set_sln(get_sln_pressure());
+	LastGear4ChangeSLN = TCU.SLN;
 
 	SET_PIN_LOW(SOLENOID_S1_PIN);
 	SET_PIN_LOW(SOLENOID_S2_PIN);
@@ -435,9 +442,13 @@ void slu_gear2_control(uint8_t Time) {
 		return;
 	}
 
+
+
 	// Плавное включение второй передачи после отключения.
 	if (Step < 7) {
 		Timer += Time;
+		if (Step > 4) {Timer += Time;}	// Ускорение срабатывания.
+
 		if (Timer > GearChangeStep * 3) {
 			Timer = 0;
 			Step++;

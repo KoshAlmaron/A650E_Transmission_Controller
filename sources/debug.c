@@ -15,10 +15,6 @@
 extern uint8_t DebugMode;	// Переменная из main.
 
 // Номер экрана для отображения:
-// 0 - Основной,
-// 1 - Экран настройки давления в тормозе B3 для включения второй передачи,
-// 2 - Экран настройки температурной корекции давления в тормозе B3,
-// 3 - Экран настройки добавочного давления SLT для включения третьей передачи.
 uint8_t ScreenMode = 0;
 
 char LCDArray[21] = {0};	// Массив для отправки на дисплей.
@@ -41,7 +37,7 @@ uint8_t StartCol = 0;			// Начальная позиция данных
 int8_t ValueDelta = 0;			// Флаг изменения значения.
 
 #define COLUMN_COUNT 5
-#define SCREEN_COUNT 7
+#define SCREEN_COUNT 8
 
 extern uint8_t LastGear2ChangeTPS;	// Значение ДПДЗ при последнем переключении 1>2.
 extern uint8_t LastGear2ChangeSLU;	// Значение SLU при последнем переключении 1>2.
@@ -52,6 +48,7 @@ extern uint8_t LastGear3ChangeSLT;	// Значение SLT при последн
 
 extern uint8_t LastGear4ChangeTPS;	// Значение ДПДЗ при последнем переключении 3>4.
 extern uint8_t LastGear4ChangeSLT;	// Значение SLT при последнем переключении 3>4.
+extern uint8_t LastGear4ChangeSLN;	// Значение SLN при последнем переключении 3>4.
 
 extern int8_t MaxGear[];
 
@@ -66,6 +63,7 @@ uint8_t Gear3ChangeSLT = 0;
 
 uint8_t Gear4ChangeTPS = 0;
 uint8_t Gear4ChangeSLT = 0;
+uint8_t Gear4ChangeSLN = 0;
 
 // Прототипы функций.
 static void lcd_start();
@@ -74,6 +72,7 @@ static void print_dispay_main();
 
 static void print_config_slt_pressure();
 static void print_config_slt_temp_corr();
+static void print_config_sln_pressure();
 static void print_config_gear2_slu_pressure();
 static void print_config_gear2_slu_temp_corr();
 static void print_config_gear3_slu_add();
@@ -187,6 +186,9 @@ static void print_data() {
 			print_config_slt_temp_corr();
 			break;	
 		case 7:
+			print_config_sln_pressure();
+			break;
+		case 8:
 			print_config_d4_max_gear();
 			break;	
 			
@@ -357,6 +359,79 @@ static void print_config_slt_temp_corr() {
 		if (CursorPos == StartCol + i) {
 			if (ValueDelta < 0 && SLTTempCorrGraph[CursorPos] > -60) {SLTTempCorrGraph[CursorPos] += ValueDelta;}
 			if (ValueDelta > 0 && SLTTempCorrGraph[CursorPos] < 60) {SLTTempCorrGraph[CursorPos] += ValueDelta;}
+			ValueDelta = 0;
+
+			lcd_set_cursor(2, i * 4 + 3);
+			lcd_send_char('|');
+			lcd_set_cursor(3, i * 4 + 3);
+			lcd_send_char('<');
+		}
+		else {
+			lcd_set_cursor(2, i * 4 + 3);
+			lcd_send_char('|');
+			lcd_set_cursor(3, i * 4 + 3);
+			lcd_send_char('|');	
+		}
+	}
+}
+
+// Экран настройка давления аккумуляторов SLN.
+static void print_config_sln_pressure() {
+	//|01234567890123456789|
+	//|SLN Press. |100|1.00|
+	//|TP-12 TV 12 A99 N101|
+	//|  0|  5| 10| 15| 20||
+	//| 67| 72| 74| 77| 81||
+	//|01234567890123456789|
+
+	// После переключения передачи считываем параметры и обнуляем.
+	// Находим по сетке позицию в массиве.
+	if (LastGear4ChangeTPS) {
+		Gear4ChangeTPS = LastGear4ChangeTPS;
+		LastGear4ChangeTPS = 0;
+		CursorPos = get_tps_index(Gear4ChangeTPS);
+
+		Gear4ChangeSLN = LastGear4ChangeSLN;
+		LastGear4ChangeSLN = 0;
+	}
+
+	if (CursorPos >= TPS_GRID_SIZE) {CursorPos = 0;}	// Ограничение по длине массива.
+	if (CursorPos < StartCol) {StartCol = CursorPos;}
+	if (CursorPos > StartCol + COLUMN_COUNT - 1) {StartCol = CursorPos + 1 - COLUMN_COUNT;}
+
+	char GearRatioChar[5] = {'-', '.', '-', '-', ' '};
+	if (TCU.OutputRPM > 100) {
+		snprintf(GearRatioChar, 5, "%1u.%02u", 
+			MIN(9, TCU.DrumRPM / TCU.OutputRPM), MIN(99, ((TCU.DrumRPM % TCU.OutputRPM) * 100) / TCU.OutputRPM));
+	}
+
+	// row,  col
+	lcd_set_cursor(0, 0);
+	snprintf(LCDArray, 21, "SLN Press. |%3u|%s", TCU.InstTPS, GearRatioChar);
+	lcd_send_string(LCDArray, 20);
+
+	// Строка с необходимыми значениями.
+	int8_t OilTempCorrSLTP = get_slt_temp_corr(0);				// В %.
+	int8_t OilTempCorrSLTV = get_slt_temp_corr(Gear4ChangeSLT);	// В единицах ШИМ.
+	lcd_set_cursor(1, 0);
+	snprintf(LCDArray, 21, "TP%3i TV%3i A%2u T%3u", 
+		CONSTRAIN(OilTempCorrSLTP, -99, 99), CONSTRAIN(OilTempCorrSLTV, -99, 99), MIN(99, Gear4ChangeTPS), Gear4ChangeSLN);
+	lcd_send_string(LCDArray, 20);
+
+	// Изменяемые значения.
+	for (uint8_t i = 0; i < COLUMN_COUNT; i++) {
+
+		lcd_set_cursor(2, i * 4);
+		snprintf(LCDArray, 4, "%3u", TPSGrid[StartCol + i]);
+		lcd_send_string(LCDArray, 3);
+
+		lcd_set_cursor(3, i * 4);
+		snprintf(LCDArray, 4, "%3u", SLNGraph[StartCol + i]);
+		lcd_send_string(LCDArray, 3);
+
+		if (CursorPos == StartCol + i) {
+			if (ValueDelta < 0 && SLNGraph[CursorPos] > 5) {SLNGraph[CursorPos] += ValueDelta;}
+			if (ValueDelta > 0 && SLNGraph[CursorPos] < 250) {SLNGraph[CursorPos] += ValueDelta;}
 			ValueDelta = 0;
 
 			lcd_set_cursor(2, i * 4 + 3);

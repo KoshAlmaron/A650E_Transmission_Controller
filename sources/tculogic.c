@@ -82,7 +82,7 @@ void at_mode_control() {
 				break;
 			case -1:		// С задней передачи.
 				TCU.ATMode = TCU.Selector;
-				set_gear_n();
+//				set_gear_n();
 				set_gear_1();
 				break;
 			default:		// В остальных случаях просто меняем режим АКПП.
