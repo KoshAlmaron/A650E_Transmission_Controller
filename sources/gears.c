@@ -19,16 +19,15 @@ uint16_t AfterChangeDelay = 1000;	// Пауза после вклбчения п
 int8_t MaxGear[] = {0, 0, -1, 0, 5, 4, 3, 2, 1, 0, 5};
 const int8_t MinGear[] = {0, 0, -1, 0, 1, 1, 1, 2, 1, 0, 1};
 
-uint8_t LastGear2ChangeTPS = 0;	// Значение ДПДЗ при последнем переключении 1>2.
-uint8_t LastGear2ChangeSLU = 0;	// Значение SLU при последнем переключении 1>2.
+uint8_t LastGear2ChangeTPS = 0;			// Значение ДПДЗ при последнем переключении 1>2.
+uint8_t LastGear2ChangeSLU = 0;			// Значение SLU при последнем переключении 1>2.
 
-uint8_t LastGear3ChangeTPS = 0;	// Значение ДПДЗ при последнем переключении 2>3.
-uint8_t LastGear3ChangeSLU = 0; // Значение SLT при последнем переключении 2>3.
-uint8_t LastGear3ChangeSLT = 0; // Значение SLT при последнем переключении 2>3.
+uint8_t LastGear3ChangeTPS = 0;			// Значение ДПДЗ при последнем переключении 2>3.
+uint16_t LastGear3ChangeSLUDelay = 0;	// Задержка отключения SLU при последнем переключении 2>3.
 
-uint8_t LastGear4ChangeTPS = 0;	// Значение ДПДЗ при последнем переключении 3>4.
-uint8_t LastGear4ChangeSLT = 0;	// Значение SLT при последнем переключении 3>4.
-uint8_t LastGear4ChangeSLN = 0;	// Значение SLN при последнем переключении 3>4.
+uint8_t LastGear4ChangeTPS = 0;			// Значение ДПДЗ при последнем переключении 3>4.
+uint8_t LastGear4ChangeSLT = 0;			// Значение SLT при последнем переключении 3>4.
+uint8_t LastGear4ChangeSLN = 0;			// Значение SLN при последнем переключении 3>4.
 
 // Прототипы функций.
 void loop_main();					// Прототип функций из main.c.
@@ -52,7 +51,7 @@ static void loop_wait(int16_t Delay);
 
 static uint8_t rpm_after_ok(uint8_t Shift);
 
-static void set_slt(uint8_t Value);
+//static void set_slt(uint8_t Value);
 static void set_sln(uint8_t Value);
 static void set_slu(uint8_t Value);
 
@@ -70,8 +69,7 @@ void set_gear_n() {
 	SET_PIN_LOW(SOLENOID_S4_PIN);
 
 	TCU.Gear = 0;
-	loop_wait(1000);				// Пауза после включения нейтрали.
-
+	loop_wait(250);				// Пауза после включения нейтрали.
 	TCU.GearChange = 0;
 }
 
@@ -90,7 +88,7 @@ void set_gear_1() {
 	if (TCU.ATMode == 7) {SET_PIN_HIGH(SOLENOID_S3_PIN);}
 	TCU.Gear = 1;
 
-	loop_wait(1500);				// Пауза после включения передачи.
+	loop_wait(250);				// Пауза после включения передачи.
 	set_sln(SLN_MIN_VALUE);
 
 	TCU.GearChange = 0;
@@ -109,7 +107,7 @@ void set_gear_r() {
 	SET_PIN_LOW(SOLENOID_S4_PIN);
 
 	TCU.Gear = -1;
-	loop_wait(1300);				// Пауза после включения передачи.
+	loop_wait(250);				// Пауза после включения передачи.
 	set_sln(SLN_MIN_VALUE);
 
 	TCU.GearChange = 0;
@@ -168,24 +166,16 @@ static void gear_change_2_3() {
 
 	set_sln(get_sln_pressure());
 
-	// Добавка к SLU.
-	uint8_t SLUG3 = CONSTRAIN(TCU.SLU + get_slu_pressure_gear3_add(TCU.SLU), 25, 230);
-	set_slu(SLUG3);
-
-	// Добавка к SLT.
-	uint8_t SLTG3 = CONSTRAIN(TCU.SLT + get_slt_pressure_gear3_add(TCU.SLT), 25, 235);
-	set_slt(SLTG3);
+	// Задержка отключения давления SLU при включением третьей передачи.
+	uint16_t SLUDelay = get_interpolated_value_uint16_t(TCU.InstTPS, TPSGrid, Gear3SLUDelayGraph, TPS_GRID_SIZE);
 
 	LastGear3ChangeTPS = TCU.InstTPS;
-	LastGear3ChangeSLU = TCU.SLU;
-	LastGear3ChangeSLT = TCU.SLT;
+	LastGear3ChangeSLUDelay = SLUDelay;
 
 	SET_PIN_LOW(SOLENOID_S3_PIN);			// Отключаем систему "Clutch to Clutch".
 
 	loop_wait(GearChangeStep * 5);			// Ждем повышения давления.
-	set_slu(SLUG3);
-	set_slt(SLTG3);
-
+	set_slu(get_slu_pressure_gear2());
 	set_sln(SLN_MIN_VALUE);
 
 	SET_PIN_LOW(SOLENOID_S1_PIN);
@@ -194,7 +184,7 @@ static void gear_change_2_3() {
 	SET_PIN_LOW(SOLENOID_S4_PIN);
 	TCU.Gear = 3;
 
-	loop_wait(GearChangeStep * 5); // Было 6
+	loop_wait(SLUDelay);
 	set_slu(SLU_MIN_VALUE);
 
 	// Включаем торможение двигателем в режиме "3".
@@ -601,10 +591,10 @@ static uint8_t rpm_after_ok(uint8_t Shift) {
 	else {return 0;}
 }
 
-static void set_slt(uint8_t Value) {
-	TCU.SLT = Value;
-	OCR1A = TCU.SLT;	// SLN - выход A таймера 1.
-}
+// static void set_slt(uint8_t Value) {
+// 	TCU.SLT = Value;
+// 	OCR1A = TCU.SLT;	// SLN - выход A таймера 1.
+// }
 
 static void set_sln(uint8_t Value) {
 	TCU.SLN = Value;

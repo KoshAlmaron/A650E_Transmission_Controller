@@ -17,14 +17,12 @@ void read_eeprom() {
 	eeprom_read_block((void*)&SLTTempCorrGraph, (const void*) 42, TEMP_GRID_SIZE * 2);
 	// 116-157 - SLUGear2Graph.
 	eeprom_read_block((void*)&SLUGear2Graph, (const void*) 116, TPS_GRID_SIZE * 2);
-	// 158-199 - SLUGear3AddGraph.
-	eeprom_read_block((void*)&SLUGear3AddGraph, (const void*) 158, TPS_GRID_SIZE * 2);
+	// 158-199 - Gear3SLUDelayGraph.
+	eeprom_read_block((void*)&Gear3SLUDelayGraph, (const void*) 158, TPS_GRID_SIZE * 2);
 	// 200-273 - SLUGear2TempCorrGraph.
 	eeprom_read_block((void*)&SLUGear2TempCorrGraph, (const void*) 200, TEMP_GRID_SIZE * 2);
-	// 274-315 - SLTGear3AddGraph.
-	eeprom_read_block((void*)&SLTGear3AddGraph, (const void*) 274, TPS_GRID_SIZE * 2);
-	// 316-357 - SLNGraph.
-	eeprom_read_block((void*)&SLNGraph, (const void*) 316, TPS_GRID_SIZE * 2);
+	// 274-315 - SLNGraph.
+	eeprom_read_block((void*)&SLNGraph, (const void*) 274, TPS_GRID_SIZE * 2);
 }
 
 // Запись EEPROM.
@@ -36,12 +34,9 @@ void update_eeprom() {
 	// 116-157 - SLUGear2Graph.
 	eeprom_update_block((void*)&SLUGear2Graph, (void*) 116, TPS_GRID_SIZE * 2);
 	// 158-199 - SLUGear3AddGraph.
-	eeprom_update_block((void*)&SLUGear3AddGraph, (void*) 158, TPS_GRID_SIZE * 2);
+	eeprom_update_block((void*)&Gear3SLUDelayGraph, (void*) 158, TPS_GRID_SIZE * 2);
 	// 200-273 - SLUGear2TempCorrGraph.
 	eeprom_update_block((void*)&SLUGear2TempCorrGraph, (void*) 200, TEMP_GRID_SIZE * 2);
-	// 274-315 - SLTGear3AddGraph.
-	eeprom_update_block((void*)&SLTGear3AddGraph, (void*) 274, TPS_GRID_SIZE * 2);
-	// 316-357 - SLNGraph.
-	eeprom_update_block((void*)&SLNGraph, (void*) 316, TPS_GRID_SIZE * 2);
-
+	// 274-315 - SLNGraph.
+	eeprom_update_block((void*)&SLNGraph, (void*) 274, TPS_GRID_SIZE * 2);
 }

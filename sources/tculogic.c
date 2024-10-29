@@ -65,9 +65,8 @@ void at_mode_control() {
 	// Задняя скорость включается только стоя на тормозе.
 	if (TCU.Selector == 2) {
 		if (TCU.CarSpeed < 5 && TCU.Break) {
-			set_gear_n();
-			set_gear_r();
 			TCU.ATMode = TCU.Selector;
+			set_gear_r();
 		}
 		else {disable_gear_r();}	 // Принудительно выключаем задний ход.
 		return;
@@ -82,7 +81,6 @@ void at_mode_control() {
 				break;
 			case -1:		// С задней передачи.
 				TCU.ATMode = TCU.Selector;
-//				set_gear_n();
 				set_gear_1();
 				break;
 			default:		// В остальных случаях просто меняем режим АКПП.
