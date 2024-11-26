@@ -108,6 +108,7 @@ static void engine_brake_solenoid() {
 
 void glock_control(uint8_t Timer) {
 	static uint16_t GTimer = 0;
+	static uint8_t SLUStartValue = 0;
 
 	// Условия для включения блокировки гидротрансформатора.
 	if (!TCU.Break 
@@ -115,7 +116,7 @@ void glock_control(uint8_t Timer) {
 			&& !TCU.GearChange
 			&& TCU.TPS >= TPS_IDLE_LIMIT 
 			&& TCU.TPS <= GLOCK_MAX_TPS 
-			&& TCU.OilTemp >= 50
+			&& ((TCU.OilTemp >= 45 && !TCU.Glock) || (TCU.OilTemp >= 44 && TCU.Glock))
 			&& TCU.CarSpeed >= 40) {
 				if(!TCU.Glock) {GTimer += Timer;}
 	}
@@ -144,12 +145,14 @@ void glock_control(uint8_t Timer) {
 	// Задержка включения блокировки.
 	if (GTimer > 3000) {
 		if (!TCU.Glock) {
-			// Начальное значение схватывания.
-			TCU.SLU = SLU_GLOCK_START_VALUE;
+			// Начальное значение схватывания с учетом температурной коррекции.
+			SLUStartValue = SLU_GLOCK_START_VALUE + get_slu_gear2_temp_corr(SLU_GLOCK_START_VALUE);
+			TCU.SLU = SLUStartValue;
+			OCR1C = TCU.SLU;	// Применение значения.
 			TCU.Glock = 1;
 		}
 		else {
-			if (TCU.SLU >= SLU_GLOCK_MAX_VALUE) {return;}
+			if (TCU.SLU >= SLUStartValue) {return;}
 			uint8_t PressureAdd = 5;
 			if (TCU.SLU < SLU_GLOCK_START_VALUE + 15) {PressureAdd = 1;}
 			TCU.SLU = MIN(SLU_GLOCK_MAX_VALUE, TCU.SLU + PressureAdd);
