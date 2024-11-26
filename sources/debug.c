@@ -37,10 +37,13 @@ uint8_t StartCol = 0;			// Начальная позиция данных
 int8_t ValueDelta = 0;			// Флаг изменения значения.
 
 #define COLUMN_COUNT 5
-#define SCREEN_COUNT 7
+#define SCREEN_COUNT 8
 
 extern uint8_t LastGear2ChangeTPS;			// Значение ДПДЗ при последнем переключении 1>2.
 extern uint8_t LastGear2ChangeSLU;			// Значение SLU при последнем переключении 1>2.
+
+extern uint8_t LastGear2ReactivateTPS;		// Значение ДПДЗ при возобновлении второй передачи.
+extern uint8_t LastGear2ReactivateRPM;		// Значение опережения при возобновлении второй передачи.
 
 extern uint8_t LastGear3ChangeTPS;			// Значение ДПДЗ при последнем переключении 2>3.
 extern uint16_t LastGear3ChangeSLUDelay;	// Задержка отключения SLU при последнем переключении 2>3.
@@ -55,6 +58,9 @@ extern int8_t MaxGear[];
 // после считывания значений.
 uint8_t Gear2ChangeTPS = 0;
 uint8_t Gear2ChangeSLU = 0;
+
+uint8_t Gear2ReactivateTPS = 0;
+uint8_t Gear2ReactivateRPM = 0;
 
 uint8_t Gear3ChangeTPS = 0;
 uint16_t Gear3ChangeSLUDelay = 0;
@@ -74,6 +80,7 @@ static void print_config_sln_pressure();
 static void print_config_gear2_slu_pressure();
 static void print_config_gear2_slu_temp_corr();
 static void print_config_gear3_slu_delay();
+static void print_config_gear2_reactivate();
 static void print_config_d4_max_gear();
 
 static uint8_t get_tps_index(uint8_t TPS);
@@ -183,9 +190,11 @@ static void print_data() {
 			print_config_sln_pressure();
 			break;
 		case 7:
+			print_config_gear2_reactivate();
+			break;
+		case 8:
 			print_config_d4_max_gear();
-			break;	
-			
+			break;
 	}
 	ValueDelta = 0;
 }
@@ -587,7 +596,7 @@ static void print_config_gear2_slu_temp_corr() {
 	}
 }
 
-// Экран настройки добавочного давления SLU для включения третьей передачи.
+// Экран настройки задержки выключения SLU при включении третьей передачи.
 static void print_config_gear3_slu_delay() {
 	//|12345678901234567890|
 	//|G3 SLU OFF |100|1.00|
@@ -660,6 +669,76 @@ static void print_config_gear3_slu_delay() {
 	}
 }
 
+// Экран настройки опережения включения второй передачи после ХХ.
+static void print_config_gear2_reactivate() {
+	//|12345678901234567890|
+	//|G2 REACTIV |100|1.00|
+	//|    A 99 | D101     |
+	//|  0|  5| 10| 15| 20||
+	//| 67| 72| 74| 77| 81||
+	//|12345678901234567890|
+
+	// После переключения передачи считываем параметры и обнуляем.
+	// Находим по ДПДЗ позицию в массиве.
+	if (LastGear2ReactivateTPS) {
+		Gear2ReactivateTPS = LastGear2ReactivateTPS;
+		LastGear2ReactivateTPS = 0;
+		CursorPos = get_tps_index(Gear2ReactivateTPS);
+
+		Gear2ReactivateRPM = LastGear2ReactivateRPM;
+		LastGear2ReactivateRPM = 0;
+	}
+
+	if (CursorPos >= TPS_GRID_SIZE) {CursorPos = 0;} // Ограничение по длине массива.
+
+	if (CursorPos < StartCol) {StartCol = CursorPos;}
+	if (CursorPos > StartCol + COLUMN_COUNT - 1) {StartCol = CursorPos + 1 - COLUMN_COUNT;}
+
+	char GearRatioChar[5] = {'-', '.', '-', '-', ' '};
+	if (TCU.OutputRPM > 100) {
+		snprintf(GearRatioChar, 5, "%1u.%02u",
+			MIN(9, TCU.DrumRPM / TCU.OutputRPM), MIN(99, ((TCU.DrumRPM % TCU.OutputRPM) * 100) / TCU.OutputRPM));
+	}
+
+	// row,  col
+	lcd_set_cursor(0, 0);
+	snprintf(LCDArray, 21, "G2 REACTIV |%3u|%s", TCU.InstTPS, GearRatioChar);
+	lcd_send_string(LCDArray, 20);
+
+	// Строка с необходимыми значениями.
+	lcd_set_cursor(1, 0);
+	snprintf(LCDArray, 21, "    A %2u | D%3u     ", MIN(99, Gear2ReactivateTPS), MIN(999, Gear2ReactivateRPM));
+	lcd_send_string(LCDArray, 20);
+
+	// Изменяемые значения.
+	for (uint8_t i = 0; i < COLUMN_COUNT; i++) {
+		lcd_set_cursor(2, i * 4);
+		snprintf(LCDArray, 4, "%3u", TPSGrid[StartCol + i]);
+		lcd_send_string(LCDArray, 3);
+
+		lcd_set_cursor(3, i * 4);
+		snprintf(LCDArray, 4, "%3i", Gear2DeltaRPM[StartCol + i]);
+		lcd_send_string(LCDArray, 3);
+
+		if (CursorPos == StartCol + i) {
+			if (ValueDelta < 0 && Gear2DeltaRPM[CursorPos] > 50) {Gear2DeltaRPM[CursorPos] += ValueDelta * 10;}
+			if (ValueDelta > 0 && Gear2DeltaRPM[CursorPos] < 990) {Gear2DeltaRPM[CursorPos] += ValueDelta * 10;}
+			ValueDelta = 0;
+
+			lcd_set_cursor(2, i * 4 + 3);
+			lcd_send_char('|');
+			lcd_set_cursor(3, i * 4 + 3);
+			lcd_send_char('<');
+		}
+		else {
+			lcd_set_cursor(2, i * 4 + 3);
+			lcd_send_char('|');
+			lcd_set_cursor(3, i * 4 + 3);
+			lcd_send_char('|');
+		}
+	}
+}
+
 // Временная установка максимальной передачи в режиме D4.
 static void print_config_d4_max_gear() {
 	//|12345678901234567890|
@@ -687,7 +766,6 @@ static void print_config_d4_max_gear() {
 		ValueDelta = 0;
 	}
 }
-
 
 static uint8_t get_tps_index(uint8_t TPS) {
 	if (TPS < 3) {return 0;}

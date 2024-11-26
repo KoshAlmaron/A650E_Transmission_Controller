@@ -22,6 +22,9 @@ const int8_t MinGear[] = {0, 0, -1, 0, 1, 1, 1, 2, 1, 0, 1};
 uint8_t LastGear2ChangeTPS = 0;			// Значение ДПДЗ при последнем переключении 1>2.
 uint8_t LastGear2ChangeSLU = 0;			// Значение SLU при последнем переключении 1>2.
 
+uint8_t LastGear2ReactivateTPS = 0;		// Значение ДПДЗ при возобновлении второй передачи.
+uint8_t LastGear2ReactivateRPM = 0;		// Значение опережения при возобновлении второй передачи.
+
 uint8_t LastGear3ChangeTPS = 0;			// Значение ДПДЗ при последнем переключении 2>3.
 uint16_t LastGear3ChangeSLUDelay = 0;	// Задержка отключения SLU при последнем переключении 2>3.
 
@@ -391,10 +394,10 @@ uint16_t gear_control() {
 // Управление давлением SLU B3 для работы второй передачи,
 // а также управление добавочным соленоидом S3
 void slu_gear2_control(uint8_t Time) {
-	static int16_t Timer = 0;	// Таймер правного включения.
-	static int8_t Step = 0;		// Шгаги плавного включения
-	static uint8_t AfterlIdle = 0;		// Уменьшения давления после ХХ.
-	if (TCU.Gear != 2) {	// Управление давлением SLU для второй передачи.
+	static int16_t Timer = 0;		// Таймер правного включения.
+	static int8_t Step = 0;			// Шаги плавного включения.
+	static uint8_t AfterlIdle = 0;	// Уменьшения давления после ХХ.
+	if (TCU.Gear != 2) {			// Управление давлением SLU для второй передачи.
 		Timer = 0;
 		Step = 0;
 		AfterlIdle = 0;
@@ -432,8 +435,6 @@ void slu_gear2_control(uint8_t Time) {
 		return;
 	}
 
-
-
 	// Плавное включение второй передачи после отключения.
 	if (Step < 7) {
 		Timer += Time;
@@ -445,6 +446,9 @@ void slu_gear2_control(uint8_t Time) {
 		}
 
 		if (AfterlIdle && TCU.SLU <= SLU_MIN_VALUE) {
+			LastGear2ReactivateTPS = TCU.InstTPS;
+			LastGear2ReactivateRPM = Delta;
+
 			set_slu(SOLENOID_BOOST_VALUE);
 			loop_wait(SOLENOID_BOOST_TIME);
 			AfterlIdle = 0;

@@ -23,6 +23,8 @@ void read_eeprom() {
 	eeprom_read_block((void*)&SLUGear2TempCorrGraph, (const void*) 200, TEMP_GRID_SIZE * 2);
 	// 274-315 - SLNGraph.
 	eeprom_read_block((void*)&SLNGraph, (const void*) 274, TPS_GRID_SIZE * 2);
+	// 316-357 - Gear2DeltaRPM.
+	eeprom_read_block((void*)&Gear2DeltaRPM, (const void*) 316, TPS_GRID_SIZE * 2);
 }
 
 // Запись EEPROM.
@@ -39,4 +41,6 @@ void update_eeprom() {
 	eeprom_update_block((void*)&SLUGear2TempCorrGraph, (void*) 200, TEMP_GRID_SIZE * 2);
 	// 274-315 - SLNGraph.
 	eeprom_update_block((void*)&SLNGraph, (void*) 274, TPS_GRID_SIZE * 2);
+	// 316-357 - Gear2DeltaRPM.
+	eeprom_update_block((void*)&Gear2DeltaRPM, (void*) 316, TPS_GRID_SIZE * 2);
 }
