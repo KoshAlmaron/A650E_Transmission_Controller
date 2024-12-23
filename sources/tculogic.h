@@ -4,10 +4,10 @@
 	#define _TCULOGIC_H_
 
 	void slt_control();
+	void sln_control(uint8_t Timer);
 	void at_mode_control();
 	void glock_control(uint8_t Timer);
 	void slip_detect();
-
 
 	void rear_lamp();
 	void speedometer_control();

@@ -4,6 +4,8 @@
 #include "uart.h"			// Свой заголовок.
 #include "pinout.h"			// Список назначенных выводов.
 #include "tcudata.h"		// Расчет и хранение всех необходимых параметров.
+#include <stdio.h>			// Стандартная библиотека ввода/вывода
+
 
 // Скорость передачи UART 57600 бит/с.
 #define UART_BAUD_RATE 115200UL
@@ -25,6 +27,9 @@ volatile uint8_t TXReady = 1;						// UART готов к отправке.
 volatile uint8_t UseMarkers = 0;
 // Признак, что предыдущий символ был заменен.
 volatile uint8_t MarkerByte = 0;
+
+static void send_uint16_array(uint16_t* Array, uint8_t ASize);
+static void send_int16_array(int16_t* Array, uint8_t ASize);
 
 void uart_init(uint8_t mode) {
 	// Сброс регистров настроек, так как загрузчик Arduino может нагадить.
@@ -108,9 +113,66 @@ void uart_send_string(char* s) {
 	}
 }
 
+void send_eeprom_to_uart() {
+	while (!uart_tx_ready());	// Ждем окончани предыдущей передачи.
+
+	uart_send_char('\n');
+	uart_send_char('\n');
+
+	uart_send_string("SLTGraph\n");
+	send_uint16_array(SLTGraph, TPS_GRID_SIZE);
+
+	uart_send_string("SLTTempCorrGraph\n");
+	send_int16_array(SLTTempCorrGraph, TEMP_GRID_SIZE);
+
+	uart_send_string("SLUGear2Graph\n");
+	send_uint16_array(SLUGear2Graph, TPS_GRID_SIZE);
+
+	uart_send_string("Gear3SLUDelayGraph\n");
+	send_uint16_array(Gear3SLUDelayGraph, TPS_GRID_SIZE);
+
+	uart_send_string("SLUGear2TempCorrGraph\n");
+	send_int16_array(SLUGear2TempCorrGraph, TEMP_GRID_SIZE);
+
+	uart_send_string("SLNGraph\n");
+	send_uint16_array(SLNGraph, TPS_GRID_SIZE);
+
+	uart_send_string("Gear2DeltaRPM\n");
+	send_uint16_array(Gear2DeltaRPM, TPS_GRID_SIZE);
+
+	uart_send_char('\n');
+	uart_send_char('\n');
+}
+
+static void send_uint16_array(uint16_t* Array, uint8_t ASize) {
+	char Chararray[8] = {0};
+
+	snprintf(Chararray, 4, "%3u", Array[0]);
+	uart_send_string(Chararray);
+
+	for (uint8_t i = 1; i < ASize; i++) {
+		snprintf(Chararray, 6, ", %3u", Array[i]);
+		uart_send_string(Chararray);
+	}
+	uart_send_char('\n');
+}
+
+static void send_int16_array(int16_t* Array, uint8_t ASize) {
+	char Chararray[8] = {0};
+
+	snprintf(Chararray, 4, "%3i", Array[0]);
+	uart_send_string(Chararray);
+
+	for (uint8_t i = 1; i < ASize; i++) {
+		snprintf(Chararray, 6, ", %3i", Array[i]);
+		uart_send_string(Chararray);
+	}
+	uart_send_char('\n');
+}
+
 // Отправить массив в UART.
 void uart_send_array() {
-	TxMsgSize = TxBuffPos;			// Количество байт на отправку.
+	TxMsgSize = TxBuffPos;		// Количество байт на отправку.
 	TXReady = 0;				// UART занят.
 	TxBuffPos = 0;				// Сбрасываем позицию в массиве.
 	UCSR0B |= (1 << UDRIE0);	// Включаем прерывание по опустошению буфера.

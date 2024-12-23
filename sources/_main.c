@@ -149,9 +149,13 @@ static void loop_add() {
 		SET_PIN_LOW(SOLENOID_S4_PIN);
 
 		// Устанавливаем ШИМ на соленоидах.
-		OCR1A = 255;	// SLT (При выключенном соленоиде максимальное давление).
-		OCR1B = 0;		// SLN.
-		OCR1C = 0;		// SLU.
+		TCU.SLT = 255;
+		TCU.SLN = 0;
+		TCU.SLU = 0;
+
+		OCR1A = TCU.SLT;	// SLT (При выключенном соленоиде максимальное давление).
+		OCR1B = TCU.SLN;	// SLN.
+		OCR1C = TCU.SLU;	// SLU.
 
 		TCU.ATMode = 0;	// Состояние АКПП.
 		TCU.Gear = 0;
@@ -172,10 +176,10 @@ static void loop_add() {
 
 	if (PressureControlTimer >= 27) {
 		slt_control();								// Управление линейными давлением.
+		sln_control(PressureControlTimer);			// Управление давлением гидроаккумуляторов.
 		slu_gear2_control(PressureControlTimer); 	// Управление давлением SLU для второй передачи.
 		PressureControlTimer = 0;
 	}
-
 }
 
 // Прерывание при совпадении регистра сравнения OCR0A на таймере 0 каждую 1мс. 

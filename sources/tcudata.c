@@ -102,7 +102,7 @@ uint8_t get_slt_pressure() {
 	// Потому здесь все линейно, больше значение -> больше давление.
 
 	// Вычисляем значение в зависимости от ДПДЗ.
-	uint8_t SLT = get_interpolated_value_uint16_t(TCU.InstTPS, TPSGrid, SLTGraph, TPS_GRID_SIZE);
+	uint8_t SLT = get_interpolated_value_uint16_t(TCU.TPS, TPSGrid, SLTGraph, TPS_GRID_SIZE);
 	// Применяем коррекцию по температуре.
 	SLT = CONSTRAIN(SLT + get_slt_temp_corr(SLT), 20, 230);
 	return SLT;
@@ -132,13 +132,13 @@ int8_t get_slt_temp_corr(uint8_t Value) {
 
 uint8_t get_sln_pressure() {
 	// Вычисляем значение в зависимости от ДПДЗ.
-	uint8_t SLN = get_interpolated_value_uint16_t(TCU.InstTPS, TPSGrid, SLNGraph, TPS_GRID_SIZE);
+	uint8_t SLN = get_interpolated_value_uint16_t(TCU.TPS, TPSGrid, SLNGraph, TPS_GRID_SIZE);
 	return SLN;
 }
 
 // Давление включения и работы второй передачи SLU B3.
 uint8_t get_slu_pressure_gear2() {
-	uint8_t PressureGear2 = get_interpolated_value_uint16_t(TCU.InstTPS, TPSGrid, SLUGear2Graph, TPS_GRID_SIZE);
+	uint8_t PressureGear2 = get_interpolated_value_uint16_t(TCU.TPS, TPSGrid, SLUGear2Graph, TPS_GRID_SIZE);
 	
 	// Применяем коррекцию по температуре.
 	PressureGear2 = CONSTRAIN(PressureGear2 + get_slu_gear2_temp_corr(PressureGear2), 25, 230);

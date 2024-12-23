@@ -1,12 +1,13 @@
 #include <avr/eeprom.h>
 #include "tcudata.h"		// Расчет и хранение всех необходимых параметров.
+#include "uart.h"			// UART.
+
 #include "eeprom.h"			// Свой заголовок.
-
-
 
 // TPS_GRID_SIZE	21 	 	42
 // TEMP_GRID_SIZE	37 		74
 // Чтение EEPROM
+
 void read_eeprom() {
 	//update_eeprom();
 	// Адрес массива, адрес ячейки, кол-во байт.
@@ -43,4 +44,7 @@ void update_eeprom() {
 	eeprom_update_block((void*)&SLNGraph, (void*) 274, TPS_GRID_SIZE * 2);
 	// 316-357 - Gear2DeltaRPM.
 	eeprom_update_block((void*)&Gear2DeltaRPM, (void*) 316, TPS_GRID_SIZE * 2);
+
+	// Пихаем все в UART, чтобы потом можно было копипастить.
+	send_eeprom_to_uart();
 }

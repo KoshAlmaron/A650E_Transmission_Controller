@@ -17,6 +17,26 @@ void slt_control() {
 	OCR1A = TCU.SLT;	// SLT - выход A таймера 1.
 }
 
+// Управление давлением SLN.
+void sln_control(uint8_t Timer) {
+	static uint16_t SLNTimer = 0;	// Таймер для выключения SLN.
+
+	if (TCU.Gear == 0) {
+		if (TCU.Break) {TCU.SLN = get_sln_pressure();}
+		else {TCU.SLN = SLN_MIN_VALUE;}
+	}
+	else {
+		if (TCU.SLN > SLN_MIN_VALUE) {
+			SLNTimer += Timer;
+			if (SLNTimer > 2500) {
+				SLNTimer = 0;
+				TCU.SLN = SLN_MIN_VALUE;
+			}
+		}
+	}
+	OCR1B = TCU.SLN;	// SLN - выход B таймера 1.
+}
+
 void at_mode_control() {
 	// Если ничего не поменялось, валим.
 	if (TCU.ATMode == TCU.Selector) {return;}
@@ -116,29 +136,31 @@ void glock_control(uint8_t Timer) {
 			&& !TCU.GearChange
 			&& TCU.TPS >= TPS_IDLE_LIMIT 
 			&& TCU.TPS <= GLOCK_MAX_TPS 
-			&& ((TCU.OilTemp >= 45 && !TCU.Glock) || (TCU.OilTemp >= 44 && TCU.Glock))
+			&& ((TCU.OilTemp >= 31 && !TCU.Glock) || (TCU.OilTemp >= 30 && TCU.Glock))
 			&& TCU.CarSpeed >= 40) {
 				if(!TCU.Glock) {GTimer += Timer;}
 	}
 	else {	// Отключение блокировки при нарушении условий.
 		if (TCU.Glock) {
-			if (TCU.SLU > SLU_GLOCK_START_VALUE + 5) {
+			// Начальное значение схватывания с учетом температурной коррекции.
+			SLUStartValue = SLU_GLOCK_START_VALUE + get_slu_gear2_temp_corr(SLU_GLOCK_START_VALUE);
+			
+			if (TCU.SLU > SLUStartValue + 5) {
 				// Устанавливаем давление схватывания + 5.
-				TCU.SLU = SLU_GLOCK_START_VALUE + 5;
+				TCU.SLU = SLUStartValue + 5;
 			}
-			else if (TCU.SLU > SLU_GLOCK_START_VALUE - 5) {
+			else if (TCU.SLU > SLUStartValue - 5) {
 				// Плавно снижаем на 10 единиц.
 				TCU.SLU -= 1;
 			}
 			else {
 				// Потом выключаем полностью.
-				GTimer = 0;
 				TCU.Glock = 0;
-				TCU.SLU = 0;
-				OCR1C = TCU.SLU;	// SLU - выход C таймера 1.
+				TCU.SLU = SLU_MIN_VALUE;
 			}
 			OCR1C = TCU.SLU;	// Применение значения.
 		}
+		GTimer = 0;
 		return;
 	}
 
@@ -148,16 +170,15 @@ void glock_control(uint8_t Timer) {
 			// Начальное значение схватывания с учетом температурной коррекции.
 			SLUStartValue = SLU_GLOCK_START_VALUE + get_slu_gear2_temp_corr(SLU_GLOCK_START_VALUE);
 			TCU.SLU = SLUStartValue;
-			OCR1C = TCU.SLU;	// Применение значения.
 			TCU.Glock = 1;
 		}
 		else {
-			if (TCU.SLU >= SLUStartValue) {return;}
+			if (TCU.SLU >= SLU_GLOCK_MAX_VALUE) {return;}
 			uint8_t PressureAdd = 5;
-			if (TCU.SLU < SLU_GLOCK_START_VALUE + 15) {PressureAdd = 1;}
+			if (TCU.SLU < SLUStartValue + 15) {PressureAdd = 1;}
 			TCU.SLU = MIN(SLU_GLOCK_MAX_VALUE, TCU.SLU + PressureAdd);
-			OCR1C = TCU.SLU;	// Применение значения.
 		}
+		OCR1C = TCU.SLU;	// Применение значения.
 	}
 }
 

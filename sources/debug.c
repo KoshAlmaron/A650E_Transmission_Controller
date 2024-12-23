@@ -647,12 +647,15 @@ static void print_config_gear3_slu_delay() {
 		lcd_send_string(LCDArray, 3);
 
 		lcd_set_cursor(3, i * 4);
-		snprintf(LCDArray, 4, "%3i", Gear3SLUDelayGraph[StartCol + i]);
+		uint8_t Value = Gear3SLUDelayGraph[StartCol + i] / 10;
+		snprintf(LCDArray, 4, "%3i", Value);
 		lcd_send_string(LCDArray, 3);
 
 		if (CursorPos == StartCol + i) {
-			if (ValueDelta < 0 && Gear3SLUDelayGraph[CursorPos] > 100) {Gear3SLUDelayGraph[CursorPos] += ValueDelta * 10;}
-			if (ValueDelta > 0 && Gear3SLUDelayGraph[CursorPos] < 990) {Gear3SLUDelayGraph[CursorPos] += ValueDelta * 10;}
+			if (ValueDelta < 0) {Gear3SLUDelayGraph[CursorPos] += ValueDelta * 50;}
+			if (ValueDelta > 0) {Gear3SLUDelayGraph[CursorPos] += ValueDelta * 50;}
+			Gear3SLUDelayGraph[CursorPos] = CONSTRAIN(Gear3SLUDelayGraph[CursorPos], 100, 2000);
+
 			ValueDelta = 0;
 
 			lcd_set_cursor(2, i * 4 + 3);
@@ -820,7 +823,7 @@ static void solenoid_manual_control() {
 	if (TCU.SLN <= 2) {TCU.SLN = 0;}
 	if (TCU.SLN >= 253) {TCU.SLN = 255;}
 
-	TCU.SLU = 55 + (get_adc_value(4) >> 5);
+	TCU.SLU = 50 + (get_adc_value(4) >> 3);
 
 	// Устанавливаем ШИМ на соленоидах.
 	OCR1A = TCU.SLT;

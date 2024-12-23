@@ -10,6 +10,9 @@
 	uint8_t uart_get_byte();
 	void uart_send_char(char Data);
 	void uart_send_string(char* s);
+
+	void send_eeprom_to_uart();
+
 	void uart_send_array();
 	uint8_t uart_tx_ready();
 
