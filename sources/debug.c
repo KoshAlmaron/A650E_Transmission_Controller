@@ -717,7 +717,7 @@ static void print_config_gear3_slu_pressure() {
 		lcd_send_string(LCDArray, 3);
 
 		lcd_set_cursor(3, i * 4);
-		int8_t Value = SLUGear3AddGraph[StartCol + i];
+		int8_t Value = CONSTRAIN(SLUGear3AddGraph[StartCol + i], -99, 99);
 		snprintf(LCDArray, 4, "%3i", Value);
 		lcd_send_string(LCDArray, 3);
 

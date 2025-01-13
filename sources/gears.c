@@ -135,7 +135,7 @@ static void gear_change_1_2() {
 	SET_PIN_HIGH(SOLENOID_S3_PIN);			// Включаем систему "Clutch to Clutch".
 	SET_PIN_LOW(SOLENOID_S4_PIN);
 
-	set_slu(SOLENOID_BOOST_VALUE);
+	set_slu(get_slu_boost_value());
 	loop_wait(SOLENOID_BOOST_TIME);
 	set_slu(get_slu_pressure_gear2());		// Давление включения второй предачи.
 
@@ -256,7 +256,7 @@ static void gear_change_3_2() {
 	SET_PIN_LOW(SOLENOID_S4_PIN);
 
 	if (TCU.TPS > TPS_IDLE_LIMIT) {
-		set_slu(SOLENOID_BOOST_VALUE);
+		set_slu(get_slu_boost_value());
 		loop_wait(SOLENOID_BOOST_TIME);
 		set_slu(get_slu_pressure_gear2());		// Давление включения второй предачи.
 	}
@@ -414,7 +414,7 @@ void slu_gear2_control(uint8_t Time) {
 	// После отключения второй передачи на ХХ или по оборотам, 
 	// надо быстро поднять давление SLU до рабочего.
 	if (AfterIdleTimer > 3000) {
-		set_slu(SOLENOID_BOOST_VALUE);
+		set_slu(get_slu_boost_value());
 		loop_wait(SOLENOID_BOOST_TIME);
 	}
 	AfterIdleTimer = 0;

@@ -12,6 +12,7 @@
 	uint8_t get_sln_pressure();
 	uint8_t get_slu_pressure_gear2();
 	int8_t get_slu_gear2_temp_corr(uint8_t Value);
+	uint8_t get_slu_boost_value();
 	uint8_t get_slu_pressure_gear3();
 
 	extern struct TCU_t TCU; 		// Делаем структуру внешней.
