@@ -12,6 +12,7 @@
 	uint8_t get_sln_pressure();
 	uint8_t get_slu_pressure_gear2();
 	int8_t get_slu_gear2_temp_corr(uint8_t Value);
+	uint8_t get_slu_pressure_gear3();
 
 	extern struct TCU_t TCU; 		// Делаем структуру внешней.
 
@@ -28,9 +29,8 @@
 	extern uint16_t SLNGraph[];
 	extern uint16_t SLUGear2Graph[];
 	extern int16_t SLUGear2TempCorrGraph[];
-	extern uint16_t Gear3SLUDelayGraph[];
-
 	extern uint16_t Gear2DeltaRPM[];
+	extern int16_t SLUGear3AddGraph[];
 
 	// Структура для хранения переменных.
 	typedef struct TCU_t {

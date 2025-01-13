@@ -102,11 +102,11 @@ void loop_main() {
 	if (SelectorTimer >= 202) {
 		SelectorTimer = 0;
 		selector_position();		// Определение позиции селектора АКПП.
-		engine_n_break_state();		// Состояние двинателя и педали тормоза.
+		engine_n_break_state();		// Состояние двигателя и педали тормоза.
 		rear_lamp();				// Лампа заднего хода.
 	}
 
-	if (DataUpdateTimer >= 20) {
+	if (DataUpdateTimer >= 40) {
 		DataUpdateTimer = 0;
 		calculate_tcu_data();		// Расчет значений TCU.
 		speedometer_control();		// Выход на спидометр.

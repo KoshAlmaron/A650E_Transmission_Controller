@@ -19,7 +19,7 @@ void slt_control() {
 
 // Управление давлением SLN.
 void sln_control(uint8_t Timer) {
-	static uint16_t SLNTimer = 0;	// Таймер для выключения SLN.
+	static uint16_t TimerSLN = 0;	// Таймер для выключения SLN.
 
 	if (TCU.Gear == 0) {
 		if (TCU.Break) {TCU.SLN = get_sln_pressure();}
@@ -27,10 +27,10 @@ void sln_control(uint8_t Timer) {
 	}
 	else {
 		if (TCU.SLN > SLN_MIN_VALUE) {
-			SLNTimer += Timer;
-			if (SLNTimer > 2500) {
-				SLNTimer = 0;
-				TCU.SLN = SLN_MIN_VALUE;
+			TimerSLN += Timer;
+			if (TimerSLN > 50) {
+				TimerSLN = 0;
+				TCU.SLN -= 1;
 			}
 		}
 	}
@@ -151,7 +151,7 @@ void glock_control(uint8_t Timer) {
 			}
 			else if (TCU.SLU > SLUStartValue - 5) {
 				// Плавно снижаем на 10 единиц.
-				TCU.SLU -= 1;
+				TCU.SLU -= 2;
 			}
 			else {
 				// Потом выключаем полностью.

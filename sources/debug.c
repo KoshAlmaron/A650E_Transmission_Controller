@@ -46,7 +46,7 @@ extern uint8_t LastGear2ReactivateTPS;		// Значение ДПДЗ при во
 extern uint8_t LastGear2ReactivateRPM;		// Значение опережения при возобновлении второй передачи.
 
 extern uint8_t LastGear3ChangeTPS;			// Значение ДПДЗ при последнем переключении 2>3.
-extern uint16_t LastGear3ChangeSLUDelay;	// Задержка отключения SLU при последнем переключении 2>3.
+extern uint16_t LastGear3ChangeSLU;			// Задержка отключения SLU при последнем переключении 2>3.
 
 extern uint8_t LastGear4ChangeTPS;			// Значение ДПДЗ при последнем переключении 3>4.
 extern uint8_t LastGear4ChangeSLT;			// Значение SLT при последнем переключении 3>4.
@@ -63,7 +63,7 @@ uint8_t Gear2ReactivateTPS = 0;
 uint8_t Gear2ReactivateRPM = 0;
 
 uint8_t Gear3ChangeTPS = 0;
-uint16_t Gear3ChangeSLUDelay = 0;
+uint16_t Gear3ChangeSLU = 0;
 
 uint8_t Gear4ChangeTPS = 0;
 uint8_t Gear4ChangeSLT = 0;
@@ -79,7 +79,7 @@ static void print_config_slt_temp_corr();
 static void print_config_sln_pressure();
 static void print_config_gear2_slu_pressure();
 static void print_config_gear2_slu_temp_corr();
-static void print_config_gear3_slu_delay();
+static void print_config_gear3_slu_pressure();
 static void print_config_gear2_reactivate();
 static void print_config_d4_max_gear();
 
@@ -178,19 +178,19 @@ static void print_data() {
 			print_config_gear2_slu_temp_corr();
 			break;	
 		case 3:
-			print_config_gear3_slu_delay();
+			print_config_gear2_reactivate();
 			break;
 		case 4:
+			print_config_gear3_slu_pressure();
+			break;
+		case 5:
 			print_config_slt_pressure();
 			break;	
-		case 5:
-			print_config_slt_temp_corr();
-			break;	
 		case 6:
-			print_config_sln_pressure();
+			print_config_slt_temp_corr();
 			break;
 		case 7:
-			print_config_gear2_reactivate();
+			print_config_sln_pressure();
 			break;
 		case 8:
 			print_config_d4_max_gear();
@@ -596,82 +596,6 @@ static void print_config_gear2_slu_temp_corr() {
 	}
 }
 
-// Экран настройки задержки выключения SLU при включении третьей передачи.
-static void print_config_gear3_slu_delay() {
-	//|12345678901234567890|
-	//|G3 SLU OFF |100|1.00|
-	//|UP-12 UV-12 A99 D101|
-	//|  0|  5| 10| 15| 20||
-	//| 67| 72| 74| 77| 81||
-	//|12345678901234567890|
-
-	// После переключения передачи считываем параметры и обнуляем.
-	// Находим по ДПДЗ позицию в массиве.
-	if (LastGear3ChangeTPS) {
-		Gear3ChangeTPS = LastGear3ChangeTPS;
-		LastGear3ChangeTPS = 0;
-		CursorPos = get_tps_index(Gear3ChangeTPS);
-
-		Gear3ChangeSLUDelay = LastGear3ChangeSLUDelay;
-		LastGear3ChangeSLUDelay = 0;
-	}
-
-	if (CursorPos >= TPS_GRID_SIZE) {CursorPos = 0;} // Ограничение по длине массива.
-
-	if (CursorPos < StartCol) {StartCol = CursorPos;}
-	if (CursorPos > StartCol + COLUMN_COUNT - 1) {StartCol = CursorPos + 1 - COLUMN_COUNT;}
-
-	char GearRatioChar[5] = {'-', '.', '-', '-', ' '};
-	if (TCU.OutputRPM > 100) {
-		snprintf(GearRatioChar, 5, "%1u.%02u", 
-			MIN(9, TCU.DrumRPM / TCU.OutputRPM), MIN(99, ((TCU.DrumRPM % TCU.OutputRPM) * 100) / TCU.OutputRPM));
-	}
-
-	// row,  col
-	lcd_set_cursor(0, 0);
-	snprintf(LCDArray, 21, "G3 SLU OFF |%3u|%s", TCU.InstTPS, GearRatioChar);
-	lcd_send_string(LCDArray, 20);
-
-	// Строка с необходимыми значениями.
-	int8_t OilTempCorrSLUP = get_slu_gear2_temp_corr(0);				// В %.
-	int8_t OilTempCorrSLUV = get_slu_gear2_temp_corr(Gear2ChangeSLU);	// В единицах ШИМ.
-	lcd_set_cursor(1, 0);
-	snprintf(LCDArray, 21, "UC%3i UV%3i A%2u D%3u", 
-		CONSTRAIN(OilTempCorrSLUP, -99, 99), CONSTRAIN(OilTempCorrSLUV, -99, 99), MIN(99, Gear3ChangeTPS), Gear3ChangeSLUDelay);
-	lcd_send_string(LCDArray, 20);
-
-	// Изменяемые значения.
-	for (uint8_t i = 0; i < COLUMN_COUNT; i++) {
-		lcd_set_cursor(2, i * 4);
-		snprintf(LCDArray, 4, "%3u", TPSGrid[StartCol + i]);
-		lcd_send_string(LCDArray, 3);
-
-		lcd_set_cursor(3, i * 4);
-		uint8_t Value = Gear3SLUDelayGraph[StartCol + i] / 10;
-		snprintf(LCDArray, 4, "%3i", Value);
-		lcd_send_string(LCDArray, 3);
-
-		if (CursorPos == StartCol + i) {
-			if (ValueDelta < 0) {Gear3SLUDelayGraph[CursorPos] += ValueDelta * 50;}
-			if (ValueDelta > 0) {Gear3SLUDelayGraph[CursorPos] += ValueDelta * 50;}
-			Gear3SLUDelayGraph[CursorPos] = CONSTRAIN(Gear3SLUDelayGraph[CursorPos], 100, 2000);
-
-			ValueDelta = 0;
-
-			lcd_set_cursor(2, i * 4 + 3);
-			lcd_send_char('|');
-			lcd_set_cursor(3, i * 4 + 3);
-			lcd_send_char('<');
-		}
-		else {
-			lcd_set_cursor(2, i * 4 + 3);
-			lcd_send_char('|');
-			lcd_set_cursor(3, i * 4 + 3);
-			lcd_send_char('|');	
-		}
-	}
-}
-
 // Экран настройки опережения включения второй передачи после ХХ.
 static void print_config_gear2_reactivate() {
 	//|12345678901234567890|
@@ -738,6 +662,81 @@ static void print_config_gear2_reactivate() {
 			lcd_send_char('|');
 			lcd_set_cursor(3, i * 4 + 3);
 			lcd_send_char('|');
+		}
+	}
+}
+
+// Экран настройки задержки выключения SLU при включении третьей передачи.
+static void print_config_gear3_slu_pressure() {
+	//|12345678901234567890|
+	//|G3 SLU Add |100|1.00|
+	//|UP-12 UV-12 A99 D101|
+	//|  0|  5| 10| 15| 20||
+	//| 67| 72| 74| 77| 81||
+	//|12345678901234567890|
+
+	// После переключения передачи считываем параметры и обнуляем.
+	// Находим по ДПДЗ позицию в массиве.
+	if (LastGear3ChangeTPS) {
+		Gear3ChangeTPS = LastGear3ChangeTPS;
+		LastGear3ChangeTPS = 0;
+		CursorPos = get_tps_index(Gear3ChangeTPS);
+
+		Gear3ChangeSLU = LastGear3ChangeSLU;
+		LastGear3ChangeSLU = 0;
+	}
+
+	if (CursorPos >= TPS_GRID_SIZE) {CursorPos = 0;} // Ограничение по длине массива.
+
+	if (CursorPos < StartCol) {StartCol = CursorPos;}
+	if (CursorPos > StartCol + COLUMN_COUNT - 1) {StartCol = CursorPos + 1 - COLUMN_COUNT;}
+
+	char GearRatioChar[5] = {'-', '.', '-', '-', ' '};
+	if (TCU.OutputRPM > 100) {
+		snprintf(GearRatioChar, 5, "%1u.%02u", 
+			MIN(9, TCU.DrumRPM / TCU.OutputRPM), MIN(99, ((TCU.DrumRPM % TCU.OutputRPM) * 100) / TCU.OutputRPM));
+	}
+
+	// row,  col
+	lcd_set_cursor(0, 0);
+	snprintf(LCDArray, 21, "G3 SLU Add |%3u|%s", TCU.InstTPS, GearRatioChar);
+	lcd_send_string(LCDArray, 20);
+
+	// Строка с необходимыми значениями.
+	int8_t OilTempCorrSLUP = get_slu_gear2_temp_corr(0);				// В %.
+	int8_t OilTempCorrSLUV = get_slu_gear2_temp_corr(Gear2ChangeSLU);	// В единицах ШИМ.
+	lcd_set_cursor(1, 0);
+	snprintf(LCDArray, 21, "UC%3i UV%3i A%2u D%3u", 
+		CONSTRAIN(OilTempCorrSLUP, -99, 99), CONSTRAIN(OilTempCorrSLUV, -99, 99), MIN(99, Gear3ChangeTPS), Gear3ChangeSLU);
+	lcd_send_string(LCDArray, 20);
+
+	// Изменяемые значения.
+	for (uint8_t i = 0; i < COLUMN_COUNT; i++) {
+		lcd_set_cursor(2, i * 4);
+		snprintf(LCDArray, 4, "%3u", TPSGrid[StartCol + i]);
+		lcd_send_string(LCDArray, 3);
+
+		lcd_set_cursor(3, i * 4);
+		int8_t Value = SLUGear3AddGraph[StartCol + i];
+		snprintf(LCDArray, 4, "%3i", Value);
+		lcd_send_string(LCDArray, 3);
+
+		if (CursorPos == StartCol + i) {
+			if (ValueDelta < 0) {SLUGear3AddGraph[CursorPos] += ValueDelta;}
+			if (ValueDelta > 0) {SLUGear3AddGraph[CursorPos] += ValueDelta;}
+			SLUGear3AddGraph[CursorPos] = CONSTRAIN(SLUGear3AddGraph[CursorPos], -32, 64);
+			ValueDelta = 0;
+
+			lcd_set_cursor(2, i * 4 + 3);
+			lcd_send_char('|');
+			lcd_set_cursor(3, i * 4 + 3);
+			lcd_send_char('<');
+		}
+		else {
+			lcd_set_cursor(2, i * 4 + 3);
+			lcd_send_char('|');
+			lcd_set_cursor(3, i * 4 + 3);
+			lcd_send_char('|');	
 		}
 	}
 }

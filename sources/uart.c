@@ -128,8 +128,8 @@ void send_eeprom_to_uart() {
 	uart_send_string("SLUGear2Graph\n");
 	send_uint16_array(SLUGear2Graph, TPS_GRID_SIZE);
 
-	uart_send_string("Gear3SLUDelayGraph\n");
-	send_uint16_array(Gear3SLUDelayGraph, TPS_GRID_SIZE);
+	uart_send_string("SLUGear3AddGraph\n");
+	send_int16_array(SLUGear3AddGraph, TPS_GRID_SIZE);
 
 	uart_send_string("SLUGear2TempCorrGraph\n");
 	send_int16_array(SLUGear2TempCorrGraph, TEMP_GRID_SIZE);
