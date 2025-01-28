@@ -58,6 +58,8 @@ static uint8_t rpm_after_ok(uint8_t Shift);
 static void set_sln(uint8_t Value);
 static void set_slu(uint8_t Value);
 
+static void slu_boost();
+
 //============================ Начальные передачи =============================
 // Включение нейтрали.
 void set_gear_n() {
@@ -135,14 +137,12 @@ static void gear_change_1_2() {
 	SET_PIN_HIGH(SOLENOID_S3_PIN);			// Включаем систему "Clutch to Clutch".
 	SET_PIN_LOW(SOLENOID_S4_PIN);
 
-	set_slu(get_slu_boost_value());
-	loop_wait(SOLENOID_BOOST_TIME);
-	set_slu(get_slu_pressure_gear2());		// Давление включения второй предачи.
+	slu_boost();	// Первоначальная накачка давления SLU.
 
 	LastGear2ChangeTPS = TCU.InstTPS;
 	LastGear2ChangeSLU = TCU.SLU;
 
-	loop_wait(GearChangeStep * 2);
+	loop_wait(GearChangeStep);
 
 	TCU.Gear = 2;
 	TCU.GearChange = 0;
@@ -252,14 +252,11 @@ static void gear_change_3_2() {
 
 	SET_PIN_HIGH(SOLENOID_S1_PIN);
 	SET_PIN_HIGH(SOLENOID_S2_PIN);
-	SET_PIN_HIGH(SOLENOID_S3_PIN);		// Включаем систему "Clutch to Clutch".
+	SET_PIN_HIGH(SOLENOID_S3_PIN);	// Включаем систему "Clutch to Clutch".
 	SET_PIN_LOW(SOLENOID_S4_PIN);
 
-	if (TCU.TPS > TPS_IDLE_LIMIT) {
-		set_slu(get_slu_boost_value());
-		loop_wait(SOLENOID_BOOST_TIME);
-		set_slu(get_slu_pressure_gear2());		// Давление включения второй предачи.
-	}
+	// Первоначальная накачка давления SLU.
+	if (TCU.TPS > TPS_IDLE_LIMIT) {slu_boost();}
 
 	// Реально вторая будет включаться далее в функции slu_gear2_control.
 	// Это необходимо для контроля оборотов при включении второй передачи,
@@ -367,32 +364,29 @@ uint16_t gear_control() {
 }
 
 // Управление давлением SLU B3 для работы второй передачи,
-// а также управление добавочным соленоидом S3
+// а также управление соленоидом S3.
 void slu_gear2_control(uint8_t Time) {
-	static uint16_t Timer = 0;				// Таймер правного включения.
-	static uint8_t Step = 0;				// Шаги плавного включения.
-	static uint16_t AfterIdleTimer = 0;		// Таймер ожидания после ХХ.
+	static uint16_t Timer = 0;		// Таймер правного включения.
+	static uint8_t Step = 0;		// Шаги плавного включения.
 
-	if (TCU.Gear != 2) {			// Управление давлением SLU для второй передачи.
+	if (TCU.Gear != 2) {
 		Timer = 0;
 		Step = 0;
-		AfterIdleTimer = 0;
 		return;
 	}
 
-	// Включаем систему "Clutch to Clutch" на ХХ,
 	// чтобы при добавлении газа вторая передача плавно включилась.
 	if (TCU.TPS < TPS_IDLE_LIMIT) {
 		Timer = 0;
 		Step = 0;
-		SET_PIN_HIGH(SOLENOID_S3_PIN);
-
-		AfterIdleTimer += Time;
-
 		// В режимах "2" и "3", должно быть торможение двигателем,
-		// в остальных случаях вторая передача на ХХ отключена.
-		if (TCU.ATMode == 6 || TCU.ATMode == 7) {set_slu(SLUGear2Graph[3]);}
-		else {set_slu(SLU_MIN_VALUE);}
+		if (TCU.ATMode == 6 || TCU.ATMode == 7) {
+			SET_PIN_LOW(SOLENOID_S3_PIN);
+			set_slu(SLUGear2Graph[3]);}		// SLU для торможения двигателем.
+		else {	// В остальных случаях вторая передача на ХХ отключена.
+			SET_PIN_HIGH(SOLENOID_S3_PIN);
+			set_slu(SLUGear2Graph[0]);		// SLU для ХХ.
+		}
 		return;
 	}
 
@@ -404,20 +398,10 @@ void slu_gear2_control(uint8_t Time) {
 		Timer = 0;
 		Step = 0;
 
-		AfterIdleTimer += Time;
-
 		SET_PIN_HIGH(SOLENOID_S3_PIN);
-		set_slu(SLU_MIN_VALUE);
+		set_slu(SLUGear2Graph[0]);
 		return;
 	}
-
-	// После отключения второй передачи на ХХ или по оборотам, 
-	// надо быстро поднять давление SLU до рабочего.
-	if (AfterIdleTimer > 3000) {
-		set_slu(get_slu_boost_value());
-		loop_wait(SOLENOID_BOOST_TIME);
-	}
-	AfterIdleTimer = 0;
 
 	// Плавное включение второй передачи.
 	if (Step < 10) {
@@ -429,6 +413,19 @@ void slu_gear2_control(uint8_t Time) {
 		if (Step == 10) {SET_PIN_LOW(SOLENOID_S3_PIN);}
 	}
 	set_slu(get_slu_pressure_gear2() + Step);
+}
+
+
+// Первоначальная накачка давления SLU для включения второй передачи.
+static void slu_boost() {
+	// Ограничение по ДПДЗ и температуре масла.
+	if (TCU.InstTPS > 30 || TCU.OilTemp < 40) {return;}
+	// Ограничение по начальному давлению.
+	if (TCU.SLU > SLU_MIN_VALUE) {return;}
+
+	set_slu(get_slu_boost_value());
+	loop_wait(SOLENOID_BOOST_TIME);
+	set_slu(get_slu_pressure_gear2());
 }
 
 // Переключение вверх.
