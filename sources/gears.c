@@ -33,7 +33,7 @@ uint8_t LastGear4ChangeSLT = 0;			// Значение SLT при последн�
 uint8_t LastGear4ChangeSLN = 0;			// Значение SLN при последнем переключении 3>4.
 
 // Прототипы функций.
-void loop_main();					// Прототип функций из main.c.
+void loop_main(uint8_t Wait);		// Прототип функций из main.c.
 void glock_control(uint8_t Timer);	// Прототип функций из tculogic.c.
 
 static void gear_change_1_2();
@@ -137,6 +137,7 @@ static void gear_change_1_2() {
 	SET_PIN_HIGH(SOLENOID_S3_PIN);			// Включаем систему "Clutch to Clutch".
 	SET_PIN_LOW(SOLENOID_S4_PIN);
 
+	set_slu(get_slu_pressure_gear2());
 	slu_boost();	// Первоначальная накачка давления SLU.
 
 	LastGear2ChangeTPS = TCU.InstTPS;
@@ -335,30 +336,17 @@ uint16_t gear_control() {
 		return AfterChangeDelay;
 	}
 
-	if (TCU.InstTPS > TPS_WOT_LIMIT) {
-		// Переключение по оборотам.
-		if (TCU.DrumRPM > GearUpRPM[TCU.Gear]) {
-			gear_up();
-			return GearUpDelay[TCU.Gear];
+	// Скорость выше порога.
+	if (TCU.CarSpeed > TCU.GearUpSpeed) {
+		if (TCU.InstTPS > 2) {					// Не повышать передачу при сбросе газа.
+			if (rpm_after_ok(1)) {gear_up();}
 		}
-		if (TCU.DrumRPM < GearDownRPM[TCU.Gear]) {
-			gear_up();
-			return GearDownDelay[TCU.Gear];
-		}
+		return AfterChangeDelay;
 	}
-	else {
-		// Скорость выше порога.
-		if (TCU.CarSpeed > TCU.GearUpSpeed) {
-			if (TCU.InstTPS > 2) {					// Не повышать передачу при сбросе газа.
-				if (rpm_after_ok(1)) {gear_up();}
-			}
-			return AfterChangeDelay;
-		}
-		// Скорость ниже порога.
-		if (TCU.CarSpeed < TCU.GearDownSpeed) {
-			if (rpm_after_ok(-1)) {gear_down();}
-			return 100;
-		}
+	// Скорость ниже порога.
+	if (TCU.CarSpeed < TCU.GearDownSpeed) {
+		if (rpm_after_ok(-1)) {gear_down();}
+		return 100;
 	}
 	return 0;
 }
@@ -368,10 +356,12 @@ uint16_t gear_control() {
 void slu_gear2_control(uint8_t Time) {
 	static uint16_t Timer = 0;		// Таймер правного включения.
 	static uint8_t Step = 0;		// Шаги плавного включения.
+	static uint16_t IdleTimer = 0;	// Таймер для ХХ.
 
 	if (TCU.Gear != 2) {
 		Timer = 0;
 		Step = 0;
+		IdleTimer = 0;
 		return;
 	}
 
@@ -379,6 +369,7 @@ void slu_gear2_control(uint8_t Time) {
 	if (TCU.TPS < TPS_IDLE_LIMIT) {
 		Timer = 0;
 		Step = 0;
+		IdleTimer++;
 		// В режимах "2" и "3", должно быть торможение двигателем,
 		if (TCU.ATMode == 6 || TCU.ATMode == 7) {
 			SET_PIN_LOW(SOLENOID_S3_PIN);
@@ -397,11 +388,17 @@ void slu_gear2_control(uint8_t Time) {
 	if (NewRPM > TCU.DrumRPM && NewRPM - TCU.DrumRPM > Delta) {
 		Timer = 0;
 		Step = 0;
+		IdleTimer++;
 
 		SET_PIN_HIGH(SOLENOID_S3_PIN);
 		set_slu(SLUGear2Graph[0]);
 		return;
 	}
+
+	if (TCU.SLU <= SLUGear2Graph[0]) {set_slu(get_slu_pressure_gear2());}
+
+	if (IdleTimer > 60) {slu_boost();}
+	IdleTimer = 0;
 
 	// Плавное включение второй передачи.
 	if (Step < 10) {
@@ -412,20 +409,29 @@ void slu_gear2_control(uint8_t Time) {
 		}
 		if (Step == 10) {SET_PIN_LOW(SOLENOID_S3_PIN);}
 	}
-	set_slu(get_slu_pressure_gear2() + Step);
+	uint8_t NextSLU = get_slu_pressure_gear2() + Step;
+	// Прирост не более чем 1 единица за цикл.
+	if (NextSLU > TCU.SLU) {set_slu(TCU.SLU + 1);}
+	else {set_slu(NextSLU);}
 }
-
 
 // Первоначальная накачка давления SLU для включения второй передачи.
 static void slu_boost() {
+	//return;
 	// Ограничение по ДПДЗ и температуре масла.
-	if (TCU.InstTPS > 30 || TCU.OilTemp < 40) {return;}
+	//if (TCU.OilTemp < 25) {return;}
+	if (TCU.InstTPS > 35) {return;}
+	
 	// Ограничение по начальному давлению.
-	if (TCU.SLU > SLU_MIN_VALUE) {return;}
+	if (TCU.SLU > SLUGear2Graph[0]) {return;}
 
-	set_slu(get_slu_boost_value());
+	uint8_t Add = 20;
+	if (TCU.SLU <= SLU_MIN_VALUE) {Add = 25;}
+
+	uint8_t CurrSLU = TCU.SLU;
+	set_slu(MIN(230, CurrSLU + Add));
 	loop_wait(SOLENOID_BOOST_TIME);
-	set_slu(get_slu_pressure_gear2());
+	set_slu(CurrSLU);
 }
 
 // Переключение вверх.
@@ -479,9 +485,7 @@ static void set_gear_change_delays() {
 // Ожидание с основным циклом.
 static void loop_wait(int16_t Delay) {
 	WaitTimer = -1 * Delay;		// Устанавливаем время ожидания.
-	while (WaitTimer < 0) {
-		loop_main();
-	}
+	while (WaitTimer < 0) {loop_main(1);}
 }
 
 uint8_t get_gear_max_speed(int8_t Gear) {

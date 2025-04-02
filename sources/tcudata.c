@@ -165,10 +165,6 @@ int8_t get_slu_gear2_temp_corr(uint8_t Value) {
 	}
 }
 
-uint8_t get_slu_boost_value() {
-	return (SOLENOID_BOOST_VALUE + get_slu_gear2_temp_corr(SOLENOID_BOOST_VALUE));
-}
-
 // Давлению SLU включения третьей передачи.
 uint8_t get_slu_pressure_gear3() {
 	// Давление второй передачи.

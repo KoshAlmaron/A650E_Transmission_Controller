@@ -44,7 +44,7 @@ uint8_t DebugMode = 0;
 uint16_t DebugTimer = 0;
 
 // Прототипы функций.
-void loop_main();
+void loop_main(uint8_t Wait);
 static void loop_add();
 
 int main() {
@@ -60,14 +60,14 @@ int main() {
 	sei();				// Включаем глобальные прерывания
 
 	while(1) {
-		loop_main();			// Основной цикл, выполняется всегда.
+		loop_main(0);			// Основной цикл, выполняется всегда.
 		loop_add();				// Вспомогательный цикл.
 	}
 	return 0;
 }
 
 // Основной цикл.
-void loop_main() {
+void loop_main(uint8_t Wait) {
 	wdt_reset();			// Сброс сторожевого таймера.
 	uint8_t TimerAdd = 0;
 	cli();
@@ -81,17 +81,23 @@ void loop_main() {
 		SensorTimer += TimerAdd;
 		SelectorTimer += TimerAdd;
 		DataUpdateTimer += TimerAdd;
-		AtModeTimer += TimerAdd;
 		DebugTimer += TimerAdd;
 		WaitTimer += TimerAdd;	// Внешняя переменная из gears.c.
-		GearsTimer += TimerAdd;
 		TPSTimer += TimerAdd;
 		GlockTimer += TimerAdd;
-		PressureControlTimer += TimerAdd;
+
+		// Отключение счетчиков дополнительного цикла.
+		if (!Wait) {
+			AtModeTimer += TimerAdd;
+			GearsTimer += TimerAdd;
+			PressureControlTimer += TimerAdd;
+		}
 	}
 
 	// Таймер ожидание д.б. <= 0.
 	if (WaitTimer > 0) {WaitTimer = 0;}
+
+
 
 	// Обработка датчиков.
 	if (SensorTimer >= 4) {
