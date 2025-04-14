@@ -77,8 +77,8 @@ void at_mode_control() {
 
 	// Измение состояния АКПП по положению селектора.
 	if (TCU.Selector == 1 || TCU.Selector == 3) {	// Нейтраль включается всегда.
-		TCU.ATMode = TCU.Selector;
 		set_gear_n();
+		TCU.ATMode = TCU.Selector;
 		return;
 	}
 
@@ -183,43 +183,14 @@ void glock_control(uint8_t Timer) {
 }
 
 void slip_detect() {
-	if (TCU.GearChange) {		// Не проверять при смене передачи.
+	// Не проверять при смене передачи и на малом газу.
+	if (TCU.GearChange || TCU.InstTPS < 6) {
 		TCU.SlipDetected = 0;
 		return;
 	}
 
-	if (TCU.InstTPS < 6) {		// Не проверять на малом газу.
-		TCU.SlipDetected = 0;
-		return;		
-	}
-
-	// Расчетная скорость входного вала.
-	uint16_t CalcDrumRPM = 0;
-
-	switch (TCU.Gear) {
-		case 1:
-			CalcDrumRPM = ((uint32_t) TCU.OutputRPM * GEAR_1_RATIO) >> 10;
-			break;
-		case 2:
-			CalcDrumRPM = ((uint32_t) TCU.OutputRPM * GEAR_2_RATIO) >> 10;
-			break;
-		case 3:
-			CalcDrumRPM = ((uint32_t) TCU.OutputRPM * GEAR_3_RATIO) >> 10;
-			break;
-		case 4:
-			CalcDrumRPM = ((uint32_t) TCU.OutputRPM * GEAR_4_RATIO) >> 10;
-			break;
-		default:
-			TCU.SlipDetected = 0;
-			return;
-	}
-
-	if (TCU.DrumRPM > CalcDrumRPM && TCU.DrumRPM - CalcDrumRPM > MAX_SLIP_RPM) {
-		TCU.SlipDetected = 1;
-	}
-	else {
-		TCU.SlipDetected = 0;
-	}
+	if (ABS(rpm_delta(TCU.Gear)) > MAX_SLIP_RPM) {TCU.SlipDetected = 1;}
+	else {TCU.SlipDetected = 0;}
 }
 
 void rear_lamp() {

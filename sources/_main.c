@@ -97,8 +97,6 @@ void loop_main(uint8_t Wait) {
 	// Таймер ожидание д.б. <= 0.
 	if (WaitTimer > 0) {WaitTimer = 0;}
 
-
-
 	// Обработка датчиков.
 	if (SensorTimer >= 4) {
 		SensorTimer = 0;

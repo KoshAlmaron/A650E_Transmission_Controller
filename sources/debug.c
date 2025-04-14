@@ -32,12 +32,12 @@ int8_t ATModeChar[] = {'I', 'P', 'R', 'N', 'D', '4', '3', '2', 'L', 'E', 'M'};
 		202 - длинное нажатие.
 */
 uint8_t ButtonState[5] = {0};	// Ввер/внизх, вправо/влево, смена экрана.
-uint8_t CursorPos = 0;			// Позици курсора на экране.
+uint8_t CursorPos = 0;			// Позиция курсора на экране.
 uint8_t StartCol = 0;			// Начальная позиция данных
 int8_t ValueDelta = 0;			// Флаг изменения значения.
 
 #define COLUMN_COUNT 5
-#define SCREEN_COUNT 8
+#define SCREEN_COUNT 10
 
 extern uint8_t LastGear2ChangeTPS;			// Значение ДПДЗ при последнем переключении 1>2.
 extern uint8_t LastGear2ChangeSLU;			// Значение SLU при последнем переключении 1>2.
@@ -81,10 +81,11 @@ static void print_config_gear2_slu_pressure();
 static void print_config_gear2_slu_temp_corr();
 static void print_config_gear3_slu_pressure();
 static void print_config_gear2_reactivate();
-static void print_config_d4_max_gear();
 
-static uint8_t get_tps_index(uint8_t TPS);
-static uint8_t get_temp_index(int16_t Temp);
+static void print_config_gear2_tps_adaptation();
+static void print_config_gear2_temp_adaptation();
+
+static void print_config_d4_max_gear();
 
 static void solenoid_manual_control();
 
@@ -193,6 +194,12 @@ static void print_data() {
 			print_config_sln_pressure();
 			break;
 		case 8:
+			print_config_gear2_tps_adaptation();
+			break;
+		case 9:
+			print_config_gear2_temp_adaptation();
+			break;
+		case 10:
 			print_config_d4_max_gear();
 			break;
 	}
@@ -205,14 +212,17 @@ static void print_dispay_main() {
 	//|O 070| 00 01 |I 1000|
 	//|T 120| P 110 |O 0900|
 	//|N 120| S D-D |Sp 060|
-	//|U 120| Gr  4 |R 1.00|
+	//|U 120| G 4 0 |D-1000|
 	//|12345678901234567890|
 
-	char GearRatioChar[5] = {'-', '.', '-', '-', ' '};
-	if (TCU.OutputRPM > 100) {
-		snprintf(GearRatioChar, 5, "%1u.%02u", 
-			MIN(9, TCU.DrumRPM / TCU.OutputRPM), MIN(99, ((TCU.DrumRPM % TCU.OutputRPM) * 100) / TCU.OutputRPM));
-	}
+	// char GearRatioChar[5] = {'-', '.', '-', '-', ' '};
+	// if (TCU.OutputRPM > 100) {
+	// 	snprintf(GearRatioChar, 5, "%1u.%02u", 
+	// 		MIN(9, TCU.DrumRPM / TCU.OutputRPM), MIN(99, ((TCU.DrumRPM % TCU.OutputRPM) * 100) / TCU.OutputRPM));
+	// }
+
+	char PDR = ' ';
+	if (PIN_READ(REQUEST_POWER_DOWN_PIN)) {PDR = '-';}
 
 	// row,  col
 	lcd_set_cursor(0, 0);
@@ -229,7 +239,7 @@ static void print_dispay_main() {
 	lcd_send_string(LCDArray, 20);
 
 	lcd_set_cursor(3, 0);
-	snprintf(LCDArray, 21, "U %3u| Gr %2i |R %s", TCU.SLU, CONSTRAIN(TCU.Gear, -1, 6), GearRatioChar);
+	snprintf(LCDArray, 21, "U %3u| G%2i %c |D%5i", TCU.SLU, CONSTRAIN(TCU.Gear, -1, 6), PDR, rpm_delta(TCU.Gear));
 	lcd_send_string(LCDArray, 20);
 }
 
@@ -741,6 +751,151 @@ static void print_config_gear3_slu_pressure() {
 	}
 }
 
+// Экран значений адаптации второй передачи по ДПДЗ.
+static void print_config_gear2_tps_adaptation() {
+	//|01234567890123456789|
+	//|Gear 2 ADP |100|1.00|
+	//|UP-12 UV 12 A99 U101|
+	//|  0|  5| 10| 15| 20||
+	//| 67| 72| 74| 77| 81||
+	//|01234567890123456789|
+
+	// После переключения передачи считываем параметры и обнуляем.
+	// Находим по ДПДЗ позицию в массиве.
+	if (LastGear2ChangeTPS) {
+		Gear2ChangeTPS = LastGear2ChangeTPS;
+		LastGear2ChangeTPS = 0;
+		CursorPos = get_tps_index(Gear2ChangeTPS);
+
+		Gear2ChangeSLU = LastGear2ChangeSLU;
+		LastGear2ChangeSLU = 0;
+	}
+
+	if (CursorPos >= TPS_GRID_SIZE) {CursorPos = 0;} // Ограничение по длине массива.
+
+	if (CursorPos < StartCol) {StartCol = CursorPos;}
+	if (CursorPos > StartCol + COLUMN_COUNT - 1) {StartCol = CursorPos + 1 - COLUMN_COUNT;}
+
+	char GearRatioChar[5] = {'-', '.', '-', '-', ' '};
+	if (TCU.OutputRPM > 100) {
+		snprintf(GearRatioChar, 5, "%1u.%02u", 
+			MIN(9, TCU.DrumRPM / TCU.OutputRPM), MIN(99, ((TCU.DrumRPM % TCU.OutputRPM) * 100) / TCU.OutputRPM));
+	}
+
+	// row,  col
+	lcd_set_cursor(0, 0);
+	snprintf(LCDArray, 21, "Gear 2 ADP |%3u|%s", TCU.InstTPS, GearRatioChar);
+	lcd_send_string(LCDArray, 20);
+
+	// Строка с необходимыми значениями.
+	int8_t OilTempCorrSLUP = get_slu_gear2_temp_corr(0);				// В %.
+	int8_t OilTempCorrSLUV = get_slu_gear2_temp_corr(Gear2ChangeSLU);	// В единицах ШИМ.
+	lcd_set_cursor(1, 0);
+	snprintf(LCDArray, 21, "UP%3i UV%3i A%2u U%3u", 
+		CONSTRAIN(OilTempCorrSLUP, -99, 99), CONSTRAIN(OilTempCorrSLUV, -99, 99), MIN(99, Gear2ChangeTPS), Gear2ChangeSLU);
+	lcd_send_string(LCDArray, 20);
+
+	// Изменяемые значения.
+	for (uint8_t i = 0; i < COLUMN_COUNT; i++) {
+		lcd_set_cursor(2, i * 4);
+		snprintf(LCDArray, 4, "%3u", TPSGrid[StartCol + i]);
+		lcd_send_string(LCDArray, 3);
+
+		lcd_set_cursor(3, i * 4);
+		snprintf(LCDArray, 4, "%3i", SLUGear2TPSAdaptGraph[StartCol + i]);
+		lcd_send_string(LCDArray, 3);
+
+		if (CursorPos == StartCol + i) {
+			if (ValueDelta < 0 && SLUGear2TPSAdaptGraph[CursorPos] > -5) {SLUGear2TPSAdaptGraph[CursorPos] += ValueDelta;}
+			if (ValueDelta > 0 && SLUGear2TPSAdaptGraph[CursorPos] < 5) {SLUGear2TPSAdaptGraph[CursorPos] += ValueDelta;}
+			ValueDelta = 0;
+
+			lcd_set_cursor(2, i * 4 + 3);
+			lcd_send_char('|');
+			lcd_set_cursor(3, i * 4 + 3);
+			lcd_send_char('<');
+		}
+		else {
+			lcd_set_cursor(2, i * 4 + 3);
+			lcd_send_char('|');
+			lcd_set_cursor(3, i * 4 + 3);
+			lcd_send_char('|');	
+		}
+	}
+}
+
+// Экран значений адаптации второй передачи по температуре.
+static void print_config_gear2_temp_adaptation() {
+	//|12345678901234567890|
+	//|SLU G2 TADP|100|1.00|
+	//|UP-12 UV 12 A99 U101|
+	//|  0|  5| 10| 15| 20||
+	//| 67| 72| 74| 77| 81||
+	//|01234567890123456789|
+
+	// После переключения передачи считываем параметры и обнуляем.
+	// Находим по ДПДЗ позицию в массиве.
+	if (LastGear2ChangeTPS) {
+		Gear2ChangeTPS = LastGear2ChangeTPS;
+		LastGear2ChangeTPS = 0;
+		CursorPos = get_temp_index(TCU.OilTemp);
+
+		Gear2ChangeSLU = LastGear2ChangeSLU;
+		LastGear2ChangeSLU = 0;
+	}
+
+	if (CursorPos >= TEMP_GRID_SIZE) {CursorPos = 0;}	// Ограничение по длине массива.
+	if (CursorPos < StartCol) {StartCol = CursorPos;}
+	if (CursorPos > StartCol + COLUMN_COUNT - 1) {StartCol = CursorPos + 1 - COLUMN_COUNT;}
+
+	char GearRatioChar[5] = {'-', '.', '-', '-', ' '};
+	if (TCU.OutputRPM > 100) {
+		snprintf(GearRatioChar, 5, "%1u.%02u", 
+			MIN(9, TCU.DrumRPM / TCU.OutputRPM), MIN(99, ((TCU.DrumRPM % TCU.OutputRPM) * 100) / TCU.OutputRPM));
+	}
+
+	// row,  col
+	lcd_set_cursor(0, 0);
+	snprintf(LCDArray, 21, "SLU G2 TADP|%3u|%s", TCU.InstTPS, GearRatioChar);
+	lcd_send_string(LCDArray, 20);
+
+	// Строка с необходимыми значениями.
+	int8_t OilTempCorrSLUP = get_slu_gear2_temp_corr(0);				// В %.
+	int8_t OilTempCorrSLUV = get_slu_gear2_temp_corr(Gear2ChangeSLU);	// В единицах ШИМ.
+	lcd_set_cursor(1, 0);
+	snprintf(LCDArray, 21, "UP%3i UV%3i A%2u U%3u", 
+		CONSTRAIN(OilTempCorrSLUP, -99, 99), CONSTRAIN(OilTempCorrSLUV, -99, 99), MIN(99, Gear2ChangeTPS), Gear2ChangeSLU);
+	lcd_send_string(LCDArray, 20);
+
+	// Изменяемые значения.
+	for (uint8_t i = 0; i < COLUMN_COUNT; i++) {
+		lcd_set_cursor(2, i * 4);
+		snprintf(LCDArray, 4, "%3i", TempGrid[StartCol + i]);
+		lcd_send_string(LCDArray, 3);
+
+		lcd_set_cursor(3, i * 4);
+		snprintf(LCDArray, 4, "%3i", SLUGear2TempAdaptGraph[StartCol + i]);
+		lcd_send_string(LCDArray, 3);
+
+		if (CursorPos == StartCol + i) {
+			if (ValueDelta < 0 && SLUGear2TempAdaptGraph[CursorPos] > -5) {SLUGear2TempAdaptGraph[CursorPos] += ValueDelta;}
+			if (ValueDelta > 0 && SLUGear2TempAdaptGraph[CursorPos] < 5) {SLUGear2TempAdaptGraph[CursorPos] += ValueDelta;}
+			ValueDelta = 0;
+
+			lcd_set_cursor(2, i * 4 + 3);
+			lcd_send_char('|');
+			lcd_set_cursor(3, i * 4 + 3);
+			lcd_send_char('<');
+		}
+		else {
+			lcd_set_cursor(2, i * 4 + 3);
+			lcd_send_char('|');
+			lcd_set_cursor(3, i * 4 + 3);
+			lcd_send_char('|');	
+		}
+	}
+}
+
 // Временная установка максимальной передачи в режиме D4.
 static void print_config_d4_max_gear() {
 	//|12345678901234567890|
@@ -767,36 +922,6 @@ static void print_config_d4_max_gear() {
 		MaxGear[5] = CONSTRAIN(MaxGear[5] + ValueDelta, 1, 4);
 		ValueDelta = 0;
 	}
-}
-
-static uint8_t get_tps_index(uint8_t TPS) {
-	if (TPS < 3) {return 0;}
-
-	uint8_t Delta = 255;
-	for (uint8_t i = 1; i < TPS_GRID_SIZE; i++) {
-		uint8_t Diff = 0;
-		if (TPS > TPSGrid[i]) {Diff = TPS - TPSGrid[i];}
-		else {Diff = TPSGrid[i] - TPS;}
-
-		if (Diff < Delta) {Delta = Diff;}
-		else {return i - 1;}
-	}
-	return 0;
-}
-
-static uint8_t get_temp_index(int16_t Temp) {
-	if (Temp < -27) {return 0;}
-
-	uint8_t Delta = 255;
-	for (uint8_t i = 1; i < TEMP_GRID_SIZE; i++) {
-		uint8_t Diff = 0;
-		if (Temp > TempGrid[i]) {Diff = Temp - TempGrid[i];}
-		else {Diff = TempGrid[i] - Temp;}
-
-		if (Diff < Delta) {Delta = Diff;}
-		else {return i - 1;}
-	}
-	return 0;
 }
 
 static void solenoid_manual_control() {

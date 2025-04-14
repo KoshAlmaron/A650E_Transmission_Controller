@@ -3,6 +3,7 @@
 
 #include "tcudata_tables.h"		// Таблицы TCUData.
 #include "tcudata.h"			// Свой заголовок.
+
 #include "spdsens.h"			// Датчики скорости валов.
 #include "adc.h"				// АЦП.
 #include "macros.h"				// Макросы.
@@ -174,4 +175,76 @@ uint8_t get_slu_pressure_gear3() {
 	
 	SLUGear3 = CONSTRAIN(SLUGear3 + Add, 32, 250);
 	return SLUGear3;
+}
+
+uint8_t get_tps_index(uint8_t TPS) {
+	if (TPS < 3) {return 0;}
+
+	uint8_t Delta = 255;
+	for (uint8_t i = 1; i < TPS_GRID_SIZE; i++) {
+		uint8_t Diff = 0;
+		if (TPS > TPSGrid[i]) {Diff = TPS - TPSGrid[i];}
+		else {Diff = TPSGrid[i] - TPS;}
+
+		if (Diff < Delta) {Delta = Diff;}
+		else {return i - 1;}
+	}
+	return 0;
+}
+
+uint8_t get_temp_index(int16_t Temp) {
+	if (Temp < -27) {return 0;}
+
+	uint8_t Delta = 255;
+	for (uint8_t i = 1; i < TEMP_GRID_SIZE; i++) {
+		uint8_t Diff = 0;
+		if (Temp > TempGrid[i]) {Diff = Temp - TempGrid[i];}
+		else {Diff = TempGrid[i] - Temp;}
+
+		if (Diff < Delta) {Delta = Diff;}
+		else {return i - 1;}
+	}
+	return 0;
+}
+
+// Расчет разницы скорости входного вала относительно расчетной 
+// под датчику скорости и передаточному числу. 
+int16_t rpm_delta(uint8_t Gear) {
+	if (!TCU.OutputRPM || (!TCU.DrumRPM && TCU.Gear != 5))  {return 0;}
+
+	// Расчетная скорость входного вала.
+	int16_t CalcDrumRPM = 0;
+	switch (Gear) {
+		case 1:
+			CalcDrumRPM = ((uint32_t) TCU.OutputRPM * GEAR_1_RATIO) >> 10;
+			break;
+		case 2:
+			CalcDrumRPM = ((uint32_t) TCU.OutputRPM * GEAR_2_RATIO) >> 10;
+			break;
+		case 3:
+			CalcDrumRPM = ((uint32_t) TCU.OutputRPM * GEAR_3_RATIO) >> 10;
+			break;
+		case 4:
+			CalcDrumRPM = ((uint32_t) TCU.OutputRPM * GEAR_4_RATIO) >> 10;
+			break;
+		case 5:	// На пятой передаче барабан овердрайва останавливается.
+			return TCU.DrumRPM;
+			break;
+	}
+	return (TCU.DrumRPM - CalcDrumRPM);
+}
+
+void save_gear2_adaptation(int8_t Value) {
+	uint8_t Index = 0;
+	if (TCU.OilTemp > 65 && TCU.OilTemp < 75) {		// Адаптация по ДПДЗ.
+		Index = get_tps_index(TCU.InstTPS);
+		SLUGear2TPSAdaptGraph[Index] += Value;
+		SLUGear2TPSAdaptGraph[Index] = CONSTRAIN(SLUGear2TPSAdaptGraph[Index], -5, 5);
+	}
+	else {
+		Index = get_temp_index(TCU.OilTemp);
+		SLUGear2TempAdaptGraph[Index] += Value;
+		SLUGear2TempAdaptGraph[Index] = CONSTRAIN(SLUGear2TempAdaptGraph[Index], -5, 5);
+	}
+
 }
