@@ -12,6 +12,7 @@
 	uint8_t get_sln_pressure();
 	uint8_t get_slu_pressure_gear2();
 	int8_t get_slu_gear2_temp_corr(uint8_t Value);
+	int8_t get_slu_pressure_add_gear3();
 	uint8_t get_slu_pressure_gear3();
 	int16_t rpm_delta(uint8_t Gear);
 

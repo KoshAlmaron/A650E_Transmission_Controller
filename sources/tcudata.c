@@ -103,7 +103,7 @@ uint8_t get_slt_pressure() {
 	// Потому здесь все линейно, больше значение -> больше давление.
 
 	// Вычисляем значение в зависимости от ДПДЗ.
-	uint8_t SLT = get_interpolated_value_uint16_t(TCU.TPS, TPSGrid, SLTGraph, TPS_GRID_SIZE);
+	uint8_t SLT = get_interpolated_value_uint16_t(TCU.InstTPS, TPSGrid, SLTGraph, TPS_GRID_SIZE);
 	// Применяем коррекцию по температуре.
 	SLT = CONSTRAIN(SLT + get_slt_temp_corr(SLT), 20, 230);
 	return SLT;
@@ -167,12 +167,16 @@ int8_t get_slu_gear2_temp_corr(uint8_t Value) {
 }
 
 // Давлению SLU включения третьей передачи.
+int8_t get_slu_pressure_add_gear3() {
+	return get_interpolated_value_int16_t(TCU.InstTPS, TPSGrid, SLUGear3AddGraph, TPS_GRID_SIZE);
+}
+
+// Давлению SLU включения третьей передачи.
 uint8_t get_slu_pressure_gear3() {
 	// Давление второй передачи.
 	uint8_t SLUGear3 = get_slu_pressure_gear2();
 	// Добавка для третьей.
-	int8_t Add = get_interpolated_value_int16_t(TCU.InstTPS, TPSGrid, SLUGear3AddGraph, TPS_GRID_SIZE);
-	
+	int8_t Add = get_slu_pressure_add_gear3();
 	SLUGear3 = CONSTRAIN(SLUGear3 + Add, 32, 250);
 	return SLUGear3;
 }
@@ -246,5 +250,4 @@ void save_gear2_adaptation(int8_t Value) {
 		SLUGear2TempAdaptGraph[Index] += Value;
 		SLUGear2TempAdaptGraph[Index] = CONSTRAIN(SLUGear2TempAdaptGraph[Index], -5, 5);
 	}
-
 }

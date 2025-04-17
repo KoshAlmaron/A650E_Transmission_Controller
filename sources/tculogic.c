@@ -30,7 +30,7 @@ void sln_control(uint8_t Timer) {
 			TimerSLN += Timer;
 			if (TimerSLN > 50) {
 				TimerSLN = 0;
-				TCU.SLN -= 1;
+				TCU.SLN = MAX(SLN_MIN_VALUE, TCU.SLN - 2);
 			}
 		}
 	}
@@ -43,23 +43,25 @@ void at_mode_control() {
 	// Если селектор не инициализировался, валим. 
 	if (TCU.Selector == 0) {return;}
 
-	// При ошибке селектора, переключаем соленойды в режим первой передачи.
+	// При ошибке селектора, устанавливаем соленойды в режим третьей передачи.
 	// При этом можно будет двигаться вперед и назад.
 	if (TCU.Selector == 9) {
 		TCU.ATMode = TCU.Selector;
-		set_gear_n();
-		set_gear_1();
+		SET_PIN_LOW(SOLENOID_S1_PIN);
+		SET_PIN_HIGH(SOLENOID_S2_PIN);
+		SET_PIN_LOW(SOLENOID_S3_PIN);
+		SET_PIN_LOW(SOLENOID_S4_PIN);
 		return;
 	}
 
 	// Определение состояния при запуске ЭБУ и при ошибке.
 	switch (TCU.ATMode) {
 		case 0:
-			// В любом случае устанавливаем соленойды в режим N.
-			set_gear_n();
 			// Если селектор в положении P или N.
 			if (TCU.Selector == 1 || TCU.Selector == 3) {TCU.ATMode = TCU.Selector;}
 			else {TCU.ATMode = 9;}	// Иначе устанавливаем ошибку.
+			// В любом случае устанавливаем соленойды в режим N.
+			set_gear_n();
 			break;
 		case 9:
 			// Чтобы убрать ошибку, надо остановиться и включить P или N (1).
@@ -77,8 +79,8 @@ void at_mode_control() {
 
 	// Измение состояния АКПП по положению селектора.
 	if (TCU.Selector == 1 || TCU.Selector == 3) {	// Нейтраль включается всегда.
-		set_gear_n();
 		TCU.ATMode = TCU.Selector;
+		set_gear_n();
 		return;
 	}
 

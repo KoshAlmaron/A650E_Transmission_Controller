@@ -1,7 +1,8 @@
 #include <avr/interrupt.h>		// Прерывания.
 #include <stdint.h>				// Коротние название int.
-#include "configuration.h"		// Настройки.
+
 #include "spdsens.h"			// Свой заголовок.
+#include "configuration.h"		// Настройки.
 
 // Минимальное сырое значения для фильтрации ошибочных значений.
 // Шаг 4мкс (1/64).

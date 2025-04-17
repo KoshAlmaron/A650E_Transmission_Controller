@@ -11,7 +11,7 @@
 
 int16_t WaitTimer = 0;				// Таймер ожидания из main.
 uint16_t GearChangeStep = 100;		// Шаг времени на переключение передачи.
-uint16_t AfterChangeDelay = 1000;	// Пауза после вклбчения передачи.
+uint16_t AfterChangeDelay = 1000;	// Пауза после включения передачи.
 
 // Максимальная и минимальная передача для каждого режима.
 //						  I  P   R  N  D  D4 D3 L2 L  E  M
@@ -31,6 +31,9 @@ uint16_t LastGear3ChangeSLU = 0;		// Задержка отключения SLU �
 uint8_t LastGear4ChangeTPS = 0;			// Значение ДПДЗ при последнем переключении 3>4.
 uint8_t LastGear4ChangeSLT = 0;			// Значение SLT при последнем переключении 3>4.
 uint8_t LastGear4ChangeSLN = 0;			// Значение SLN при последнем переключении 3>4.
+
+int16_t LastPDRTime = 0;				// Последнее время включения PDR.
+uint8_t Gear2LastStep = 0;
 
 // Прототипы функций.
 void loop_main(uint8_t Wait);		// Прототип функций из main.c.
@@ -70,9 +73,9 @@ void set_gear_n() {
 	set_slu(SLU_MIN_VALUE);		// Выключение SLU на случай переключения со второй передачи.
 	set_sln(SLN_MIN_VALUE); 	// Минимальное давление в гидроаккумуляторах SLN.
 
-	SET_PIN_LOW(SOLENOID_S1_PIN);
+	SET_PIN_HIGH(SOLENOID_S1_PIN);
 	SET_PIN_LOW(SOLENOID_S2_PIN);
-	SET_PIN_LOW(SOLENOID_S3_PIN);
+	SET_PIN_HIGH(SOLENOID_S3_PIN);
 	SET_PIN_LOW(SOLENOID_S4_PIN);
 
 	TCU.Gear = 0;
@@ -85,6 +88,9 @@ void set_gear_n() {
 void set_gear_1() {
 	TCU.GearChange = 1;
 
+	set_slu(SLU_MIN_VALUE);		// Выключение SLU на случай переключения со второй передачи.
+	set_sln(get_sln_pressure());
+
 	SET_PIN_HIGH(SOLENOID_S1_PIN);
 	SET_PIN_LOW(SOLENOID_S2_PIN);
 	SET_PIN_LOW(SOLENOID_S3_PIN);
@@ -92,10 +98,7 @@ void set_gear_1() {
 	// Отличие для режима L2. 
 	if (TCU.ATMode == 7) {SET_PIN_HIGH(SOLENOID_S3_PIN);}
 
-	set_slu(SLU_MIN_VALUE);		// Выключение SLU на случай переключения со второй передачи.
-	set_sln(get_sln_pressure());
-
-	loop_wait(500);				// Пауза после включения передачи.
+	loop_wait(500);
 
 	TCU.Gear = 1;
 	TCU.GearChange = 0;
@@ -105,13 +108,13 @@ void set_gear_1() {
 void set_gear_r() {
 	TCU.GearChange = -1;
 
+	set_slu(SLU_MIN_VALUE);		// Выключение SLU на случай переключения со второй передачи.
+	set_sln(get_sln_pressure());
+
 	SET_PIN_HIGH(SOLENOID_S1_PIN);
 	SET_PIN_LOW(SOLENOID_S2_PIN);
 	SET_PIN_LOW(SOLENOID_S3_PIN);
 	SET_PIN_LOW(SOLENOID_S4_PIN);
-
-	set_slu(SLU_MIN_VALUE);		// Выключение SLU на случай переключения со второй передачи.
-	set_sln(get_sln_pressure());
 
 	loop_wait(500);				// Пауза после включения передачи.
 
@@ -132,11 +135,12 @@ void disable_gear_r() {
 
 //=========================== Переключения вверх ==============================
 static void gear_change_1_2() {
-	TCU.GearChange = 1;
+	#define GEAR_2_MAX_STEP 18
 
+	TCU.GearChange = 1;
 	SET_PIN_HIGH(SOLENOID_S1_PIN);
 	SET_PIN_HIGH(SOLENOID_S2_PIN);
-	SET_PIN_HIGH(SOLENOID_S3_PIN);			// Включаем систему "Clutch to Clutch".
+	SET_PIN_HIGH(SOLENOID_S3_PIN);		// Включаем систему "Clutch to Clutch".
 	SET_PIN_LOW(SOLENOID_S4_PIN);
 
 	set_slu(get_slu_pressure_gear2());
@@ -145,40 +149,52 @@ static void gear_change_1_2() {
 	LastGear2ChangeTPS = TCU.InstTPS;
 	LastGear2ChangeSLU = TCU.SLU;
 
-	uint8_t Counter = 0;	// Счетчик периодов GearChangeStep.
-	uint8_t Step = 0;		// Шаг включения передачи.
-	while (Step < 10) {
-		loop_wait(GearChangeStep);
+	uint8_t Step = 0;		// Шаг процесса включения передачи.
+	uint8_t PDR = 0;		// Состояние процесса запроса снижения мощности.
+	Gear2LastStep = GEAR_2_MAX_STEP;	// Номер последнего шага переключения.
+	uint8_t SLUDelay = 0;	// Пауза повышения давления после начала переключния.
+	int16_t PDRTime = 0;	// Для фиксации времени работы PDR.
+
+	LastPDRTime = 0;
+	if (TCU.InstTPS > 35) {PDR = -1;}
+	while (Step < Gear2LastStep) {
+		WaitTimer = -1 * GearChangeStep;				// Устанавливаем время ожидания.
+		while (WaitTimer < 0) {
+			loop_main(1);
+			if (!PDR && rpm_delta(1) < -100) {			// Переключение началось.
+				SLUDelay = 1;
+				PDRTime = WaitTimer;
+				SET_PIN_HIGH(REQUEST_POWER_DOWN_PIN);	// Запрашиваем снижение мощности.
+				PDR = 1;
+			}
+		}
+		Step++;
 
 		// Обороты валов выровнялись.
-		if (rpm_delta(2) < 20) {
-			if (Step < 7) {
+		if (ABS(rpm_delta(2)) < 20) {
+			Gear2LastStep = Step + 2;
+			if (Step <= 10) {
 				// Передача включилась слишком рано,
 				// снижаем давление на 1 единицу.
 				save_gear2_adaptation(-1);
 			}
-			Step++;
-		}
-		else {Counter++;}
-
-		if (Counter > 1) {
-			Counter = 0;
-			Step++;
 		}
 
-		if (Step > 9 && rpm_delta(2) > 20) {
+		if (Step > GEAR_2_MAX_STEP - 2 && rpm_delta(2) > 20) {
 			// Передача включилась слишком поздно,
 			// повышаем давление на 1 единицу.
 			save_gear2_adaptation(1);
 		}
 
-		if (Step == 10) {SET_PIN_LOW(SOLENOID_S3_PIN);}
-		uint8_t NextSLU = get_slu_pressure_gear2() + Step;
+		uint8_t NextSLU = get_slu_pressure_gear2() + Step / 2 - SLUDelay;
 		// Прирост не более чем 1 единица за цикл.
 		if (NextSLU > TCU.SLU) {set_slu(TCU.SLU + 1);}
 		else {set_slu(NextSLU);}
 	}
 
+	if (PDR == 1) {LastPDRTime = WaitTimer - PDRTime;}
+	SET_PIN_LOW(REQUEST_POWER_DOWN_PIN);
+	SET_PIN_LOW(SOLENOID_S3_PIN);
 	TCU.Gear = 2;
 	TCU.GearChange = 0;
 }
@@ -193,16 +209,29 @@ static void gear_change_2_3() {
 	// Включаем торможение двигателем в режиме "3".
 	if (TCU.ATMode == 6) {SET_PIN_HIGH(SOLENOID_S3_PIN);}
 
-	//loop_wait(500);
-
 	set_sln(get_sln_pressure());
-	set_slu(get_slu_pressure_gear3());
+	//set_slu(get_slu_pressure_gear3());
 	LastGear3ChangeTPS = TCU.InstTPS;
 	LastGear3ChangeSLU = TCU.SLU;
 
-	gear_change_wait(GearChangeStep * 20, 3);
+	#define GEAR_3_MAX_STEP 18
+	#define GEAR_3_SLU_ADD 10
+
+	uint8_t Step = 0;
+	while (Step < 18 && ABS(rpm_delta(3)) > 20) {
+		WaitTimer = -1 * GearChangeStep;				// Устанавливаем время ожидания.
+		while (WaitTimer < 0) {
+			loop_main(1);
+		}
+		Step++;
+
+		uint8_t CurrSLU = get_slu_pressure_gear2();
+		int8_t Delta = GEAR_3_SLU_ADD - get_slu_pressure_add_gear3();
+		int8_t Add = (int16_t) GEAR_3_SLU_ADD - Step * Delta / GEAR_3_MAX_STEP;
+		set_slu(CurrSLU + 10 - Add);
+	}
+
 	set_slu(SLU_MIN_VALUE);
-	
 	TCU.Gear = 3;
 	TCU.GearChange = 0;
 }
@@ -387,8 +416,55 @@ uint16_t gear_control() {
 	return 0;
 }
 
-// Управление давлением SLU B3 для работы второй передачи,
-// а также управление соленоидом S3.
+/*
+void slu_gear2_control(uint8_t Time) {
+	static uint8_t Idle = 0;	// Флаг отключения передачи.
+
+	if (TCU.Gear != 2) {
+		Idle = 0;
+		return;
+	}
+
+	if (TCU.TPS < TPS_IDLE_LIMIT) {
+		Idle = 1;
+		// В режимах "2" и "3", должно быть торможение двигателем,
+		if (TCU.ATMode == 6 || TCU.ATMode == 7) {
+			SET_PIN_LOW(SOLENOID_S3_PIN);
+			set_slu(SLUGear2Graph[3]);	// SLU для торможения двигателем.
+		}		
+		else {	// В остальных случаях вторая передача на ХХ отключена.
+			SET_PIN_HIGH(SOLENOID_S3_PIN);
+			set_slu(SLU_MIN_VALUE);		// SLU для ХХ.
+		}
+		return;
+	}
+
+	int16_t Delta = rpm_delta(2);
+	uint8_t CurrSLU = get_slu_pressure_gear2();
+	if (Idle) {
+		if (Delta >= -10) {
+			// Обороты выровнялись, выход из режима ХХ.
+			Idle = 0;
+			SET_PIN_LOW(SOLENOID_S3_PIN);
+			return;
+		}
+
+		if (Delta < -500) {
+			// Ждем пасхи.
+			if (TCU.ATMode == 6 || TCU.ATMode == 7) {set_slu(SLUGear2Graph[3]);}
+			else {set_slu(SLU_MIN_VALUE);}
+			return;
+		}
+
+		uint8_t SLUAdd = MAX(0, (int16_t) (7 + Delta / 64));
+		set_slu(CurrSLU + SLUAdd);
+	}
+	else {
+		set_slu(CurrSLU + 10);
+	}
+}
+*/
+
 void slu_gear2_control(uint8_t Time) {
 	static uint16_t Timer = 0;		// Таймер правного включения.
 	static uint8_t Step = 0;		// Шаги плавного включения.
@@ -419,9 +495,9 @@ void slu_gear2_control(uint8_t Time) {
 
 	// Проверка оборотов перед включением.
 	// Вторая передача не должна включаться слишком рано.
-	uint16_t NewRPM = ((uint32_t) TCU.OutputRPM * GEAR_2_RATIO) >> 10;
-	uint16_t Delta = get_interpolated_value_uint16_t(TCU.InstTPS, TPSGrid, Gear2DeltaRPM, TPS_GRID_SIZE);
-	if (NewRPM > TCU.DrumRPM && NewRPM - TCU.DrumRPM > Delta) {
+	int16_t MinDelta = get_interpolated_value_uint16_t(TCU.InstTPS, TPSGrid, Gear2DeltaRPM, TPS_GRID_SIZE);
+	int16_t Delta = rpm_delta(2);
+	if (Delta < -1 * MinDelta) {
 		Timer = 0;
 		Step = 0;
 		IdleTimer++;
@@ -430,6 +506,9 @@ void slu_gear2_control(uint8_t Time) {
 		set_slu(SLU_MIN_VALUE);
 		return;
 	}
+
+	uint8_t SLUDelay = 0;	// Пауза при выравнивании оборотов.
+	if (Delta < -10 && Delta < -250) {SLUDelay = 1;}
 
 	if (TCU.SLU <= SLUGear2Graph[0]) {set_slu(get_slu_pressure_gear2());}
 
@@ -443,13 +522,18 @@ void slu_gear2_control(uint8_t Time) {
 			Timer = 0;
 			Step++;
 		}
-		if (Step == 10) {SET_PIN_LOW(SOLENOID_S3_PIN);}
+		if (Step == 8) {SET_PIN_LOW(SOLENOID_S3_PIN);}
 	}
-	uint8_t NextSLU = get_slu_pressure_gear2() + Step;
+	else {
+		SLUDelay = 0;
+	}
+
+	uint8_t NextSLU = get_slu_pressure_gear2() + Step + SLUDelay;
 	// Прирост не более чем 1 единица за цикл.
 	if (NextSLU > TCU.SLU) {set_slu(TCU.SLU + 1);}
 	else {set_slu(NextSLU);}
 }
+
 
 // Первоначальная накачка давления SLU для включения второй передачи.
 static void slu_boost() {
@@ -472,16 +556,20 @@ static void slu_boost() {
 
 static void gear_change_wait(int16_t Delay, uint8_t Gear) {
 	uint8_t PDR = 0;
+	int16_t PDRTime = 0;	// Для фиксации времени работы PDR.
 	if (TCU.InstTPS > 35) {PDR = -1;}
-
+	LastPDRTime = 0;
 	WaitTimer = -1 * Delay;		// Устанавливаем время ожидания.
-	while (WaitTimer < 0 && rpm_delta(Gear) < 20) {
+	while (WaitTimer < 0 && rpm_delta(Gear) > 20) {
 		if (!PDR && rpm_delta(Gear - 1) < -100) {	// Переключение началось.
+			PDRTime = WaitTimer;
 			SET_PIN_HIGH(REQUEST_POWER_DOWN_PIN);
 			PDR = 1;
 		}
 		loop_main(1);
 	}
+	loop_wait(200);
+	if (PDR == 1) {LastPDRTime = WaitTimer - PDRTime;}
 	SET_PIN_LOW(REQUEST_POWER_DOWN_PIN);
 }
 

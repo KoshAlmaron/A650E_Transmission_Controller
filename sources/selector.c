@@ -1,9 +1,11 @@
 #include <stdint.h>		// Коротние название int.
 #include <avr/io.h>		// Номера бит в регистрах.
+
 #include "selector.h"	// Свой заголовок.
 #include "tcudata.h"	// Расчет и хранение всех необходимых параметров.
-#include "macros.h"			// Макросы.
-#include "pinout.h"			// Список назначенных выводов.
+#include "macros.h"		// Макросы.
+#include "pinout.h"		// Список назначенных выводов.
+#include "eeprom.h"		// Чтение и запись EEPROM.
 
 // Счетчик для установки ошибки.
 uint8_t ErrorTimer = 0;
@@ -75,5 +77,8 @@ void engine_n_break_state() {
 	TCU.Break = PIN_READ(BREAK_PEDAL_PIN) ? 1 : 0;
 
 	// Флаг работы двигателя.
-	TCU.EngineWork = PIN_READ(ENGINE_WORK_PIN) ? 1 : 0;
+	uint8_t EW = PIN_READ(ENGINE_WORK_PIN) ? 1 : 0;
+	// Сохранение настроек при выключении двигателя.
+	if (TCU.EngineWork && !EW) {update_eeprom();}
+	TCU.EngineWork = EW;
 }

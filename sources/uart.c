@@ -6,7 +6,6 @@
 #include "tcudata.h"		// Расчет и хранение всех необходимых параметров.
 #include <stdio.h>			// Стандартная библиотека ввода/вывода
 
-
 // Скорость передачи UART 57600 бит/с.
 #define UART_BAUD_RATE 115200UL
 // Значения регистров для настройки скорости UART.
@@ -139,6 +138,15 @@ void send_eeprom_to_uart() {
 
 	uart_send_string("Gear2DeltaRPM\n");
 	send_uint16_array(Gear2DeltaRPM, TPS_GRID_SIZE);
+
+	uart_send_string("SLUGear3AddGraph\n");
+	send_int16_array(SLUGear3AddGraph, TPS_GRID_SIZE);
+	
+	uart_send_string("SLUGear2TPSAdaptGraph\n");
+	send_int16_array(SLUGear2TPSAdaptGraph, TPS_GRID_SIZE);
+
+	uart_send_string("SLUGear2TempAdaptGraph\n");
+	send_int16_array(SLUGear2TempAdaptGraph, TEMP_GRID_SIZE);
 
 	uart_send_char('\n');
 	uart_send_char('\n');

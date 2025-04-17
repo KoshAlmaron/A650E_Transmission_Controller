@@ -179,9 +179,9 @@ static void loop_add() {
 	}
 
 	if (PressureControlTimer >= 27) {
-		slt_control();								// Управление линейными давлением.
-		sln_control(PressureControlTimer);			// Управление давлением гидроаккумуляторов.
-		slu_gear2_control(PressureControlTimer); 	// Управление давлением SLU для второй передачи.
+		slt_control();							// Управление линейными давлением.
+		sln_control(PressureControlTimer);		// Управление давлением гидроаккумуляторов.
+		slu_gear2_control(PressureControlTimer);// Управление давлением SLU для второй передачи.
 		PressureControlTimer = 0;
 	}
 }

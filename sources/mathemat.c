@@ -1,6 +1,6 @@
 #include <stdint.h>			// Коротние название int.
-#include "mathemat.h"		// Свой заголовок.
 
+#include "mathemat.h"		// Свой заголовок.
 
 // Возвращаент интерполированное значение uint16_t из графика.
 uint16_t get_interpolated_value_uint16_t(uint16_t x, int16_t* ArrayX, uint16_t* ArrayY, uint8_t ArraySize) {

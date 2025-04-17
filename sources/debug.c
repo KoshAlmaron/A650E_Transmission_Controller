@@ -54,6 +54,9 @@ extern uint8_t LastGear4ChangeSLN;			// Значение SLN при послед
 
 extern int8_t MaxGear[];
 
+extern int16_t LastPDRTime;
+extern uint8_t Gear2LastStep;
+
 // Локальные значения для хранения, так как переменные из gears.c будут обнуляться 
 // после считывания значений.
 uint8_t Gear2ChangeTPS = 0;
@@ -210,9 +213,9 @@ static void print_data() {
 static void print_dispay_main() {
 	//|12345678901234567890|
 	//|O 070| 00 01 |I 1000|
-	//|T 120| P 110 |O 0900|
+	//|T 120| A 110 |O 0900|
 	//|N 120| S D-D |Sp 060|
-	//|U 120| G 4 0 |D-1000|
+	//|U 120| G 4 0 |P-1000|
 	//|12345678901234567890|
 
 	// char GearRatioChar[5] = {'-', '.', '-', '-', ' '};
@@ -221,17 +224,15 @@ static void print_dispay_main() {
 	// 		MIN(9, TCU.DrumRPM / TCU.OutputRPM), MIN(99, ((TCU.DrumRPM % TCU.OutputRPM) * 100) / TCU.OutputRPM));
 	// }
 
-	char PDR = ' ';
-	if (PIN_READ(REQUEST_POWER_DOWN_PIN)) {PDR = '-';}
 
 	// row,  col
 	lcd_set_cursor(0, 0);
 	snprintf(LCDArray, 21, "O %3i| %1u%1u %1u%1u |I %4u", 
 		CONSTRAIN(TCU.OilTemp, -30, 150), MIN(1, TCU.S1), MIN(1, TCU.S2), MIN(1, TCU.S3), MIN(1, TCU.S4), MIN(9998, TCU.DrumRPM));
 	lcd_send_string(LCDArray, 20);
-
+	// get_adc_value(1)
 	lcd_set_cursor(1, 0);
-	snprintf(LCDArray, 21, "T %3u| A %3u |O %4u",TCU.SLT, TCU.TPS, TCU.OutputRPM);
+	snprintf(LCDArray, 21, "T %3u| A %3u |O %4u",TCU.SLT, TCU.InstTPS, TCU.OutputRPM);
 	lcd_send_string(LCDArray, 20);
 
 	lcd_set_cursor(2, 0);
@@ -239,7 +240,7 @@ static void print_dispay_main() {
 	lcd_send_string(LCDArray, 20);
 
 	lcd_set_cursor(3, 0);
-	snprintf(LCDArray, 21, "U %3u| G%2i %c |D%5i", TCU.SLU, CONSTRAIN(TCU.Gear, -1, 6), PDR, rpm_delta(TCU.Gear));
+	snprintf(LCDArray, 21, "U %3u| G%2i %-2u|P%5i", TCU.SLU, CONSTRAIN(TCU.Gear, -1, 6), MIN(99, Gear2LastStep), LastPDRTime);
 	lcd_send_string(LCDArray, 20);
 }
 
