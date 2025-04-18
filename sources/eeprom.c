@@ -21,8 +21,8 @@ void read_eeprom() {
 	eeprom_read_block((void*)&SLTTempCorrGraph, (const void*) 42, TEMP_GRID_SIZE * 2);
 	// 116-157 - SLUGear2Graph.
 	eeprom_read_block((void*)&SLUGear2Graph, (const void*) 116, TPS_GRID_SIZE * 2);
-	// 158-199 - SLUGear3AddGraph.
-	eeprom_read_block((void*)&SLUGear3AddGraph, (const void*) 158, TPS_GRID_SIZE * 2);
+	// 158-199 - SLUGear3OffsetGraph.
+	eeprom_read_block((void*)&SLUGear3OffsetGraph, (const void*) 158, TPS_GRID_SIZE * 2);
 	// 200-273 - SLUGear2TempCorrGraph.
 	eeprom_read_block((void*)&SLUGear2TempCorrGraph, (const void*) 200, TEMP_GRID_SIZE * 2);
 	// 274-315 - SLNGraph.
@@ -44,8 +44,8 @@ void update_eeprom() {
 	eeprom_update_block((void*)&SLTTempCorrGraph, (void*) 42, TEMP_GRID_SIZE * 2);
 	// 116-157 - SLUGear2Graph.
 	eeprom_update_block((void*)&SLUGear2Graph, (void*) 116, TPS_GRID_SIZE * 2);
-	// 158-199 - SLUGear3AddGraph.
-	eeprom_update_block((void*)&SLUGear3AddGraph, (void*) 158, TPS_GRID_SIZE * 2);
+	// 158-199 - SLUGear3OffsetGraph.
+	eeprom_update_block((void*)&SLUGear3OffsetGraph, (void*) 158, TPS_GRID_SIZE * 2);
 	// 200-273 - SLUGear2TempCorrGraph.
 	eeprom_update_block((void*)&SLUGear2TempCorrGraph, (void*) 200, TEMP_GRID_SIZE * 2);
 	// 274-315 - SLNGraph.

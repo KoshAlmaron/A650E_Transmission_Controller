@@ -157,6 +157,7 @@ static void gear_change_1_2() {
 
 	LastPDRTime = 0;
 	if (TCU.InstTPS > 35) {PDR = -1;}
+	
 	while (Step < Gear2LastStep) {
 		WaitTimer = -1 * GearChangeStep;				// Устанавливаем время ожидания.
 		while (WaitTimer < 0) {
@@ -179,13 +180,11 @@ static void gear_change_1_2() {
 				save_gear2_adaptation(-1);
 			}
 		}
-
 		if (Step > GEAR_2_MAX_STEP - 2 && rpm_delta(2) > 20) {
 			// Передача включилась слишком поздно,
 			// повышаем давление на 1 единицу.
 			save_gear2_adaptation(1);
 		}
-
 		uint8_t NextSLU = get_slu_pressure_gear2() + Step / 2 - SLUDelay;
 		// Прирост не более чем 1 единица за цикл.
 		if (NextSLU > TCU.SLU) {set_slu(TCU.SLU + 1);}
@@ -210,28 +209,39 @@ static void gear_change_2_3() {
 	if (TCU.ATMode == 6) {SET_PIN_HIGH(SOLENOID_S3_PIN);}
 
 	set_sln(get_sln_pressure());
-	//set_slu(get_slu_pressure_gear3());
 	LastGear3ChangeTPS = TCU.InstTPS;
-	LastGear3ChangeSLU = TCU.SLU;
 
 	#define GEAR_3_MAX_STEP 18
-	#define GEAR_3_SLU_ADD 10
-
+	uint8_t PDR = 0;
+	int16_t PDRTime = 0;	// Для фиксации времени работы PDR.
 	uint8_t Step = 0;
-	while (Step < 18 && ABS(rpm_delta(3)) > 20) {
+	
+	LastPDRTime = 0;
+	if (TCU.InstTPS > 35) {PDR = -1;}
+
+	while (Step < 18 && rpm_delta(3) > 20) {
 		WaitTimer = -1 * GearChangeStep;				// Устанавливаем время ожидания.
 		while (WaitTimer < 0) {
 			loop_main(1);
+			if (!PDR && rpm_delta(2) < -100) {			// Переключение началось.
+				PDRTime = WaitTimer;
+				SET_PIN_HIGH(REQUEST_POWER_DOWN_PIN);	// Запрашиваем снижение мощности.
+				PDR = 1;
+			}
 		}
 		Step++;
 
 		uint8_t CurrSLU = get_slu_pressure_gear2();
-		int8_t Delta = GEAR_3_SLU_ADD - get_slu_pressure_add_gear3();
-		int8_t Add = (int16_t) GEAR_3_SLU_ADD - Step * Delta / GEAR_3_MAX_STEP;
-		set_slu(CurrSLU + 10 - Add);
+		int8_t Offset = get_gear3_slu_offset();
+		set_slu(CurrSLU + GEAR_3_MAX_STEP / 2 - Step + Offset);
+		LastGear3ChangeSLU = TCU.SLU;
 	}
 
 	set_slu(SLU_MIN_VALUE);
+	loop_wait(200);
+	if (PDR == 1) {LastPDRTime = WaitTimer - PDRTime;}
+	SET_PIN_LOW(REQUEST_POWER_DOWN_PIN);
+
 	TCU.Gear = 3;
 	TCU.GearChange = 0;
 }

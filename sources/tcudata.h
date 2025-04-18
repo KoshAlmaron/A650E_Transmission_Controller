@@ -12,8 +12,7 @@
 	uint8_t get_sln_pressure();
 	uint8_t get_slu_pressure_gear2();
 	int8_t get_slu_gear2_temp_corr(uint8_t Value);
-	int8_t get_slu_pressure_add_gear3();
-	uint8_t get_slu_pressure_gear3();
+	int8_t get_gear3_slu_offset();
 	int16_t rpm_delta(uint8_t Gear);
 
 	uint8_t get_tps_index(uint8_t TPS);
@@ -37,7 +36,7 @@
 	extern uint16_t SLUGear2Graph[];
 	extern int16_t SLUGear2TempCorrGraph[];
 	extern uint16_t Gear2DeltaRPM[];
-	extern int16_t SLUGear3AddGraph[];
+	extern int16_t SLUGear3OffsetGraph[];
 
 	extern int16_t SLUGear2TPSAdaptGraph[];
 	extern int16_t SLUGear2TempAdaptGraph[];

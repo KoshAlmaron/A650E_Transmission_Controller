@@ -166,19 +166,9 @@ int8_t get_slu_gear2_temp_corr(uint8_t Value) {
 	}
 }
 
-// Давлению SLU включения третьей передачи.
-int8_t get_slu_pressure_add_gear3() {
-	return get_interpolated_value_int16_t(TCU.InstTPS, TPSGrid, SLUGear3AddGraph, TPS_GRID_SIZE);
-}
-
-// Давлению SLU включения третьей передачи.
-uint8_t get_slu_pressure_gear3() {
-	// Давление второй передачи.
-	uint8_t SLUGear3 = get_slu_pressure_gear2();
-	// Добавка для третьей.
-	int8_t Add = get_slu_pressure_add_gear3();
-	SLUGear3 = CONSTRAIN(SLUGear3 + Add, 32, 250);
-	return SLUGear3;
+// Смещение графика SLU для включения третьей передачи.
+int8_t get_gear3_slu_offset() {
+	return get_interpolated_value_int16_t(TCU.InstTPS, TPSGrid, SLUGear3OffsetGraph, TPS_GRID_SIZE);
 }
 
 uint8_t get_tps_index(uint8_t TPS) {

@@ -82,7 +82,7 @@ static void print_config_slt_temp_corr();
 static void print_config_sln_pressure();
 static void print_config_gear2_slu_pressure();
 static void print_config_gear2_slu_temp_corr();
-static void print_config_gear3_slu_pressure();
+static void print_config_gear3_slu_offset();
 static void print_config_gear2_reactivate();
 
 static void print_config_gear2_tps_adaptation();
@@ -185,7 +185,7 @@ static void print_data() {
 			print_config_gear2_reactivate();
 			break;
 		case 4:
-			print_config_gear3_slu_pressure();
+			print_config_gear3_slu_offset();
 			break;
 		case 5:
 			print_config_slt_pressure();
@@ -678,10 +678,10 @@ static void print_config_gear2_reactivate() {
 }
 
 // Экран настройки задержки выключения SLU при включении третьей передачи.
-static void print_config_gear3_slu_pressure() {
+static void print_config_gear3_slu_offset() {
 	//|12345678901234567890|
-	//|G3 SLU Add |100|1.00|
-	//|UP-12 UV-12 A99 D101|
+	//|G3 SLU Ofs |100|1.00|
+	//|O -12 U 112 A99 D101|
 	//|  0|  5| 10| 15| 20||
 	//| 67| 72| 74| 77| 81||
 	//|12345678901234567890|
@@ -710,15 +710,15 @@ static void print_config_gear3_slu_pressure() {
 
 	// row,  col
 	lcd_set_cursor(0, 0);
-	snprintf(LCDArray, 21, "G3 SLU Add |%3u|%s", TCU.InstTPS, GearRatioChar);
+	snprintf(LCDArray, 21, "G3 SLU Ofs |%3u|%s", TCU.InstTPS, GearRatioChar);
 	lcd_send_string(LCDArray, 20);
 
 	// Строка с необходимыми значениями.
-	int8_t OilTempCorrSLUP = get_slu_gear2_temp_corr(0);				// В %.
-	int8_t OilTempCorrSLUV = get_slu_gear2_temp_corr(Gear2ChangeSLU);	// В единицах ШИМ.
+	int8_t Offset = get_gear3_slu_offset();
+
 	lcd_set_cursor(1, 0);
-	snprintf(LCDArray, 21, "UC%3i UV%3i A%2u D%3u", 
-		CONSTRAIN(OilTempCorrSLUP, -99, 99), CONSTRAIN(OilTempCorrSLUV, -99, 99), MIN(99, Gear3ChangeTPS), Gear3ChangeSLU);
+	snprintf(LCDArray, 21, "O %3i U %3u A%2u D%3u", 
+		MAX(-99, Offset), TCU.SLU, MIN(99, Gear3ChangeTPS), Gear3ChangeSLU);
 	lcd_send_string(LCDArray, 20);
 
 	// Изменяемые значения.
@@ -728,14 +728,14 @@ static void print_config_gear3_slu_pressure() {
 		lcd_send_string(LCDArray, 3);
 
 		lcd_set_cursor(3, i * 4);
-		int8_t Value = CONSTRAIN(SLUGear3AddGraph[StartCol + i], -99, 99);
+		int8_t Value = CONSTRAIN(SLUGear3OffsetGraph[StartCol + i], -99, 99);
 		snprintf(LCDArray, 4, "%3i", Value);
 		lcd_send_string(LCDArray, 3);
 
 		if (CursorPos == StartCol + i) {
-			if (ValueDelta < 0) {SLUGear3AddGraph[CursorPos] += ValueDelta;}
-			if (ValueDelta > 0) {SLUGear3AddGraph[CursorPos] += ValueDelta;}
-			SLUGear3AddGraph[CursorPos] = CONSTRAIN(SLUGear3AddGraph[CursorPos], -32, 64);
+			if (ValueDelta < 0) {SLUGear3OffsetGraph[CursorPos] += ValueDelta;}
+			if (ValueDelta > 0) {SLUGear3OffsetGraph[CursorPos] += ValueDelta;}
+			SLUGear3OffsetGraph[CursorPos] = CONSTRAIN(SLUGear3OffsetGraph[CursorPos], -16, 16);
 			ValueDelta = 0;
 
 			lcd_set_cursor(2, i * 4 + 3);
