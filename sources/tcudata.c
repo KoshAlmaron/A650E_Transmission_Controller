@@ -141,6 +141,11 @@ uint8_t get_sln_pressure() {
 uint8_t get_slu_pressure_gear2() {
 	uint8_t PressureGear2 = get_interpolated_value_uint16_t(TCU.InstTPS, TPSGrid, SLUGear2Graph, TPS_GRID_SIZE);
 	
+	#ifdef GEAR_2_SLU_TPS_ADAPTATION
+		int8_t AdaptCorr = get_interpolated_value_int16_t(TCU.InstTPS, TPSGrid, SLUGear2TPSAdaptGraph, TPS_GRID_SIZE);
+		PressureGear2 += AdaptCorr;
+	#endif
+
 	// Применяем коррекцию по температуре.
 	PressureGear2 = CONSTRAIN(PressureGear2 + get_slu_gear2_temp_corr(PressureGear2), 25, 230);
 	return PressureGear2;
@@ -150,6 +155,12 @@ uint8_t get_slu_pressure_gear2() {
 // если передать функции базовое значение.
 int8_t get_slu_gear2_temp_corr(uint8_t Value) {
 	int16_t OilTempCorr = get_interpolated_value_int16_t(TCU.OilTemp, TempGrid, SLUGear2TempCorrGraph, TEMP_GRID_SIZE);
+
+	#ifdef GEAR_2_SLU_TEMP_ADAPTATION
+		int8_t AdaptCorr = get_interpolated_value_int16_t(TCU.InstTPS, TPSGrid, SLUGear2TempAdaptGraph, TPS_GRID_SIZE);
+		OilTempCorr += AdaptCorr;
+	#endif
+
 	if (!Value) {return OilTempCorr;}	// Возвращаем коррекцию в %.
 	else {	// Возвращаем скорректированное значение.
 		if (!OilTempCorr) {return 0;}	// При коррекции 0 добавка также 0.
@@ -231,13 +242,17 @@ int16_t rpm_delta(uint8_t Gear) {
 void save_gear2_adaptation(int8_t Value) {
 	uint8_t Index = 0;
 	if (TCU.OilTemp > 65 && TCU.OilTemp < 75) {		// Адаптация по ДПДЗ.
-		Index = get_tps_index(TCU.InstTPS);
-		SLUGear2TPSAdaptGraph[Index] += Value;
-		SLUGear2TPSAdaptGraph[Index] = CONSTRAIN(SLUGear2TPSAdaptGraph[Index], -5, 5);
+		#ifdef GEAR_2_SLU_TPS_ADAPTATION
+			Index = get_tps_index(TCU.InstTPS);
+			SLUGear2TPSAdaptGraph[Index] += Value;
+			SLUGear2TPSAdaptGraph[Index] = CONSTRAIN(SLUGear2TPSAdaptGraph[Index], -5, 5);
+		#endif
 	}
-	else {
-		Index = get_temp_index(TCU.OilTemp);
-		SLUGear2TempAdaptGraph[Index] += Value;
-		SLUGear2TempAdaptGraph[Index] = CONSTRAIN(SLUGear2TempAdaptGraph[Index], -5, 5);
+	else {		// Адаптация по температуре масла.
+		#ifdef GEAR_2_SLU_TEMP_ADAPTATION
+			Index = get_temp_index(TCU.OilTemp);
+			SLUGear2TempAdaptGraph[Index] += Value;
+			SLUGear2TempAdaptGraph[Index] = CONSTRAIN(SLUGear2TempAdaptGraph[Index], -5, 5);
+		#endif
 	}
 }
