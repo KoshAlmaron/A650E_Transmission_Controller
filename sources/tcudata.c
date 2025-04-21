@@ -40,7 +40,15 @@ TCU_t TCU = {
 	.SlipDetected = 0,
 	.Glock = 0,
 	.GearUpSpeed = 0,
-	.GearDownSpeed = 0
+	.GearDownSpeed = 0,
+
+	.GearChangeTPS = 0,
+	.GearChangeSLT = 0,
+	.GearChangeSLN = 0,
+	.GearChangeSLU = 0,
+
+	.LastStep = 0,
+	.LastPDRTime = 0
 };
 
 // Расчет параметров на основе датчиков и таблиц.
@@ -178,8 +186,8 @@ int8_t get_slu_gear2_temp_corr(uint8_t Value) {
 }
 
 // Смещение графика SLU для включения третьей передачи.
-int8_t get_gear3_slu_offset() {
-	return get_interpolated_value_int16_t(TCU.InstTPS, TPSGrid, SLUGear3OffsetGraph, TPS_GRID_SIZE);
+uint16_t get_gear3_delay() {
+	return get_interpolated_value_uint16_t(TCU.InstTPS, TPSGrid, SLUGear3DelayGraph, TPS_GRID_SIZE);
 }
 
 uint8_t get_tps_index(uint8_t TPS) {
@@ -215,6 +223,7 @@ uint8_t get_temp_index(int16_t Temp) {
 // Расчет разницы скорости входного вала относительно расчетной 
 // под датчику скорости и передаточному числу. 
 int16_t rpm_delta(uint8_t Gear) {
+	if (Gear == 5) {return TCU.DrumRPM;}
 	if (!TCU.OutputRPM || (!TCU.DrumRPM && TCU.Gear != 5))  {return 0;}
 
 	// Расчетная скорость входного вала.
@@ -240,9 +249,9 @@ int16_t rpm_delta(uint8_t Gear) {
 }
 
 void save_gear2_adaptation(int8_t Value) {
-	uint8_t Index = 0;
-	if (TCU.OilTemp > 65 && TCU.OilTemp < 75) {		// Адаптация по ДПДЗ.
+	if (TCU.OilTemp > 67 && TCU.OilTemp < 74) {		// Адаптация по ДПДЗ.
 		#ifdef GEAR_2_SLU_TPS_ADAPTATION
+			uint8_t Index = 0;
 			Index = get_tps_index(TCU.InstTPS);
 			SLUGear2TPSAdaptGraph[Index] += Value;
 			SLUGear2TPSAdaptGraph[Index] = CONSTRAIN(SLUGear2TPSAdaptGraph[Index], -5, 5);
@@ -250,6 +259,7 @@ void save_gear2_adaptation(int8_t Value) {
 	}
 	else {		// Адаптация по температуре масла.
 		#ifdef GEAR_2_SLU_TEMP_ADAPTATION
+			uint8_t Index = 0;
 			Index = get_temp_index(TCU.OilTemp);
 			SLUGear2TempAdaptGraph[Index] += Value;
 			SLUGear2TempAdaptGraph[Index] = CONSTRAIN(SLUGear2TempAdaptGraph[Index], -5, 5);

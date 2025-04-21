@@ -36,7 +36,7 @@ int16_t GlockTimer = 0;
 int16_t PressureControlTimer = 0;
 
 // Таймер ожидания.
-extern int16_t WaitTimer;
+int16_t WaitTimer = 0;
 
 // Состояние режима отладки:
 // 0 - выкл, 1 - только экран, 2 - экран + ручное управление.
