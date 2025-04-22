@@ -34,6 +34,7 @@ int16_t GearsTimer = 0;
 int16_t TPSTimer = 0;
 int16_t GlockTimer = 0;
 int16_t PressureControlTimer = 0;
+int16_t IdleTimer = 0;
 
 // Таймер ожидания.
 int16_t WaitTimer = 0;
@@ -82,20 +83,20 @@ void loop_main(uint8_t Wait) {
 		SelectorTimer += TimerAdd;
 		DataUpdateTimer += TimerAdd;
 		DebugTimer += TimerAdd;
-		WaitTimer += TimerAdd;	// Внешняя переменная из gears.c.
 		TPSTimer += TimerAdd;
 		GlockTimer += TimerAdd;
+
+		if (WaitTimer > TimerAdd) {WaitTimer -= TimerAdd;}
+		else {WaitTimer = 0;}
 
 		// Отключение счетчиков дополнительного цикла.
 		if (!Wait) {
 			AtModeTimer += TimerAdd;
 			GearsTimer += TimerAdd;
 			PressureControlTimer += TimerAdd;
+			IdleTimer += TimerAdd;
 		}
 	}
-
-	// Таймер ожидание д.б. <= 0.
-	if (WaitTimer > 0) {WaitTimer = 0;}
 
 	// Обработка датчиков.
 	if (SensorTimer >= 4) {
@@ -180,10 +181,15 @@ static void loop_add() {
 
 	if (PressureControlTimer >= 27) {
 		slt_control();							// Управление линейными давлением.
-		sln_control(PressureControlTimer);		// Управление давлением гидроаккумуляторов.
 		slu_gear2_control(PressureControlTimer);// Управление давлением SLU для второй передачи.
 		PressureControlTimer = 0;
 	}
+
+	if (IdleTimer >= 100) {
+		idle_control(IdleTimer);
+		IdleTimer = 0; 
+	}
+	
 }
 
 // Прерывание при совпадении регистра сравнения OCR0A на таймере 0 каждую 1мс. 

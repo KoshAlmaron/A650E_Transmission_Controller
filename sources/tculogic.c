@@ -17,26 +17,6 @@ void slt_control() {
 	OCR1A = TCU.SLT;	// SLT - выход A таймера 1.
 }
 
-// Управление давлением SLN.
-void sln_control(uint8_t Timer) {
-	static uint16_t TimerSLN = 0;	// Таймер для выключения SLN.
-
-	if (TCU.Gear == 0) {
-		if (TCU.Break) {TCU.SLN = get_sln_pressure();}
-		else {TCU.SLN = SLN_MIN_VALUE;}
-	}
-	else {
-		if (TCU.SLN > SLN_MIN_VALUE) {
-			TimerSLN += Timer;
-			if (TimerSLN > 50) {
-				TimerSLN = 0;
-				TCU.SLN = MAX(SLN_MIN_VALUE, TCU.SLN - 2);
-			}
-		}
-	}
-	OCR1B = TCU.SLN;	// SLN - выход B таймера 1.
-}
-
 void at_mode_control() {
 	// Если ничего не поменялось, валим.
 	if (TCU.ATMode == TCU.Selector) {return;}

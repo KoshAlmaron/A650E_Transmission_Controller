@@ -12,8 +12,7 @@ void read_eeprom() {
 	//update_eeprom();
 	// Адрес массива, адрес ячейки, кол-во байт.
 
-	//eeprom_update_block((void*)&SLUGear2TPSAdaptGraph, (void*) 358, TPS_GRID_SIZE * 2);
-	//eeprom_update_block((void*)&SLUGear2TempAdaptGraph, (void*) 400, TEMP_GRID_SIZE * 2);
+	//eeprom_update_block((void*)&SLNGraph, (void*) 274, TPS_GRID_SIZE * 2);
 	
 	// 0-41 - SLTGraph.
 	eeprom_read_block((void*)&SLTGraph, (const void*) 0, TPS_GRID_SIZE * 2);

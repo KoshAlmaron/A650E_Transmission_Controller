@@ -37,12 +37,12 @@ static void gear_up();
 static void gear_down();
 
 static void set_gear_change_delays();
-static void loop_wait(int16_t Delay);
+static void loop_wait(uint16_t Delay);
 
 static uint8_t rpm_after_ok(uint8_t Shift);
 
 static void slu_boost();
-static void gear_change_wait(int16_t Delay, uint8_t Gear);
+static void gear_change_wait(uint16_t Delay, uint8_t Gear);
 
 //static void set_slt(uint8_t Value);
 static void set_sln(uint8_t Value);
@@ -54,8 +54,8 @@ void set_gear_n() {
 	TCU.GearChange = -1;
 	if (TCU.Gear < 0) {TCU.GearChange = 1;}
 
-	set_slu(SLU_MIN_VALUE);		// Выключение SLU на случай переключения со второй передачи.
-	set_sln(SLN_MIN_VALUE); 	// Минимальное давление в гидроаккумуляторах SLN.
+	set_slu(SLU_MIN_VALUE);			// Выключение SLU на случай переключения со второй передачи.
+	set_sln(SLN_IDLE_PRESSURE); 
 
 	SET_PIN_HIGH(SOLENOID_S1_PIN);
 	SET_PIN_LOW(SOLENOID_S2_PIN);
@@ -73,7 +73,18 @@ void set_gear_1() {
 	TCU.GearChange = 1;
 
 	set_slu(SLU_MIN_VALUE);		// Выключение SLU на случай переключения со второй передачи.
-	set_sln(get_sln_pressure());
+	set_sln(SLN_IDLE_PRESSURE);
+
+	// Для смягчения сначала включаем четвертую передачу.
+	SET_PIN_LOW(SOLENOID_S1_PIN);
+	SET_PIN_LOW(SOLENOID_S2_PIN);
+	SET_PIN_HIGH(SOLENOID_S3_PIN);
+	SET_PIN_LOW(SOLENOID_S4_PIN);
+
+	loop_wait(1000);
+	if (TCU.InstTPS < 10) {		// Если никуда не торопимся.
+		loop_wait(1000);
+	}
 
 	SET_PIN_HIGH(SOLENOID_S1_PIN);
 	SET_PIN_LOW(SOLENOID_S2_PIN);
@@ -81,8 +92,6 @@ void set_gear_1() {
 	SET_PIN_LOW(SOLENOID_S4_PIN);
 	// Отличие для режима L2. 
 	if (TCU.ATMode == 7) {SET_PIN_HIGH(SOLENOID_S3_PIN);}
-
-	loop_wait(500);
 
 	TCU.Gear = 1;
 	TCU.GearChange = 0;
@@ -93,14 +102,16 @@ void set_gear_r() {
 	TCU.GearChange = -1;
 
 	set_slu(SLU_MIN_VALUE);		// Выключение SLU на случай переключения со второй передачи.
-	set_sln(get_sln_pressure());
+	set_sln(SLN_MIN_PRESSURE);
+
 
 	SET_PIN_HIGH(SOLENOID_S1_PIN);
 	SET_PIN_LOW(SOLENOID_S2_PIN);
 	SET_PIN_LOW(SOLENOID_S3_PIN);
 	SET_PIN_LOW(SOLENOID_S4_PIN);
 
-	loop_wait(500);				// Пауза после включения передачи.
+	loop_wait(1000);				// Пауза после включения передачи.
+	set_sln(SLN_IDLE_PRESSURE);
 
 	TCU.Gear = -1;
 	TCU.GearChange = 0;
@@ -114,7 +125,7 @@ void disable_gear_r() {
 	SET_PIN_LOW(SOLENOID_S4_PIN);
 
 	set_slu(SLU_MIN_VALUE);
-	set_sln(get_sln_pressure());
+	set_sln(SLN_IDLE_PRESSURE);
 }
 
 //=========================== Переключения вверх ==============================
@@ -128,9 +139,10 @@ static void gear_change_1_2() {
 	SET_PIN_HIGH(SOLENOID_S3_PIN);		// Включаем систему "Clutch to Clutch".
 	SET_PIN_LOW(SOLENOID_S4_PIN);
 
-	set_slu(get_slu_pressure_gear2());
 	TCU.GearChangeTPS = TCU.InstTPS;
 	TCU.GearChangeSLU = TCU.SLU;
+
+	set_sln(SLN_MIN_PRESSURE);
 
 	slu_boost();	// Первоначальная накачка давления SLU.
 
@@ -144,8 +156,8 @@ static void gear_change_1_2() {
 	if (TCU.InstTPS > PDR_MAX_TPS) {PDR = -1;}
 	
 	while (Step < TCU.LastStep) {
-		WaitTimer = -1 * GearChangeStep;				// Устанавливаем время ожидания.
-		while (WaitTimer < 0) {
+		WaitTimer = GearChangeStep;				// Устанавливаем время ожидания.
+		while (WaitTimer) {
 			loop_main(1);
 			if (!PDR && rpm_delta(1) < -150) {			// Переключение началось.
 				PDR = 1;
@@ -180,6 +192,7 @@ static void gear_change_1_2() {
 	TCU.LastStep -= GEAR_2_STEP_ADD;
 	SET_PIN_LOW(REQUEST_POWER_DOWN_PIN);
 	SET_PIN_LOW(SOLENOID_S3_PIN);
+	set_sln(SLN_IDLE_PRESSURE);
 	TCU.Gear = 2;
 	TCU.GearChange = 0;
 }
@@ -191,43 +204,39 @@ static void gear_change_2_3() {
 	SET_PIN_LOW(SOLENOID_S3_PIN);
 	SET_PIN_LOW(SOLENOID_S4_PIN);
 
-	set_sln(get_sln_pressure());
 	TCU.GearChangeTPS = TCU.InstTPS;
 	TCU.GearChangeSLU = TCU.SLU;
 
-	int16_t PDRTime = 0;
-	uint8_t Gear2Slip = 0;	// Флаг наличия проскальзывания.
-	
+	TCU.LastStep = 0;
+	set_sln(SLN_MIN_PRESSURE);
+	uint16_t PDRTime = 0;
+
 	// Ждем начало включения B2.
-	WaitTimer = -1 * 1200;
-	PDRTime = WaitTimer;
-	int16_t DeltaG = SLUGear3DelayGraph[0];
-	while (WaitTimer < 0 && rpm_delta(2) < -1 * DeltaG) {
-		set_slu(get_slu_pressure_gear2() + 10);
+	WaitTimer = get_gear3_delay();
+	while (WaitTimer) {
+		set_slu(get_slu_pressure_gear2() + 32);
 		loop_main(1);
 	}
 
-	TCU.LastPDRTime = WaitTimer - PDRTime; // Время до начала работы B2.
+	set_sln(get_sln_pressure());	// Устанавливаем давление SLN.
+	set_slu(SLU_MIN_VALUE);			// Убираем давление SLU.
+
 	// Запрашиваем снижение мощности.
 	if (TCU.InstTPS < PDR_MAX_TPS) {SET_PIN_HIGH(REQUEST_POWER_DOWN_PIN);}
 
-	// Ждем установленное время по графику.
-	uint16_t Delay = get_gear3_delay();
-	TCU.LastStep = Delay / 10;
-	WaitTimer = -1 * Delay;
-	while (WaitTimer < 0) {loop_main(1);}
-	set_slu(SLU_MIN_VALUE); // Убираем давление SLU.
-
+	uint8_t Gear2Slip = 0;	// Флаг наличия проскальзывания.
 	// Ждем включения третьей передачи.
-	WaitTimer = -1 * 1200;
-	while (WaitTimer < 0 && rpm_delta(3) > 30) {
+	WaitTimer = 1200;
+	PDRTime = WaitTimer;
+	while (WaitTimer && rpm_delta(3) > 30) {
 		loop_main(1);
-		if (!Gear2Slip && rpm_delta(2) > 150) {
+		if (!Gear2Slip && rpm_delta(2) > 120) {
 			// Проскальзывание второй передачи.
 			// Выключение произошло слишком рано.
 			Gear2Slip = 1;
 		}
 	}
+	TCU.LastPDRTime = PDRTime - WaitTimer; // Время завершения переклюючения.
 	if (Gear2Slip) {TCU.LastStep = 99;}
 	SET_PIN_LOW(REQUEST_POWER_DOWN_PIN);
 
@@ -237,70 +246,6 @@ static void gear_change_2_3() {
 	TCU.Gear = 3;
 	TCU.GearChange = 0;
 }
-
-/*
-static void gear_change_2_3() {
-	#define GEAR_3_MAX_STEP 18
-	#define GEAR_3_STEP_ADD 1
-
-	TCU.GearChange = 1;
-	SET_PIN_LOW(SOLENOID_S1_PIN);
-	SET_PIN_HIGH(SOLENOID_S2_PIN);
-	SET_PIN_LOW(SOLENOID_S3_PIN);
-	SET_PIN_LOW(SOLENOID_S4_PIN);
-	// Включаем торможение двигателем в режиме "3".
-	if (TCU.ATMode == 6) {SET_PIN_HIGH(SOLENOID_S3_PIN);}
-
-	set_sln(get_sln_pressure());
-	TCU.GearChangeTPS = TCU.InstTPS;
-	TCU.GearChangeSLU = TCU.SLU;
-
-	uint8_t PDR = 0;
-	uint8_t PDRStep = 0;		// Для фиксации времени работы PDR.
-	TCU.LastStep = GEAR_3_MAX_STEP;	// Номер последнего шага переключения.
-	uint8_t Gear2Slip = 0;		// Было проскальзывание второй передачи.
-	uint8_t Step = 0;
-
-	
-	TCU.LastPDRTime = 0;
-	if (TCU.InstTPS > PDR_MAX_TPS) {PDR = -1;}
-
-	while (Step < TCU.LastStep) {
-		WaitTimer = -1 * GearChangeStep;				// Устанавливаем время ожидания.
-		while (WaitTimer < 0) {
-			loop_main(1);
-			if (!PDR && rpm_delta(2) < -125) {			// Переключение началось.
-				PDR = 1;
-				PDRStep = Step;
-				SET_PIN_HIGH(REQUEST_POWER_DOWN_PIN);	// Запрашиваем снижение мощности.
-			}
-			if (!Gear2Slip && rpm_delta(2) > 50) {
-				// Проскальзывание второй передачи.
-				// Выключение произошло слишком рано.
-				Gear2Slip = 1;
-			}
-		}
-		Step++;
-		
-		// Обороты валов выровнялись.
-		if (ABS(rpm_delta(3)) < 50) {
-			if (TCU.LastStep == GEAR_3_MAX_STEP) {TCU.LastStep = Step + GEAR_3_STEP_ADD;}
-		}
-
-		uint8_t CurrSLU = get_slu_pressure_gear2();
-		int8_t Offset = get_gear3_slu_offset();
-		set_slu(CurrSLU - Step / 2 + Offset);
-	}
-	TCU.LastStep -= GEAR_2_STEP_ADD;
-	set_slu(SLU_MIN_VALUE);
-	if (PDR == 1) {TCU.LastPDRTime = (Step - PDRStep) * GearChangeStep;}
-	if (Gear2Slip) {TCU.LastStep = 99;}
-	SET_PIN_LOW(REQUEST_POWER_DOWN_PIN);
-
-	TCU.Gear = 3;
-	TCU.GearChange = 0;
-}
-*/
 
 static void gear_change_3_4() {
 	TCU.GearChange = 1;
@@ -313,8 +258,6 @@ static void gear_change_3_4() {
 	TCU.GearChangeTPS = TCU.InstTPS;
 	TCU.GearChangeSLT = TCU.SLT;
 	TCU.GearChangeSLN = TCU.SLN;
-
-	set_sln(get_sln_pressure());
 	
 	gear_change_wait(GearChangeStep * 20, 4);
 
@@ -330,11 +273,7 @@ static void gear_change_4_5() {
 	SET_PIN_LOW(SOLENOID_S2_PIN);
 	SET_PIN_LOW(SOLENOID_S3_PIN);
 	SET_PIN_HIGH(SOLENOID_S4_PIN);
-
-	set_sln(get_sln_pressure());
 	
-	glock_control(101);
-
 	gear_change_wait(GearChangeStep * 20, 5);
 
 	TCU.Gear = 5;
@@ -419,23 +358,35 @@ static void gear_change_2_1() {
 
 //========================== Вспомогательные функции ==========================
 
-static void gear_change_wait(int16_t Delay, uint8_t Gear) {
+static void gear_change_wait(uint16_t Delay, uint8_t Gear) {
+	set_sln(SLN_MIN_PRESSURE);
+
 	uint8_t PDR = 0;
-	int16_t PDRTime = 0;	// Для фиксации времени работы PDR.
+	uint16_t PDRTime = 0;	// Для фиксации времени работы PDR.
 	if (TCU.InstTPS > PDR_MAX_TPS) {PDR = -1;}
 	TCU.LastPDRTime = 0;
-	WaitTimer = -1 * Delay;		// Устанавливаем время ожидания.
-	while (WaitTimer < 0 && rpm_delta(Gear) > 30) {
-		if (!PDR && rpm_delta(Gear - 1) < -150) {	// Переключение началось.
-			PDR = 1;
-			PDRTime = WaitTimer;
-			SET_PIN_HIGH(REQUEST_POWER_DOWN_PIN);
+	WaitTimer = Delay;		// Устанавливаем время ожидания.
+	uint16_t GlockTimer = WaitTimer;
+	while (WaitTimer && rpm_delta(Gear) > 30) {
+		if (rpm_delta(Gear - 1) < -150) {	// Переключение началось.
+			set_sln(get_sln_pressure());
+			if (!PDR) {
+				PDR = 1;
+				PDRTime = WaitTimer;
+				SET_PIN_HIGH(REQUEST_POWER_DOWN_PIN);
+			}
+		}
+
+		if (GlockTimer - WaitTimer >= 50) {
+			GlockTimer = WaitTimer;
+			glock_control(60);
 		}
 		loop_main(1);
 	}
 	loop_wait(200);
-	if (PDR == 1) {TCU.LastPDRTime = WaitTimer - PDRTime;}
+	if (PDR == 1) {TCU.LastPDRTime = PDRTime - WaitTimer;}
 	SET_PIN_LOW(REQUEST_POWER_DOWN_PIN);
+	set_sln(SLN_IDLE_PRESSURE);
 }
 
 void slu_gear2_control(uint8_t Time) {
@@ -505,6 +456,55 @@ void slu_gear2_control(uint8_t Time) {
 	// Прирост не более чем 1 единица за цикл.
 	if (NextSLU > TCU.SLU) {set_slu(TCU.SLU + 1);}
 	else {set_slu(NextSLU);}
+}
+
+void idle_control(uint8_t Time) {
+	static uint16_t Timer = 0;
+	static uint8_t Idle = 0;
+	// Только режимы N, D, D4.
+	if (TCU.ATMode < 3 || TCU.ATMode > 5) {
+		Timer = 0;
+		return;
+	}
+
+	// Включение первой передачи через четвертую (N -> D).
+	if (TCU.ATMode == 3 && TCU.CarSpeed < 3 && TCU.Break) {Idle = 1;}
+	// Включение четвертой передачи стоя на месте в режиме D или D4.
+	else if ((TCU.ATMode == 4 || TCU.ATMode == 5) 
+					&& TCU.Gear == 1
+					&& TCU.CarSpeed < 3 
+					&& TCU.Break 
+					&& TCU.InstTPS < TPS_IDLE_LIMIT) {
+		
+		// Сработает только через 2с.
+		if (Timer > 2000) {Idle = 1;}
+		else {Timer += Time;}
+	}
+	else {
+		Timer = 0;
+		Idle = 0;
+	}
+
+	if (Idle) {		// Включение четвертой передачи.
+		SET_PIN_LOW(SOLENOID_S1_PIN);
+		SET_PIN_LOW(SOLENOID_S2_PIN);
+		SET_PIN_HIGH(SOLENOID_S3_PIN);
+		SET_PIN_LOW(SOLENOID_S4_PIN);
+	}
+	else {			// Возвращаем соленоиды в нормальное положение.
+		if (TCU.ATMode == 3) {
+			SET_PIN_HIGH(SOLENOID_S1_PIN);
+			SET_PIN_LOW(SOLENOID_S2_PIN);
+			SET_PIN_HIGH(SOLENOID_S3_PIN);
+			SET_PIN_LOW(SOLENOID_S4_PIN);			
+		}
+		else {
+			SET_PIN_HIGH(SOLENOID_S1_PIN);
+			SET_PIN_LOW(SOLENOID_S2_PIN);
+			SET_PIN_LOW(SOLENOID_S3_PIN);
+			SET_PIN_LOW(SOLENOID_S4_PIN);				
+		}
+	}
 }
 
 // Первоначальная накачка давления SLU для включения второй передачи.
@@ -589,9 +589,6 @@ uint16_t gear_control() {
 	return 0;
 }
 
-
-
-
 // Переключение вверх.
 static void gear_up() {
 	if (TCU.Gear >= MaxGear[TCU.ATMode]) {return;}
@@ -641,9 +638,9 @@ static void set_gear_change_delays() {
 }
 
 // Ожидание с основным циклом.
-static void loop_wait(int16_t Delay) {
-	WaitTimer = -1 * Delay;		// Устанавливаем время ожидания.
-	while (WaitTimer < 0) {loop_main(1);}
+static void loop_wait(uint16_t Delay) {
+	WaitTimer = Delay;		// Устанавливаем время ожидания.
+	while (WaitTimer) {loop_main(1);}
 }
 
 uint8_t get_gear_max_speed(int8_t Gear) {

@@ -11,6 +11,8 @@
 #include "tcudata.h"		// Расчет и хранение всех необходимых параметров.
 #include "adc.h"			// АЦП.
 #include "eeprom.h"			// Чтение и запись EEPROM.
+#include "configuration.h"	// Настройки.
+
 
 extern uint8_t DebugMode;	// Переменная из main.
 
@@ -395,8 +397,8 @@ static void print_config_sln_pressure() {
 		lcd_send_string(LCDArray, 3);
 
 		if (CursorPos == StartCol + i) {
-			if (ValueDelta < 0 && SLNGraph[CursorPos] > 5) {SLNGraph[CursorPos] += ValueDelta;}
-			if (ValueDelta > 0 && SLNGraph[CursorPos] < 250) {SLNGraph[CursorPos] += ValueDelta;}
+			if (ValueDelta < 0 && SLNGraph[CursorPos] > SLN_IDLE_PRESSURE) {SLNGraph[CursorPos] += ValueDelta;}
+			if (ValueDelta > 0 && SLNGraph[CursorPos] < SLN_MIN_PRESSURE) {SLNGraph[CursorPos] += ValueDelta;}
 			ValueDelta = 0;
 
 			lcd_set_cursor(2, i * 4 + 3);
