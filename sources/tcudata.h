@@ -61,6 +61,9 @@
 		uint8_t ATMode;				// Режим АКПП.
 		int8_t Gear;				// Текущая передача.
 		int8_t GearChange;			// Флаг идет процес переключения.
+		uint8_t GearStep;			// Номер шага процесса переключения.
+		uint8_t LastStep;			// Последний шаг при переключении 1>2 или 2>3.
+		uint8_t Gear2State;			// Состояние второй передачи.
 		uint8_t Break;				// Состояние педали тормоза.
 		uint8_t EngineWork;			// Флаг работы двигателя.
 		uint8_t SlipDetected;		// Обнаружено проскальзывание фрикционов.
@@ -71,7 +74,6 @@
 		uint8_t GearChangeSLT;		// SLT в начале переключения.
 		uint8_t GearChangeSLN;		// SLN в начале переключения.
 		uint8_t GearChangeSLU;		// SLU в начале переключения.
-		uint8_t LastStep;			// Последний шаг при переключении 1>2 или 2>3.
 		uint16_t LastPDRTime;		// Последнее время работы PDR.
 	} TCU_t;
 

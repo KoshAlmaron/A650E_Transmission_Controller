@@ -35,19 +35,19 @@ TCU_t TCU = {
 	.ATMode = 0,
 	.Gear = 0,
 	.GearChange = 0,
+	.GearStep = 0,
+	.LastStep = 0,
+	.Gear2State = 0,
 	.Break = 0,
 	.EngineWork = 0,
 	.SlipDetected = 0,
 	.Glock = 0,
 	.GearUpSpeed = 0,
 	.GearDownSpeed = 0,
-
 	.GearChangeTPS = 0,
 	.GearChangeSLT = 0,
 	.GearChangeSLN = 0,
 	.GearChangeSLU = 0,
-
-	.LastStep = 0,
 	.LastPDRTime = 0
 };
 
@@ -259,6 +259,7 @@ void save_gear2_adaptation(int8_t Value) {
 	}
 	else {		// Адаптация по температуре масла.
 		#ifdef GEAR_2_SLU_TEMP_ADAPTATION
+			if (TCU.InstTPS > 35) {return;} // Адаптация по температуре только на малом газу.
 			uint8_t Index = 0;
 			Index = get_temp_index(TCU.OilTemp);
 			SLUGear2TempAdaptGraph[Index] += Value;

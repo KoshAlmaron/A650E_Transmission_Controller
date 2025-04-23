@@ -37,7 +37,7 @@ int16_t PressureControlTimer = 0;
 int16_t IdleTimer = 0;
 
 // Таймер ожидания.
-int16_t WaitTimer = 0;
+uint16_t WaitTimer = 0;
 
 // Состояние режима отладки:
 // 0 - выкл, 1 - только экран, 2 - экран + ручное управление.
@@ -179,7 +179,7 @@ static void loop_add() {
 		GearsTimer = 0;
 	}
 
-	if (PressureControlTimer >= 27) {
+	if (PressureControlTimer >= 26) {
 		slt_control();							// Управление линейными давлением.
 		slu_gear2_control(PressureControlTimer);// Управление давлением SLU для второй передачи.
 		PressureControlTimer = 0;
