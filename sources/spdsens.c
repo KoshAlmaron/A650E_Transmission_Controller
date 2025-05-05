@@ -116,6 +116,7 @@ uint16_t get_output_shaft_rpm() {
 	return RPM;
 }
 
+
 // Корзина овердрайва.
 // Прерывание по захвату сигнала таймером 4.
 ISR (TIMER4_CAPT_vect) {
@@ -139,7 +140,6 @@ ISR (TIMER4_OVF_vect) {
 // Прерывание по захвату сигнала таймером 5.
 ISR (TIMER5_CAPT_vect) {
 	TCNT5 = 0;						// Обнулить счётный регистр.
-
 	if (OutputBufferReady && ICR5 > MIN_RAW_VALUE_OUT) {
 		// Записываем значение в кольцевой буфер.	
 		OutputArray[OutputPos] = ICR5;

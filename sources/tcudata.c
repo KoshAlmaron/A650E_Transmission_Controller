@@ -114,6 +114,11 @@ uint8_t get_slt_pressure() {
 	uint8_t SLT = get_interpolated_value_uint16_t(TCU.InstTPS, TPSGrid, SLTGraph, TPS_GRID_SIZE);
 	// Применяем коррекцию по температуре.
 	SLT = CONSTRAIN(SLT + get_slt_temp_corr(SLT), 20, 230);
+
+	// Добавка давления SLT в режиме "R" и "1". +10%.
+	if (TCU.Gear == -1 || TCU.Gear == 1) {
+		SLT = SLT + ((SLT * 13) >> 7);
+	}
 	return SLT;
 }
 
@@ -185,9 +190,14 @@ int8_t get_slu_gear2_temp_corr(uint8_t Value) {
 	}
 }
 
-// Смещение графика SLU для включения третьей передачи.
-uint16_t get_gear3_delay() {
-	return get_interpolated_value_uint16_t(TCU.InstTPS, TPSGrid, SLUGear3DelayGraph, TPS_GRID_SIZE);
+// Задержка отключения SLU при включении третьей передачи.
+uint16_t get_gear3_slu_delay(uint8_t TPS) {
+	return get_interpolated_value_uint16_t(TPS, TPSGrid, SLUGear3DelayGraph, TPS_GRID_SIZE);
+}
+
+// Смещение впемени включения SLN при включении третьей передачи.
+int16_t get_gear3_sln_offset(uint8_t TPS) {
+	return get_interpolated_value_int16_t(TPS, TPSGrid, SLNGear3OffsetGraph, TPS_GRID_SIZE);
 }
 
 uint8_t get_tps_index(uint8_t TPS) {
@@ -248,8 +258,12 @@ int16_t rpm_delta(uint8_t Gear) {
 	return (TCU.DrumRPM - CalcDrumRPM);
 }
 
+uint16_t get_free_rpm() {
+	return get_interpolated_value_uint16_t(TCU.InstTPS, TPSGrid, RPMbyTPSGraph, TPS_GRID_SIZE);
+}
+
 void save_gear2_adaptation(int8_t Value) {
-	if (TCU.OilTemp > 67 && TCU.OilTemp < 74) {		// Адаптация по ДПДЗ.
+	if (TCU.OilTemp >= 60 && TCU.OilTemp <= 73) {		// Адаптация по ДПДЗ.
 		#ifdef GEAR_2_SLU_TPS_ADAPTATION
 			uint8_t Index = 0;
 			Index = get_tps_index(TCU.InstTPS);

@@ -26,8 +26,8 @@ void read_eeprom() {
 	eeprom_read_block((void*)&SLUGear2TempCorrGraph, (const void*) 200, TEMP_GRID_SIZE * 2);
 	// 274-315 - SLNGraph.
 	eeprom_read_block((void*)&SLNGraph, (const void*) 274, TPS_GRID_SIZE * 2);
-	// 316-357 - Gear2DeltaRPM.
-	eeprom_read_block((void*)&Gear2DeltaRPM, (const void*) 316, TPS_GRID_SIZE * 2);
+	// 316-357 - SLNGear3OffsetGraph.
+	eeprom_read_block((void*)&SLNGear3OffsetGraph, (const void*) 316, TPS_GRID_SIZE * 2);
 
 	// 358-399 SLUGear2AdoptGraph.
 	eeprom_read_block((void*)&SLUGear2TPSAdaptGraph, (const void*) 358, TPS_GRID_SIZE * 2);
@@ -49,8 +49,8 @@ void update_eeprom() {
 	eeprom_update_block((void*)&SLUGear2TempCorrGraph, (void*) 200, TEMP_GRID_SIZE * 2);
 	// 274-315 - SLNGraph.
 	eeprom_update_block((void*)&SLNGraph, (void*) 274, TPS_GRID_SIZE * 2);
-	// 316-357 - Gear2DeltaRPM.
-	eeprom_update_block((void*)&Gear2DeltaRPM, (void*) 316, TPS_GRID_SIZE * 2);
+	// 316-357 - SLNGear3OffsetGraph.
+	eeprom_update_block((void*)&SLNGear3OffsetGraph, (void*) 316, TPS_GRID_SIZE * 2);
 
 	// 358-399 SLUGear2AdoptGraph.
 	eeprom_update_block((void*)&SLUGear2TPSAdaptGraph, (void*) 358, TPS_GRID_SIZE * 2);

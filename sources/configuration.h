@@ -3,9 +3,6 @@
 #ifndef _CONFIGURATION_H_
 	#define _CONFIGURATION_H_
 
-	// Добавка давления SLT в режиме "R" и "1". +10% 255 * 0.1 = 26.
-	#define SLT_ADD_R1 22
-
 	// Лимиты оборотов после переключения.
 	#define RPM_MIN	1000
 	#define RPM_MAX	4700

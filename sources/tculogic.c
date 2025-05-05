@@ -64,9 +64,11 @@ void at_mode_control() {
 		return;
 	}
 
-	// Задняя скорость включается только стоя на тормозе.
+	
 	if (TCU.Selector == 2) {
-		if (TCU.CarSpeed < 5 && TCU.Break) {
+		// Задняя скорость включается только стоя на тормозе,
+		// или без тормоза, но с режима P.
+		if (TCU.CarSpeed < 5 && (TCU.Break || TCU.ATMode == 1)) {
 			TCU.ATMode = TCU.Selector;
 			set_gear_r();
 		}
@@ -115,7 +117,7 @@ void glock_control(uint8_t Timer) {
 	// Условия для включения блокировки гидротрансформатора.
 	if (!TCU.Break 
 			&& TCU.Gear >= 4
-			&& !TCU.GearChange
+			//&& !TCU.GearChange
 			&& TCU.TPS >= TPS_IDLE_LIMIT 
 			&& TCU.TPS <= GLOCK_MAX_TPS 
 			&& ((TCU.OilTemp >= 31 && !TCU.Glock) || (TCU.OilTemp >= 30 && TCU.Glock))

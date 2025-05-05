@@ -25,16 +25,16 @@
 volatile uint8_t MainTimer = 0;
 
 // Счетчики времени.
-int16_t UartTimer = 0;
-int16_t SensorTimer = 0;
-int16_t SelectorTimer = 0;
-int16_t DataUpdateTimer = 0;
-int16_t AtModeTimer = 0;
-int16_t GearsTimer = 0;
-int16_t TPSTimer = 0;
-int16_t GlockTimer = 0;
-int16_t PressureControlTimer = 0;
-int16_t IdleTimer = 0;
+uint16_t UartTimer = 0;
+uint16_t SensorTimer = 0;
+uint16_t SelectorTimer = 0;
+uint16_t DataUpdateTimer = 0;
+uint16_t AtModeTimer = 0;
+uint16_t GearsTimer = 0;
+uint16_t TPSTimer = 0;
+uint16_t GlockTimer = 0;
+uint16_t SLTPressureTimer = 0;
+uint16_t SLUPressureTimer = 0;
 
 // Таймер ожидания.
 uint16_t WaitTimer = 0;
@@ -85,6 +85,7 @@ void loop_main(uint8_t Wait) {
 		DebugTimer += TimerAdd;
 		TPSTimer += TimerAdd;
 		GlockTimer += TimerAdd;
+		SLTPressureTimer += TimerAdd;
 
 		if (WaitTimer > TimerAdd) {WaitTimer -= TimerAdd;}
 		else {WaitTimer = 0;}
@@ -93,8 +94,7 @@ void loop_main(uint8_t Wait) {
 		if (!Wait) {
 			AtModeTimer += TimerAdd;
 			GearsTimer += TimerAdd;
-			PressureControlTimer += TimerAdd;
-			IdleTimer += TimerAdd;
+			SLUPressureTimer += TimerAdd;
 		}
 	}
 
@@ -122,6 +122,11 @@ void loop_main(uint8_t Wait) {
 		TPSTimer = 0;
 		calc_tps();					// Расчет ДПДЗ с замедлением.
 	}
+
+	if (SLTPressureTimer >= 26) {
+		slt_control();							// Управление линейными давлением.
+		SLTPressureTimer = 0;
+	}	
 
 	if (GlockTimer >= 100) {
 		glock_control(GlockTimer);
@@ -179,17 +184,10 @@ static void loop_add() {
 		GearsTimer = 0;
 	}
 
-	if (PressureControlTimer >= 26) {
-		slt_control();							// Управление линейными давлением.
-		slu_gear2_control(PressureControlTimer);// Управление давлением SLU для второй передачи.
-		PressureControlTimer = 0;
+	if (SLUPressureTimer >= 25) {
+		slu_gear2_control(SLUPressureTimer);// Управление давлением SLU для второй передачи.
+		SLUPressureTimer = 0;
 	}
-
-	if (IdleTimer >= 100) {
-		idle_control(IdleTimer);
-		IdleTimer = 0; 
-	}
-	
 }
 
 // Прерывание при совпадении регистра сравнения OCR0A на таймере 0 каждую 1мс. 
