@@ -126,6 +126,15 @@ void glock_control(uint8_t Timer) {
 	}
 	else {	// Отключение блокировки при нарушении условий.
 		if (TCU.Glock) {
+			// При отпускании педали газа сразу отключаем блокировку ГТ.
+			if (TCU.TPS < TPS_IDLE_LIMIT) {
+				TCU.SLU = SLU_MIN_VALUE;
+				OCR1C = TCU.SLU;
+				TCU.Glock = 0;
+				GTimer = 0;
+				return;
+			}
+
 			// Начальное значение схватывания с учетом температурной коррекции.
 			SLUStartValue = SLU_GLOCK_START_VALUE + get_slu_gear2_temp_corr(SLU_GLOCK_START_VALUE);
 			
