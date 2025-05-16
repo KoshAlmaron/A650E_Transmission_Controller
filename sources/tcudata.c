@@ -190,6 +190,20 @@ int8_t get_slu_gear2_temp_corr(uint8_t Value) {
 	}
 }
 
+// Добавка к давлению SLU при повторном включении второй передачи.
+uint8_t get_slu_add_gear2() {
+	uint8_t PressureAdd = get_interpolated_value_int16_t(TCU.InstTPS, TPSGrid, SLUGear2AddGraph, TPS_GRID_SIZE);
+	return PressureAdd;
+}
+
+// Давление включения третьей передачи SLU B2.
+uint8_t get_slu_pressure_gear3() {
+	uint8_t PressureGear3 = get_interpolated_value_uint16_t(TCU.InstTPS, TPSGrid, SLUGear3Graph, TPS_GRID_SIZE);
+	// Применяем коррекцию по температуре.
+	PressureGear3 = CONSTRAIN(PressureGear3 + get_slu_gear2_temp_corr(PressureGear3), 25, 230);
+	return PressureGear3;
+}
+
 // Задержка отключения SLU при включении третьей передачи.
 uint16_t get_gear3_slu_delay(uint8_t TPS) {
 	return get_interpolated_value_uint16_t(TPS, TPSGrid, SLUGear3DelayGraph, TPS_GRID_SIZE);
@@ -256,10 +270,6 @@ int16_t rpm_delta(uint8_t Gear) {
 			break;
 	}
 	return (TCU.DrumRPM - CalcDrumRPM);
-}
-
-uint16_t get_free_rpm() {
-	return get_interpolated_value_uint16_t(TCU.InstTPS, TPSGrid, RPMbyTPSGraph, TPS_GRID_SIZE);
 }
 
 void save_gear2_adaptation(int8_t Value) {

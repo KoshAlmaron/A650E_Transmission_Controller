@@ -232,13 +232,11 @@ static void gear_change_2_3() {
 	WaitTimer = get_gear3_slu_delay(TCU.InstTPS);
 	int16_t SLNOffset = get_gear3_sln_offset(TCU.InstTPS);
 	// Ждем начало включения B2.
-	uint8_t NextSLU = 0;
 	while (WaitTimer) {
 		loop_main(1);
 
-		NextSLU = get_slu_pressure_gear2();
-		NextSLU = (uint16_t) NextSLU + ((NextSLU * 32) >> 7); // +25%.
-		set_slu(NextSLU);
+		// Давление SLU включения третьей передачи
+		set_slu(get_slu_pressure_gear3());
 
 		SLNOffset = get_gear3_sln_offset(TCU.InstTPS);
 		if (WaitTimer + SLNOffset <= 5) {	// Пересечение SNL и SLU при SLNOffset < 0.
@@ -466,7 +464,7 @@ void slu_gear2_control(uint8_t Time) {
 					set_slu(SLU_MIN_VALUE);
 				}
 				else {
-					if (RPMDelta > -300) {
+					if (RPMDelta > -200) {
 						set_slu(NextSLU);
 						TCU.GearStep = 0;
 						TCU.Gear2State = 2;
@@ -476,13 +474,13 @@ void slu_gear2_control(uint8_t Time) {
 			}
 			break;
 		case 1:
-			if (RPMDelta <= -80) {
+			if (RPMDelta <= -50) {
 				if (RPMDelta <= -500) {
 					set_slu(SLU_MIN_VALUE);
 					TCU.Gear2State = 0;
 				}
 				else {
-					SLUAdd = 3 - RPMDelta / 128;
+					SLUAdd = get_slu_add_gear2() - RPMDelta / 64;
 					if (SLUAdd > 0)	{TCU.GearStep = SLUAdd * 2;}
 					else {TCU.GearStep = 0;}
 					NextSLU += SLUAdd;
@@ -490,7 +488,7 @@ void slu_gear2_control(uint8_t Time) {
 				}
 			}
 			else {
-				SLUAdd = 3 - RPMDelta / 128;
+				SLUAdd = get_slu_add_gear2() - RPMDelta / 64;
 				if (SLUAdd > 0)	{TCU.GearStep = SLUAdd * 2;}
 				else {TCU.GearStep = 0;}
 				NextSLU += SLUAdd;

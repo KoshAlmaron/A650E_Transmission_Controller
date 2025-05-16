@@ -12,8 +12,9 @@ void read_eeprom() {
 	//update_eeprom();
 	// Адрес массива, адрес ячейки, кол-во байт.
 
-	//eeprom_update_block((void*)&SLNGraph, (void*) 274, TPS_GRID_SIZE * 2);
-	
+	eeprom_update_block((void*)&SLUGear2AddGraph, (void*) 474, TEMP_GRID_SIZE * 2);
+	eeprom_update_block((void*)&SLUGear3Graph, (void*) 513, TEMP_GRID_SIZE * 2);
+
 	// 0-41 - SLTGraph.
 	eeprom_read_block((void*)&SLTGraph, (const void*) 0, TPS_GRID_SIZE * 2);
 	// 42-115 - SLTTempCorrGraph.
@@ -33,6 +34,13 @@ void read_eeprom() {
 	eeprom_read_block((void*)&SLUGear2TPSAdaptGraph, (const void*) 358, TPS_GRID_SIZE * 2);
 	// 400-473 SLUGear2TempAdoptGraph.
 	eeprom_read_block((void*)&SLUGear2TempAdaptGraph, (const void*) 400, TEMP_GRID_SIZE * 2);
+
+	// 474-512 SLUGear2AddGraph.
+	eeprom_read_block((void*)&SLUGear2AddGraph, (const void*) 474, TPS_GRID_SIZE * 2);
+
+	// 513-554 - SLUGear3Graph.
+	eeprom_read_block((void*)&SLUGear3Graph, (const void*) 513, TPS_GRID_SIZE * 2);
+
 }
 
 // Запись EEPROM.
@@ -56,6 +64,13 @@ void update_eeprom() {
 	eeprom_update_block((void*)&SLUGear2TPSAdaptGraph, (void*) 358, TPS_GRID_SIZE * 2);
 	// 400-473 SLUGear2TempAdoptGraph.
 	eeprom_update_block((void*)&SLUGear2TempAdaptGraph, (void*) 400, TEMP_GRID_SIZE * 2);
+
+	// 474-512 SLUGear2AddGraph.
+	eeprom_update_block((void*)&SLUGear2AddGraph, (void*) 474, TEMP_GRID_SIZE * 2);
+
+	// 513-554 - SLUGear3Graph.
+	eeprom_update_block((void*)&SLUGear3Graph, (void*) 513, TEMP_GRID_SIZE * 2);
+
 
 	// Пихаем все в UART, чтобы потом можно было копипастить.
 	send_eeprom_to_uart();

@@ -19,8 +19,8 @@ extern uint8_t DebugMode;	// Переменная из main.
 // Номер экрана для отображения:
 uint8_t ScreenMode = 0;
 
-char LCDArray[21] = {0};	// Массив для отправки на дисплей.
-
+char LCDArray[21] = {0};		// Массив для отправки на дисплей.
+char GearRatioChar[5] = {0};	// Передаточное число.
 // Обозначение режимов на экране.
 int8_t ATModeChar[] = {'I', 'P', 'R', 'N', 'D', '4', '3', '2', 'L', 'E', 'M'};
 
@@ -38,8 +38,11 @@ uint8_t CursorPos = 0;			// Позиция курсора на экране.
 uint8_t StartCol = 0;			// Начальная позиция данных
 int8_t ValueDelta = 0;			// Флаг изменения значения.
 
+int16_t* ArrayI;
+uint16_t* ArrayU;
+
 #define COLUMN_COUNT 5
-#define SCREEN_COUNT 10
+#define SCREEN_COUNT 12
 
 extern int8_t MinGear[];
 extern int8_t MaxGear[];
@@ -53,19 +56,25 @@ static void lcd_start();
 static void print_data();
 static void print_dispay_main();
 
-static void print_config_slt_pressure();
-static void print_config_slt_temp_corr();
-static void print_config_sln_pressure();
 static void print_config_gear2_slu_pressure();
 static void print_config_gear2_slu_temp_corr();
-static void print_config_gear3_slu_delay();
-static void print_config_gear3_sln_offset();
-
+static void print_config_gear2_react_add();
 static void print_config_gear2_tps_adaptation();
 static void print_config_gear2_temp_adaptation();
 
-static void print_config_d4_max_gear();
+static void print_config_gear3_slu_pressure();
+static void print_config_gear3_slu_delay();
+static void print_config_gear3_sln_offset();
 
+static void print_config_sln_pressure();
+
+static void print_config_slt_pressure();
+static void print_config_slt_temp_corr();
+
+static void update_gear_ratio();
+static void print_values(uint8_t GridType, uint8_t ArrayType, uint8_t Step, int16_t Min, int16_t Max, uint8_t Ratio);
+
+static void print_config_d4_max_gear();
 static void solenoid_manual_control();
 
 static void button_action();
@@ -147,6 +156,8 @@ static void print_data() {
 	if (Counter < 4) {return;}
 	Counter = 0;
 
+	update_gear_ratio();
+
 	switch (ScreenMode)	{
 		case 0:
 			print_dispay_main();
@@ -158,683 +169,412 @@ static void print_data() {
 			print_config_gear2_slu_temp_corr();
 			break;	
 		case 3:
-			print_config_gear3_slu_delay();
+			print_config_gear2_react_add();
 			break;
 		case 4:
-			print_config_gear3_sln_offset();
-			break;
-		case 5:
-			print_config_slt_pressure();
-			break;	
-		case 6:
-			print_config_slt_temp_corr();
-			break;
-		case 7:
-			print_config_sln_pressure();
-			break;
-		case 8:
 			print_config_gear2_tps_adaptation();
 			break;
-		case 9:
+		case 5:
 			print_config_gear2_temp_adaptation();
 			break;
+		case 6:
+			print_config_gear3_slu_pressure();
+			break;
+		case 7:
+			print_config_gear3_slu_delay();
+			break;
+		case 8:
+			print_config_gear3_sln_offset();
+			break;
+		case 9:
+			print_config_sln_pressure();
+			break;
 		case 10:
+			print_config_slt_pressure();
+			break;
+		case 11:
+			print_config_slt_temp_corr();
+			break;
+		case 12:
 			print_config_d4_max_gear();
 			break;
 	}
 	ValueDelta = 0;
 }
 
+// =========================================================
+	#pragma GCC diagnostic push
+	#pragma GCC diagnostic ignored "-Wformat-truncation"
+// =========================================================
+
 // Основной экран.
 static void print_dispay_main() {
-	//|12345678901234567890|
-	//|O 070| 00 01 |I 1000|
-	//|T 120| A 110 |O 0900|
-	//|N 120| S D-D |Sp 060|
-	//|U 120| G 4 0 |P 1000|
-	//|12345678901234567890|
+	//	----------------------
+	//	|O 070| 00 01 |I 1000|
+	//	|T 120| A 110 |O 0900|
+	//	|N 120| S D-D |Sp 060|
+	//	|U 120| G 4 0 |P 1000|
+	//	----------------------
 
-	// row,  col
 	lcd_set_cursor(0, 0);
-	snprintf(LCDArray, 21, "O %3i| %1u%1u %1u%1u |I %4u", 
-		CONSTRAIN(TCU.OilTemp, -30, 150), MIN(1, TCU.S1), MIN(1, TCU.S2), MIN(1, TCU.S3), MIN(1, TCU.S4), MIN(9998, TCU.DrumRPM));
+	snprintf(LCDArray, 21, "O %3i| %1u%1u %1u%1u |I %4u"
+		, TCU.OilTemp
+		, MIN(1, TCU.S1)
+		, MIN(1, TCU.S2)
+		, MIN(1, TCU.S3)
+		, MIN(1, TCU.S4)
+		, MIN(9998, TCU.DrumRPM));
 	lcd_send_string(LCDArray, 20);
-	// get_adc_value(1)
+
 	lcd_set_cursor(1, 0);
-	snprintf(LCDArray, 21, "T %3u| A %3u |O %4u",TCU.SLT, TCU.InstTPS, TCU.OutputRPM);
+	snprintf(LCDArray, 21, "T %3u| A %3u |O %4u"
+		, TCU.SLT
+		, TCU.InstTPS
+		, TCU.OutputRPM);
 	lcd_send_string(LCDArray, 20);
 
 	lcd_set_cursor(2, 0);
-	snprintf(LCDArray, 21, "N %3u| S %c-%c |Sp %3i", TCU.SLN, ATModeChar[TCU.Selector], ATModeChar[TCU.ATMode], TCU.CarSpeed);
+	snprintf(LCDArray, 21, "N %3u| S %c-%c |Sp %3i"
+		, TCU.SLN
+		, ATModeChar[TCU.Selector]
+		, ATModeChar[TCU.ATMode]
+		, TCU.CarSpeed);
 	lcd_send_string(LCDArray, 20);
 
 	lcd_set_cursor(3, 0);
-	snprintf(LCDArray, 21, "U %3u| G%2i %-2u|P %4u", TCU.SLU, CONSTRAIN(TCU.Gear, -1, 6), MIN(99, TCU.LastStep), TCU.LastPDRTime);
+	snprintf(LCDArray, 21, "U %3u| G%2i %-2u|P %4u"
+		, TCU.SLU
+		, TCU.Gear
+		, MIN(99, TCU.LastStep)
+		, TCU.LastPDRTime);
 	lcd_send_string(LCDArray, 20);
-}
-
-// Экран настройки линейного давления SLT по переключению 3>4.
-static void print_config_slt_pressure() {
-	//|01234567890123456789|
-	//|SLT Press. |100|1.00|
-	//|TP-12 TV 12 A99 U101|
-	//|  0|  5| 10| 15| 20||
-	//| 67| 72| 74| 77| 81||
-	//|01234567890123456789|
-
-	// Находим по сетке позицию курсора.
-	if (TCU.GearChangeTPS != LastGearChangeTPS) {
-		LastGearChangeTPS = TCU.GearChangeTPS;
-		CursorPos = get_tps_index(TCU.GearChangeTPS);
-	}
-
-	if (CursorPos >= TPS_GRID_SIZE) {CursorPos = 0;}	// Ограничение по длине массива.
-	if (CursorPos < StartCol) {StartCol = CursorPos;}
-	if (CursorPos > StartCol + COLUMN_COUNT - 1) {StartCol = CursorPos + 1 - COLUMN_COUNT;}
-
-	char GearRatioChar[5] = {'-', '.', '-', '-', ' '};
-	if (TCU.OutputRPM > 100) {
-		snprintf(GearRatioChar, 5, "%1u.%02u", 
-			MIN(9, TCU.DrumRPM / TCU.OutputRPM), MIN(99, ((TCU.DrumRPM % TCU.OutputRPM) * 100) / TCU.OutputRPM));
-	}
-
-	// row,  col
-	lcd_set_cursor(0, 0);
-	snprintf(LCDArray, 21, "SLT Press. |%3u|%s", TCU.InstTPS, GearRatioChar);
-	lcd_send_string(LCDArray, 20);
-
-	// Строка с необходимыми значениями.
-	int8_t OilTempCorrSLTP = get_slt_temp_corr(0);				// В %.
-	int8_t OilTempCorrSLTV = get_slt_temp_corr(TCU.GearChangeSLT);	// В единицах ШИМ.
-	lcd_set_cursor(1, 0);
-	snprintf(LCDArray, 21, "TP%3i TV%3i A%2u T%3u", 
-		CONSTRAIN(OilTempCorrSLTP, -99, 99), CONSTRAIN(OilTempCorrSLTV, -99, 99), MIN(99, TCU.GearChangeTPS),TCU.GearChangeSLT);
-	lcd_send_string(LCDArray, 20);
-
-	// Изменяемые значения.
-	for (uint8_t i = 0; i < COLUMN_COUNT; i++) {
-
-		lcd_set_cursor(2, i * 4);
-		snprintf(LCDArray, 4, "%3u", TPSGrid[StartCol + i]);
-		lcd_send_string(LCDArray, 3);
-
-		lcd_set_cursor(3, i * 4);
-		snprintf(LCDArray, 4, "%3u", SLTGraph[StartCol + i]);
-		lcd_send_string(LCDArray, 3);
-
-		if (CursorPos == StartCol + i) {
-			if (ValueDelta < 0 && SLTGraph[CursorPos] > 5) {SLTGraph[CursorPos] += ValueDelta;}
-			if (ValueDelta > 0 && SLTGraph[CursorPos] < 250) {SLTGraph[CursorPos] += ValueDelta;}
-			ValueDelta = 0;
-
-			lcd_set_cursor(2, i * 4 + 3);
-			lcd_send_char('|');
-			lcd_set_cursor(3, i * 4 + 3);
-			lcd_send_char('<');
-		}
-		else {
-			lcd_set_cursor(2, i * 4 + 3);
-			lcd_send_char('|');
-			lcd_set_cursor(3, i * 4 + 3);
-			lcd_send_char('|');	
-		}
-	}
-}
-
-// Экран настройки температурной корекции давления SLT по переключению 3>4.
-static void print_config_slt_temp_corr() {
-	//|12345678901234567890|
-	//|SLT Tmp Cor|100|1.00|
-	//|TP-12 TV 12 A99 U101|
-	//|  0|  5| 10| 15| 20||
-	//| 67| 72| 74| 77| 81||
-	//|01234567890123456789|
-
-	// Находим по сетке позицию курсора.
-	if (TCU.GearChangeTPS != LastGearChangeTPS) {
-		LastGearChangeTPS = TCU.GearChangeTPS;
-		CursorPos = get_temp_index(TCU.OilTemp);
-	}
-
-	if (CursorPos >= TEMP_GRID_SIZE) {CursorPos = 0;}	// Ограничение по длине массива.
-	if (CursorPos < StartCol) {StartCol = CursorPos;}
-	if (CursorPos > StartCol + COLUMN_COUNT - 1) {StartCol = CursorPos + 1 - COLUMN_COUNT;}
-
-	char GearRatioChar[5] = {'-', '.', '-', '-', ' '};
-	if (TCU.OutputRPM > 100) {
-		snprintf(GearRatioChar, 5, "%1u.%02u", 
-			MIN(9, TCU.DrumRPM / TCU.OutputRPM), MIN(99, ((TCU.DrumRPM % TCU.OutputRPM) * 100) / TCU.OutputRPM));
-	}
-
-	// row,  col
-	lcd_set_cursor(0, 0);
-	snprintf(LCDArray, 21, "SLT Tmp Cor|%3u|%s", TCU.InstTPS, GearRatioChar);
-	lcd_send_string(LCDArray, 20);
-
-	// Строка с необходимыми значениями.
-	int8_t OilTempCorrSLTP = get_slt_temp_corr(0);				// В %.
-	int8_t OilTempCorrSLTV = get_slt_temp_corr(TCU.GearChangeSLT);	// В единицах ШИМ.
-	lcd_set_cursor(1, 0);
-	snprintf(LCDArray, 21, "TP%3i TV%3i A%2u T%3u", 
-		CONSTRAIN(OilTempCorrSLTP, -99, 99), CONSTRAIN(OilTempCorrSLTV, -99, 99), MIN(99, TCU.GearChangeTPS), TCU.GearChangeSLT);
-	lcd_send_string(LCDArray, 20);
-
-	// Изменяемые значения.
-	for (uint8_t i = 0; i < COLUMN_COUNT; i++) {
-		lcd_set_cursor(2, i * 4);
-		snprintf(LCDArray, 4, "%3i", TempGrid[StartCol + i]);
-		lcd_send_string(LCDArray, 3);
-
-		lcd_set_cursor(3, i * 4);
-		snprintf(LCDArray, 4, "%3i", SLTTempCorrGraph[StartCol + i]);
-		lcd_send_string(LCDArray, 3);
-
-		if (CursorPos == StartCol + i) {
-			if (ValueDelta < 0 && SLTTempCorrGraph[CursorPos] > -60) {SLTTempCorrGraph[CursorPos] += ValueDelta;}
-			if (ValueDelta > 0 && SLTTempCorrGraph[CursorPos] < 60) {SLTTempCorrGraph[CursorPos] += ValueDelta;}
-			ValueDelta = 0;
-
-			lcd_set_cursor(2, i * 4 + 3);
-			lcd_send_char('|');
-			lcd_set_cursor(3, i * 4 + 3);
-			lcd_send_char('<');
-		}
-		else {
-			lcd_set_cursor(2, i * 4 + 3);
-			lcd_send_char('|');
-			lcd_set_cursor(3, i * 4 + 3);
-			lcd_send_char('|');	
-		}
-	}
-}
-
-// Экран настройка давления аккумуляторов SLN.
-static void print_config_sln_pressure() {
-	//|01234567890123456789|
-	//|SLN Press. |100|1.00|
-	//|TP-12 TV 12 A99 N101|
-	//|  0|  5| 10| 15| 20||
-	//| 67| 72| 74| 77| 81||
-	//|01234567890123456789|
-		
-	// Находим по сетке позицию курсора.
-	if (TCU.GearChangeTPS != LastGearChangeTPS) {
-		LastGearChangeTPS = TCU.GearChangeTPS;
-		CursorPos = get_tps_index(TCU.GearChangeTPS);
-	}
-
-	if (CursorPos >= TPS_GRID_SIZE) {CursorPos = 0;}	// Ограничение по длине массива.
-	if (CursorPos < StartCol) {StartCol = CursorPos;}
-	if (CursorPos > StartCol + COLUMN_COUNT - 1) {StartCol = CursorPos + 1 - COLUMN_COUNT;}
-
-	char GearRatioChar[5] = {'-', '.', '-', '-', ' '};
-	if (TCU.OutputRPM > 100) {
-		snprintf(GearRatioChar, 5, "%1u.%02u", 
-			MIN(9, TCU.DrumRPM / TCU.OutputRPM), MIN(99, ((TCU.DrumRPM % TCU.OutputRPM) * 100) / TCU.OutputRPM));
-	}
-
-	// row,  col
-	lcd_set_cursor(0, 0);
-	snprintf(LCDArray, 21, "SLN Press. |%3u|%s", TCU.InstTPS, GearRatioChar);
-	lcd_send_string(LCDArray, 20);
-
-	// Строка с необходимыми значениями.
-	int8_t OilTempCorrSLTP = get_slt_temp_corr(0);				// В %.
-	int8_t OilTempCorrSLTV = get_slt_temp_corr(TCU.GearChangeSLT);	// В единицах ШИМ.
-	lcd_set_cursor(1, 0);
-	snprintf(LCDArray, 21, "TP%3i TV%3i A%2u T%3u", 
-		CONSTRAIN(OilTempCorrSLTP, -99, 99), CONSTRAIN(OilTempCorrSLTV, -99, 99), MIN(99, TCU.GearChangeTPS), TCU.GearChangeSLN);
-	lcd_send_string(LCDArray, 20);
-
-	// Изменяемые значения.
-	for (uint8_t i = 0; i < COLUMN_COUNT; i++) {
-
-		lcd_set_cursor(2, i * 4);
-		snprintf(LCDArray, 4, "%3u", TPSGrid[StartCol + i]);
-		lcd_send_string(LCDArray, 3);
-
-		lcd_set_cursor(3, i * 4);
-		snprintf(LCDArray, 4, "%3u", SLNGraph[StartCol + i]);
-		lcd_send_string(LCDArray, 3);
-
-		if (CursorPos == StartCol + i) {
-			if (ValueDelta < 0 && SLNGraph[CursorPos] > SLN_IDLE_PRESSURE) {SLNGraph[CursorPos] += ValueDelta;}
-			if (ValueDelta > 0 && SLNGraph[CursorPos] < SLN_MIN_PRESSURE) {SLNGraph[CursorPos] += ValueDelta;}
-			ValueDelta = 0;
-
-			lcd_set_cursor(2, i * 4 + 3);
-			lcd_send_char('|');
-			lcd_set_cursor(3, i * 4 + 3);
-			lcd_send_char('<');
-		}
-		else {
-			lcd_set_cursor(2, i * 4 + 3);
-			lcd_send_char('|');
-			lcd_set_cursor(3, i * 4 + 3);
-			lcd_send_char('|');	
-		}
-	}
 }
 
 // Экран настройки давления в тормозе B3 для включения второй передачи.
 static void print_config_gear2_slu_pressure() {
-	//|01234567890123456789|
-	//|Gear 2 SLU |100|1.00|
-	//|St 16 P1200 A99 U101|
-	//|  0|  5| 10| 15| 20||
-	//| 67| 72| 74| 77| 81||
-	//|01234567890123456789|
+	//	----------------------
+	//	|Gear 2 SLU |100|1.00|
+	//	|St 16 P1200 A99 U101|
+	//	|  0|  5| 10| 15| 20||
+	//	| 67| 72| 74| 77| 81||
+	//	----------------------
 
-	// Находим по сетке позицию курсора.
-	if (TCU.GearChangeTPS != LastGearChangeTPS) {
-		LastGearChangeTPS = TCU.GearChangeTPS;
-		CursorPos = get_tps_index(TCU.GearChangeTPS);
-	}
-
-	if (CursorPos >= TPS_GRID_SIZE) {CursorPos = 0;} // Ограничение по длине массива.
-
-	if (CursorPos < StartCol) {StartCol = CursorPos;}
-	if (CursorPos > StartCol + COLUMN_COUNT - 1) {StartCol = CursorPos + 1 - COLUMN_COUNT;}
-
-	char GearRatioChar[5] = {'-', '.', '-', '-', ' '};
-	if (TCU.OutputRPM > 100) {
-		snprintf(GearRatioChar, 5, "%1u.%02u", 
-			MIN(9, TCU.DrumRPM / TCU.OutputRPM), MIN(99, ((TCU.DrumRPM % TCU.OutputRPM) * 100) / TCU.OutputRPM));
-	}
-
-	// row,  col
 	lcd_set_cursor(0, 0);
-	snprintf(LCDArray, 21, "Gear 2 SLU |%3u|%s", TCU.InstTPS, GearRatioChar);
+	snprintf(LCDArray, 21, "Gear 2 SLU |%3u|%s"
+		, TCU.InstTPS
+		, GearRatioChar);
 	lcd_send_string(LCDArray, 20);
 
-	//|St 16 P1200 A99 U101|
 	lcd_set_cursor(1, 0);
-	snprintf(LCDArray, 21, "St %2u P%4u A%2u U%3u", 
-		MIN(99, TCU.LastStep), TCU.LastPDRTime, MIN(99, TCU.GearChangeTPS),TCU.GearChangeSLU);
+	snprintf(LCDArray, 21, "St %2u P%4u A%2u U%3u"
+		, MIN(99, TCU.LastStep)
+		, TCU.LastPDRTime
+		, MIN(99, TCU.GearChangeTPS)
+		, TCU.GearChangeSLU);
 	lcd_send_string(LCDArray, 20);
 
 	// Изменяемые значения.
-	for (uint8_t i = 0; i < COLUMN_COUNT; i++) {
-		lcd_set_cursor(2, i * 4);
-		snprintf(LCDArray, 4, "%3u", TPSGrid[StartCol + i]);
-		lcd_send_string(LCDArray, 3);
-
-		lcd_set_cursor(3, i * 4);
-		snprintf(LCDArray, 4, "%3u", SLUGear2Graph[StartCol + i]);
-		lcd_send_string(LCDArray, 3);
-
-		if (CursorPos == StartCol + i) {
-			if (ValueDelta < 0 && SLUGear2Graph[CursorPos] > 5) {SLUGear2Graph[CursorPos] += ValueDelta;}
-			if (ValueDelta > 0 && SLUGear2Graph[CursorPos] < 250) {SLUGear2Graph[CursorPos] += ValueDelta;}
-			ValueDelta = 0;
-
-			lcd_set_cursor(2, i * 4 + 3);
-			lcd_send_char('|');
-			lcd_set_cursor(3, i * 4 + 3);
-			lcd_send_char('<');
-		}
-		else {
-			lcd_set_cursor(2, i * 4 + 3);
-			lcd_send_char('|');
-			lcd_set_cursor(3, i * 4 + 3);
-			lcd_send_char('|');	
-		}
-	}
+	ArrayU = SLUGear2Graph;
+	print_values(1, 1, 1, 5, 250, 1);
 }
 
 // Экран настройки температурной корекции давления SLU по переключению 1>2.
 static void print_config_gear2_slu_temp_corr() {
-	//|12345678901234567890|
-	//|SLU G2 TCor|100|1.00|
-	//|UP-12 UV 12 A99 U101|
-	//|  0|  5| 10| 15| 20||
-	//| 67| 72| 74| 77| 81||
-	//|01234567890123456789|
+	//	----------------------
+	//	|SLU G2 TCor|100|1.00|
+	//	|UP-12 UV 12 A99 U101|
+	//	|  0|  5| 10| 15| 20||
+	//	| 67| 72| 74| 77| 81||
+	//	----------------------
 
-	// Находим по сетке позицию курсора.
-	if (TCU.GearChangeTPS != LastGearChangeTPS) {
-		LastGearChangeTPS = TCU.GearChangeTPS;
-		CursorPos = get_tps_index(TCU.GearChangeTPS);
-	}
-
-	if (CursorPos >= TEMP_GRID_SIZE) {CursorPos = 0;}	// Ограничение по длине массива.
-	if (CursorPos < StartCol) {StartCol = CursorPos;}
-	if (CursorPos > StartCol + COLUMN_COUNT - 1) {StartCol = CursorPos + 1 - COLUMN_COUNT;}
-
-	char GearRatioChar[5] = {'-', '.', '-', '-', ' '};
-	if (TCU.OutputRPM > 100) {
-		snprintf(GearRatioChar, 5, "%1u.%02u", 
-			MIN(9, TCU.DrumRPM / TCU.OutputRPM), MIN(99, ((TCU.DrumRPM % TCU.OutputRPM) * 100) / TCU.OutputRPM));
-	}
-
-	// row,  col
 	lcd_set_cursor(0, 0);
-	snprintf(LCDArray, 21, "SLU G2 TCor|%3u|%s", TCU.InstTPS, GearRatioChar);
+	snprintf(LCDArray, 21, "SLU G2 TCor|%3u|%s"
+		, TCU.InstTPS
+		, GearRatioChar);
 	lcd_send_string(LCDArray, 20);
 
-	// Строка с необходимыми значениями.
-	int8_t OilTempCorrSLUP = get_slu_gear2_temp_corr(0);				// В %.
-	int8_t OilTempCorrSLUV = get_slu_gear2_temp_corr(TCU.GearChangeSLU);	// В единицах ШИМ.
 	lcd_set_cursor(1, 0);
-	snprintf(LCDArray, 21, "UP%3i UV%3i A%2u U%3u", 
-		CONSTRAIN(OilTempCorrSLUP, -99, 99), CONSTRAIN(OilTempCorrSLUV, -99, 99), MIN(99, TCU.GearChangeTPS), TCU.GearChangeSLU);
+	snprintf(LCDArray, 21, "UP%3i UV%3i A%2u U%3u"
+		, get_slu_gear2_temp_corr(0)					// В %.
+		, get_slu_gear2_temp_corr(TCU.GearChangeSLU)	// В единицах ШИМ.
+		, MIN(99, TCU.GearChangeTPS)
+		, TCU.GearChangeSLU);
 	lcd_send_string(LCDArray, 20);
 
 	// Изменяемые значения.
-	for (uint8_t i = 0; i < COLUMN_COUNT; i++) {
-		lcd_set_cursor(2, i * 4);
-		snprintf(LCDArray, 4, "%3i", TempGrid[StartCol + i]);
-		lcd_send_string(LCDArray, 3);
-
-		lcd_set_cursor(3, i * 4);
-		snprintf(LCDArray, 4, "%3i", SLUGear2TempCorrGraph[StartCol + i]);
-		lcd_send_string(LCDArray, 3);
-
-		if (CursorPos == StartCol + i) {
-			if (ValueDelta < 0 && SLUGear2TempCorrGraph[CursorPos] > -60) {SLUGear2TempCorrGraph[CursorPos] += ValueDelta;}
-			if (ValueDelta > 0 && SLUGear2TempCorrGraph[CursorPos] < 60) {SLUGear2TempCorrGraph[CursorPos] += ValueDelta;}
-			ValueDelta = 0;
-
-			lcd_set_cursor(2, i * 4 + 3);
-			lcd_send_char('|');
-			lcd_set_cursor(3, i * 4 + 3);
-			lcd_send_char('<');
-		}
-		else {
-			lcd_set_cursor(2, i * 4 + 3);
-			lcd_send_char('|');
-			lcd_set_cursor(3, i * 4 + 3);
-			lcd_send_char('|');	
-		}
-	}
+	ArrayI = SLUGear2TempCorrGraph;
+	print_values(0, 0, 1, -60, 60, 1);
 }
 
-// Экран настройки задержки выключения SLU при включении третьей передачи.
-static void print_config_gear3_slu_delay() {
-	//|12345678901234567890|
-	//|G3 Delay |100|D 1111|
-	//|St 12 P1000 A99 U101|
-	//|  0|  5| 10| 15| 20||
-	//| 67| 72| 74| 77| 81||
-	//|12345678901234567890|
-
-	// Находим по сетке позицию курсора.
-	if (TCU.GearChangeTPS != LastGearChangeTPS) {
-		LastGearChangeTPS = TCU.GearChangeTPS;
-		CursorPos = get_tps_index(TCU.GearChangeTPS);
-	}
-
-	if (CursorPos >= TPS_GRID_SIZE) {CursorPos = 0;} // Ограничение по длине массива.
-
-	if (CursorPos < StartCol) {StartCol = CursorPos;}
-	if (CursorPos > StartCol + COLUMN_COUNT - 1) {StartCol = CursorPos + 1 - COLUMN_COUNT;}
-
-	// row,  col
-	lcd_set_cursor(0, 0);
-	uint16_t Delay = get_gear3_slu_delay(TCU.GearChangeTPS);
-	snprintf(LCDArray, 21, "G3 Delay |%3u|D %4u", TCU.InstTPS, MIN(9999, Delay));
-	lcd_send_string(LCDArray, 20);
-
-	//|St 12 P1000 A99 U101|
-	lcd_set_cursor(1, 0);
-	snprintf(LCDArray, 21, "St %2u P%4u A%2u U%3u", 
-		MIN(99, TCU.LastStep), TCU.LastPDRTime, MIN(99, TCU.GearChangeTPS), TCU.GearChangeSLU);
-
-	lcd_send_string(LCDArray, 20);
-
-	uint16_t Value = 0;
-	// Изменяемые значения.
-	for (uint8_t i = 0; i < COLUMN_COUNT; i++) {
-		lcd_set_cursor(2, i * 4);
-		snprintf(LCDArray, 4, "%3u", TPSGrid[StartCol + i]);
-		lcd_send_string(LCDArray, 3);
-
-		lcd_set_cursor(3, i * 4);
-		Value = MIN(20, SLUGear3DelayGraph[StartCol + i] / 100);
-		snprintf(LCDArray, 4, "%3u", Value);
-		lcd_send_string(LCDArray, 3);
-
-		if (CursorPos == StartCol + i) {
-			uint8_t Step = 100;
-			Value = SLUGear3DelayGraph[CursorPos];
-			if (ValueDelta < 0) {
-				if (Value > Step * ABS(ValueDelta)) {Value += ValueDelta * Step;}
-				else {Value = 0;}
-			}
-			if (ValueDelta > 0) {Value = MIN(1500, Value + ValueDelta * Step);}
-			SLUGear3DelayGraph[CursorPos] = Value;
-			ValueDelta = 0;
-
-			lcd_set_cursor(2, i * 4 + 3);
-			lcd_send_char('|');
-			lcd_set_cursor(3, i * 4 + 3);
-			lcd_send_char('<');
-		}
-		else {
-			lcd_set_cursor(2, i * 4 + 3);
-			lcd_send_char('|');
-			lcd_set_cursor(3, i * 4 + 3);
-			lcd_send_char('|');	
-		}
-	}
-}
-
-// Экран настройки задержки выключения SLN при включении третьей передачи.
-static void print_config_gear3_sln_offset() {
-	//|12345678901234567890|
-	//|G3 SLN ofs |100|1111|
-	//|St 16 P1200 A99 O101|
-	//|  0|  5| 10| 15| 20||
-	//| 67| 72| 74| 77| 81||
-	//|12345678901234567890|
-
-	// Находим по сетке позицию курсора.
-	if (TCU.GearChangeTPS != LastGearChangeTPS) {
-		LastGearChangeTPS = TCU.GearChangeTPS;
-		CursorPos = get_tps_index(TCU.GearChangeTPS);
-	}
-
-	if (CursorPos >= TPS_GRID_SIZE) {CursorPos = 0;} // Ограничение по длине массива.
-
-	if (CursorPos < StartCol) {StartCol = CursorPos;}
-	if (CursorPos > StartCol + COLUMN_COUNT - 1) {StartCol = CursorPos + 1 - COLUMN_COUNT;}
+static void print_config_gear2_react_add() {
+	//	----------------------
+	//	|SLU G2r Add|100|1.00|
+	//	|UP-12 UV 12 A99 U101|
+	//	|  0|  5| 10| 15| 20||
+	//	| 67| 72| 74| 77| 81||
+	//	----------------------
 
 	lcd_set_cursor(0, 0);
-	int16_t Offset = get_gear3_sln_offset(TCU.GearChangeTPS);
-	snprintf(LCDArray, 21, "G3 SLN ofs |%3u|%4i", TCU.InstTPS, Offset);
+	snprintf(LCDArray, 21, "SLU G2r Add|%3u|%s"
+		, TCU.InstTPS
+		, GearRatioChar);
 	lcd_send_string(LCDArray, 20);
 
-	//|St 16 P1200 A99 U101|
 	lcd_set_cursor(1, 0);
-	
-	snprintf(LCDArray, 21, "St %2u P%4u A%2u O%3i", 
-		MIN(99, TCU.LastStep), TCU.LastPDRTime, MIN(99, TCU.GearChangeTPS), TCU.GearChangeSLU);
+	snprintf(LCDArray, 21, "UP%3i UV%3i A%2u U%3u"
+		, get_slu_gear2_temp_corr(0)					// В %.
+		, get_slu_gear2_temp_corr(TCU.GearChangeSLU)	// В единицах ШИМ.
+		, MIN(99, TCU.GearChangeTPS)
+		, TCU.GearChangeSLU);
 	lcd_send_string(LCDArray, 20);
 
 	// Изменяемые значения.
-	for (uint8_t i = 0; i < COLUMN_COUNT; i++) {
-		lcd_set_cursor(2, i * 4);
-		snprintf(LCDArray, 4, "%3u", TPSGrid[StartCol + i]);
-		lcd_send_string(LCDArray, 3);
-
-		lcd_set_cursor(3, i * 4);
-		int16_t Value = CONSTRAIN(SLNGear3OffsetGraph[StartCol + i] / 100, -25, 25);
-		snprintf(LCDArray, 4, "%3i", Value);
-		lcd_send_string(LCDArray, 3);
-
-		if (CursorPos == StartCol + i) {
-			uint8_t Step = 100;
-			SLNGear3OffsetGraph[CursorPos] += ValueDelta * Step;
-			SLNGear3OffsetGraph[CursorPos] = CONSTRAIN(SLNGear3OffsetGraph[CursorPos], -1500, 1500);
-			ValueDelta = 0;
-
-			lcd_set_cursor(2, i * 4 + 3);
-			lcd_send_char('|');
-			lcd_set_cursor(3, i * 4 + 3);
-			lcd_send_char('<');
-		}
-		else {
-			lcd_set_cursor(2, i * 4 + 3);
-			lcd_send_char('|');
-			lcd_set_cursor(3, i * 4 + 3);
-			lcd_send_char('|');
-		}
-	}
+	ArrayI = SLUGear2AddGraph;
+	print_values(1, 0, 1, -8, 10, 1);
 }
-
 
 // Экран значений адаптации второй передачи по ДПДЗ.
 static void print_config_gear2_tps_adaptation() {
-	//|01234567890123456789|
-	//|Gear 2 ADP |100|1.00|
-	//|UP-12 UV 12 A99 U101|
-	//|  0|  5| 10| 15| 20||
-	//| 67| 72| 74| 77| 81||
-	//|01234567890123456789|
+	//	----------------------
+	//	|Gear 2 ADP |100|1.00|
+	//	|UP-12 UV 12 A99 U101|
+	//	|  0|  5| 10| 15| 20||
+	//	| 67| 72| 74| 77| 81||
+	//	----------------------
 
-	// Находим по сетке позицию курсора.
-	if (TCU.GearChangeTPS != LastGearChangeTPS) {
-		LastGearChangeTPS = TCU.GearChangeTPS;
-		CursorPos = get_tps_index(TCU.GearChangeTPS);
-	}
-
-	if (CursorPos >= TPS_GRID_SIZE) {CursorPos = 0;} // Ограничение по длине массива.
-
-	if (CursorPos < StartCol) {StartCol = CursorPos;}
-	if (CursorPos > StartCol + COLUMN_COUNT - 1) {StartCol = CursorPos + 1 - COLUMN_COUNT;}
-
-	char GearRatioChar[5] = {'-', '.', '-', '-', ' '};
-	if (TCU.OutputRPM > 100) {
-		snprintf(GearRatioChar, 5, "%1u.%02u", 
-			MIN(9, TCU.DrumRPM / TCU.OutputRPM), MIN(99, ((TCU.DrumRPM % TCU.OutputRPM) * 100) / TCU.OutputRPM));
-	}
-
-	// row,  col
 	lcd_set_cursor(0, 0);
-	snprintf(LCDArray, 21, "Gear 2 ADP |%3u|%s", TCU.InstTPS, GearRatioChar);
+	snprintf(LCDArray, 21, "Gear 2 ADP |%3u|%s"
+		, TCU.InstTPS
+		, GearRatioChar);
 	lcd_send_string(LCDArray, 20);
 
-	// Строка с необходимыми значениями.
-	int8_t OilTempCorrSLUP = get_slu_gear2_temp_corr(0);				// В %.
-	int8_t OilTempCorrSLUV = get_slu_gear2_temp_corr(TCU.GearChangeSLU);	// В единицах ШИМ.
 	lcd_set_cursor(1, 0);
-	snprintf(LCDArray, 21, "UP%3i UV%3i A%2u U%3u", 
-		CONSTRAIN(OilTempCorrSLUP, -99, 99), CONSTRAIN(OilTempCorrSLUV, -99, 99), MIN(99, TCU.GearChangeTPS),TCU.GearChangeSLU);
+	snprintf(LCDArray, 21, "UP%3i UV%3i A%2u U%3u"
+		, get_slu_gear2_temp_corr(0)					// В %.
+		, get_slu_gear2_temp_corr(TCU.GearChangeSLU)	// В единицах ШИМ.
+		, MIN(99, TCU.GearChangeTPS)
+		, TCU.GearChangeSLU);
 	lcd_send_string(LCDArray, 20);
 
 	// Изменяемые значения.
-	for (uint8_t i = 0; i < COLUMN_COUNT; i++) {
-		lcd_set_cursor(2, i * 4);
-		snprintf(LCDArray, 4, "%3u", TPSGrid[StartCol + i]);
-		lcd_send_string(LCDArray, 3);
-
-		lcd_set_cursor(3, i * 4);
-		snprintf(LCDArray, 4, "%3i", SLUGear2TPSAdaptGraph[StartCol + i]);
-		lcd_send_string(LCDArray, 3);
-
-		if (CursorPos == StartCol + i) {
-			if (ValueDelta < 0 && SLUGear2TPSAdaptGraph[CursorPos] > -5) {SLUGear2TPSAdaptGraph[CursorPos] += ValueDelta;}
-			if (ValueDelta > 0 && SLUGear2TPSAdaptGraph[CursorPos] < 5) {SLUGear2TPSAdaptGraph[CursorPos] += ValueDelta;}
-			ValueDelta = 0;
-
-			lcd_set_cursor(2, i * 4 + 3);
-			lcd_send_char('|');
-			lcd_set_cursor(3, i * 4 + 3);
-			lcd_send_char('<');
-		}
-		else {
-			lcd_set_cursor(2, i * 4 + 3);
-			lcd_send_char('|');
-			lcd_set_cursor(3, i * 4 + 3);
-			lcd_send_char('|');	
-		}
-	}
+	ArrayI = SLUGear2TPSAdaptGraph;
+	print_values(1, 0, 1, -10, 10, 1);
 }
 
 // Экран значений адаптации второй передачи по температуре.
 static void print_config_gear2_temp_adaptation() {
-	//|12345678901234567890|
-	//|SLU G2 TADP|100|1.00|
-	//|UP-12 UV 12 A99 U101|
-	//|  0|  5| 10| 15| 20||
-	//| 67| 72| 74| 77| 81||
-	//|01234567890123456789|
+	//	----------------------
+	//	|SLU G2 TADP|100|1.00|
+	//	|UP-12 UV 12 A99 U101|
+	//	|  0|  5| 10| 15| 20||
+	//	| -1|  0|  2|  0| -2||
+	//	----------------------
 
-	// Находим по сетке позицию курсора.
-	if (TCU.GearChangeTPS != LastGearChangeTPS) {
-		LastGearChangeTPS = TCU.GearChangeTPS;
-		CursorPos = get_tps_index(TCU.GearChangeTPS);
-	}
-
-	if (CursorPos >= TEMP_GRID_SIZE) {CursorPos = 0;}	// Ограничение по длине массива.
-	if (CursorPos < StartCol) {StartCol = CursorPos;}
-	if (CursorPos > StartCol + COLUMN_COUNT - 1) {StartCol = CursorPos + 1 - COLUMN_COUNT;}
-
-	char GearRatioChar[5] = {'-', '.', '-', '-', ' '};
-	if (TCU.OutputRPM > 100) {
-		snprintf(GearRatioChar, 5, "%1u.%02u", 
-			MIN(9, TCU.DrumRPM / TCU.OutputRPM), MIN(99, ((TCU.DrumRPM % TCU.OutputRPM) * 100) / TCU.OutputRPM));
-	}
-
-	// row,  col
 	lcd_set_cursor(0, 0);
 	snprintf(LCDArray, 21, "SLU G2 TADP|%3u|%s", TCU.InstTPS, GearRatioChar);
 	lcd_send_string(LCDArray, 20);
 
-	// Строка с необходимыми значениями.
-	int8_t OilTempCorrSLUP = get_slu_gear2_temp_corr(0);				// В %.
-	int8_t OilTempCorrSLUV = get_slu_gear2_temp_corr(TCU.GearChangeSLU);	// В единицах ШИМ.
 	lcd_set_cursor(1, 0);
-	snprintf(LCDArray, 21, "UP%3i UV%3i A%2u U%3u", 
-		CONSTRAIN(OilTempCorrSLUP, -99, 99), CONSTRAIN(OilTempCorrSLUV, -99, 99), MIN(99, TCU.GearChangeTPS), TCU.GearChangeSLU);
+
+	snprintf(LCDArray, 21, "UP%3i UV%3i A%2u U%3u"
+		, get_slu_gear2_temp_corr(0)					// В %.
+		, get_slu_gear2_temp_corr(TCU.GearChangeSLU)	// В единицах ШИМ.
+		, TCU.GearChangeTPS
+		, TCU.GearChangeSLU);
 	lcd_send_string(LCDArray, 20);
 
 	// Изменяемые значения.
-	for (uint8_t i = 0; i < COLUMN_COUNT; i++) {
-		lcd_set_cursor(2, i * 4);
-		snprintf(LCDArray, 4, "%3i", TempGrid[StartCol + i]);
-		lcd_send_string(LCDArray, 3);
+	ArrayI = SLUGear2TempAdaptGraph;
+	print_values(0, 0, 1, -10, 10, 1);
+}
 
-		lcd_set_cursor(3, i * 4);
-		snprintf(LCDArray, 4, "%3i", SLUGear2TempAdaptGraph[StartCol + i]);
-		lcd_send_string(LCDArray, 3);
+// Экран настройки давления в тормозе B2 для включения третьей передачи.
+static void print_config_gear3_slu_pressure() {
+	//	----------------------
+	//	|Gear 3 SLU |100|1.00|
+	//	|St 16 P1200 A99 U101|
+	//	|  0|  5| 10| 15| 20||
+	//	| 67| 72| 74| 77| 81||
+	//	----------------------
 
-		if (CursorPos == StartCol + i) {
-			if (ValueDelta < 0 && SLUGear2TempAdaptGraph[CursorPos] > -5) {SLUGear2TempAdaptGraph[CursorPos] += ValueDelta;}
-			if (ValueDelta > 0 && SLUGear2TempAdaptGraph[CursorPos] < 5) {SLUGear2TempAdaptGraph[CursorPos] += ValueDelta;}
-			ValueDelta = 0;
+	lcd_set_cursor(0, 0);
+	snprintf(LCDArray, 21, "Gear 3 SLU |%3u|%s"
+		, TCU.InstTPS
+		, GearRatioChar);
+	lcd_send_string(LCDArray, 20);
 
-			lcd_set_cursor(2, i * 4 + 3);
-			lcd_send_char('|');
-			lcd_set_cursor(3, i * 4 + 3);
-			lcd_send_char('<');
-		}
-		else {
-			lcd_set_cursor(2, i * 4 + 3);
-			lcd_send_char('|');
-			lcd_set_cursor(3, i * 4 + 3);
-			lcd_send_char('|');	
-		}
-	}
+	lcd_set_cursor(1, 0);
+	snprintf(LCDArray, 21, "St %2u P%4u A%2u U%3u"
+		, MIN(99, TCU.LastStep)
+		, TCU.LastPDRTime
+		, MIN(99, TCU.GearChangeTPS)
+		, TCU.GearChangeSLU);
+	lcd_send_string(LCDArray, 20);
+
+	// Изменяемые значения.
+	ArrayU = SLUGear3Graph;
+	print_values(1, 1, 1, 5, 250, 1);
+}
+
+// Экран настройки задержки выключения SLU при включении третьей передачи.
+static void print_config_gear3_slu_delay() {
+	//	----------------------
+	//	|G3 Delay |100|D 1111|
+	//	|St 12 P1000 A99 U101|
+	//	|  0|  5| 10| 15| 20||
+	//	| 67| 72| 74| 77| 81||
+	//	----------------------
+
+	lcd_set_cursor(0, 0);
+	snprintf(LCDArray, 21, "G3 Delay |%3u|D %4u"
+		, TCU.InstTPS
+		, get_gear3_slu_delay(TCU.GearChangeTPS));
+	lcd_send_string(LCDArray, 20);
+
+	lcd_set_cursor(1, 0);
+	snprintf(LCDArray, 21, "St %2u P%4u A%2u U%3u"
+		, TCU.LastStep
+		, TCU.LastPDRTime
+		, TCU.GearChangeTPS
+		, TCU.GearChangeSLU);
+
+	lcd_send_string(LCDArray, 20);
+
+	// Изменяемые значения.
+	ArrayU = SLUGear3DelayGraph;
+	print_values(1, 1, 100, 0, 1500, 100);
+}
+
+// Экран настройки задержки выключения SLN при включении третьей передачи.
+static void print_config_gear3_sln_offset() {
+	//	----------------------
+	//	|G3 SLN ofs |100|1111|
+	//	|St 16 P1200 A99 O101|
+	//	|  0|  5| 10| 15| 20||
+	//	| 67| 72| 74| 77| 81||
+	//	----------------------
+
+	lcd_set_cursor(0, 0);
+	snprintf(LCDArray, 21, "G3 SLN ofs |%3u|%4i"
+		, TCU.InstTPS
+		, get_gear3_sln_offset(TCU.GearChangeTPS));
+	lcd_send_string(LCDArray, 20);
+
+	lcd_set_cursor(1, 0);
+	snprintf(LCDArray, 21, "St %2u P%4u A%2u O%3i"
+		, TCU.LastStep
+		, TCU.LastPDRTime
+		, TCU.GearChangeTPS
+		, TCU.GearChangeSLU);
+	lcd_send_string(LCDArray, 20);
+
+	// Изменяемые значения.
+	ArrayI = SLNGear3OffsetGraph;
+	print_values(1, 0, 100, -1500, 1500, 100);
+}
+
+// Экран настройка давления аккумуляторов SLN.
+static void print_config_sln_pressure() {
+	//	----------------------
+	//	|SLN Press. |100|1.00|
+	//	|TP-12 TV 12 A99 N101|
+	//	|  0|  5| 10| 15| 20||
+	//	| 67| 72| 74| 77| 81||
+	//	----------------------
+
+	lcd_set_cursor(0, 0);
+	snprintf(LCDArray, 21, "SLN Press. |%3u|%s"
+		, TCU.InstTPS
+		, GearRatioChar);
+	lcd_send_string(LCDArray, 20);
+
+	lcd_set_cursor(1, 0);
+	snprintf(LCDArray, 21, "TP%3i TV%3i A%2u T%3u"
+		, get_slt_temp_corr(0)					// В %.
+		, get_slt_temp_corr(TCU.GearChangeSLT)	// В единицах ШИМ.
+		, MIN(99, TCU.GearChangeTPS)
+		, TCU.GearChangeSLN);
+	lcd_send_string(LCDArray, 20);
+
+	// Изменяемые значения.
+	ArrayU = SLNGraph;
+	print_values(1, 1, 1, 5, 250, 1);
+}
+
+// Экран настройки линейного давления SLT по переключению 3>4.
+static void print_config_slt_pressure() {
+	//	----------------------
+	//	|SLT Press. |100|1.00|
+	//	|TP-12 TV 12 A99 T101|
+	//	|  0|  5| 10| 15| 20||
+	//	| 67| 72| 74| 77| 81||
+	//	----------------------
+
+	lcd_set_cursor(0, 0);
+	snprintf(LCDArray, 21, "SLT Press. |%3u|%s"
+		, TCU.InstTPS
+		, GearRatioChar);
+	lcd_send_string(LCDArray, 20);
+
+	lcd_set_cursor(1, 0);
+	snprintf(LCDArray, 21, "TP%3i TV%3i A%2u T%3u"
+		, get_slt_temp_corr(0)					// В %.
+		, get_slt_temp_corr(TCU.GearChangeSLT)	// В единицах ШИМ.
+		, MIN(99, TCU.GearChangeTPS)
+		, TCU.GearChangeSLT);
+	lcd_send_string(LCDArray, 20);
+
+	// Изменяемые значения.
+	ArrayU = SLTGraph;
+	print_values(1, 1, 1, 5, 250, 1);
+}
+
+// Экран настройки температурной корекции давления SLT по переключению 3>4.
+static void print_config_slt_temp_corr() {
+	//	----------------------
+	//	|SLT Tmp Cor|100|1.00|
+	//	|TP-12 TV 12 A99 U101|
+	//	|  0|  5| 10| 15| 20||
+	//	| 67| 72| 74| 77| 81||
+	//	----------------------
+
+	lcd_set_cursor(0, 0);
+	snprintf(LCDArray, 21, "SLT Tmp Cor|%3u|%s"
+		, TCU.InstTPS
+		, GearRatioChar);
+	lcd_send_string(LCDArray, 20);
+
+	lcd_set_cursor(1, 0);
+	snprintf(LCDArray, 21, "TP%3i TV%3i A%2u T%3u"
+		, get_slt_temp_corr(0)					// В %.
+		, get_slt_temp_corr(TCU.GearChangeSLT)	// В единицах ШИМ.
+		, MIN(99, TCU.GearChangeTPS)
+		, TCU.GearChangeSLT);
+	lcd_send_string(LCDArray, 20);
+
+	// Изменяемые значения.
+	ArrayI = SLTTempCorrGraph;
+	print_values(0, 0, 1, -60, 60, 1);
 }
 
 // Временная установка максимальной передачи в режиме D4.
 static void print_config_d4_max_gear() {
-	//|12345678901234567890|
-	//|    D4 Max Gear     |
-	//|O 99 A 99 U 101 C -3|
-	//|         4          |
-	//|                    |
-	//|12345678901234567890|
+	//	----------------------
+	//	|  D4 Min/Max Gear   |
+	//	|                    |
+	//	|       4 - 4        |
+	//	|                    |
+	//	----------------------
 
-	// row,  col
 	lcd_set_cursor(0, 0);
 	lcd_send_string("  D4 Min/Max Gear   ", 20);	// Заголовок.
 	lcd_set_cursor(1, 0);
-	lcd_send_string("                    ", 20);	// Заголовок.
+	lcd_send_string("                    ", 20);
 
 	lcd_set_cursor(2, 0);
-	snprintf(LCDArray, 21, "       %1u - %1u        ", MinGear[5], MaxGear[5]);
+	snprintf(LCDArray, 21, "       %1u - %1u        "
+		, MinGear[5]
+		, MaxGear[5]);
 	lcd_send_string(LCDArray, 20);
 
 	lcd_set_cursor(3, 0);
@@ -852,6 +592,69 @@ static void print_config_d4_max_gear() {
 		ValueDelta = 0;
 	}
 }
+
+static void update_gear_ratio() {
+	if (TCU.OutputRPM > 100) {
+		snprintf(GearRatioChar, 5, "%1u.%02u", 
+			MIN(9, TCU.DrumRPM / TCU.OutputRPM), MIN(99, ((TCU.DrumRPM % TCU.OutputRPM) * 100) / TCU.OutputRPM));
+	}
+	else {
+		GearRatioChar[0] = '-';
+		GearRatioChar[0] = '.';
+		GearRatioChar[0] = '-';
+		GearRatioChar[0] = '-';
+		GearRatioChar[0] = ' ';
+	}
+}
+
+// GridType		0 - TempGrid, 1 - TPSGrid.
+// ArrayType 	0 - int16_t, 1 - uint16_t.
+static void print_values(uint8_t GridType, uint8_t ArrayType, uint8_t Step, int16_t Min, int16_t Max, uint8_t Ratio) {
+	// Находим по сетке позицию курсора.
+	if (TCU.GearChangeTPS != LastGearChangeTPS) {
+		LastGearChangeTPS = TCU.GearChangeTPS;
+
+		if (GridType) {CursorPos = get_tps_index(TCU.GearChangeTPS);}
+		else {CursorPos = get_temp_index(TCU.OilTemp);}
+	}
+
+	// Ограничение по длине массива.
+	if (GridType && CursorPos >= TPS_GRID_SIZE) {CursorPos = 0;}
+	if (!GridType && CursorPos >= TEMP_GRID_SIZE) {CursorPos = 0;}
+
+	if (CursorPos < StartCol) {StartCol = CursorPos;}
+	if (CursorPos > StartCol + COLUMN_COUNT - 1) {StartCol = CursorPos + 1 - COLUMN_COUNT;}
+
+	// Изменяемые значения.
+	for (uint8_t i = 0; i < COLUMN_COUNT; i++) {
+		lcd_set_cursor(2, i * 4);
+		if (GridType) {snprintf(LCDArray, 4, "%3u", TPSGrid[StartCol + i]);}
+		else {snprintf(LCDArray, 4, "%3i", TempGrid[StartCol + i]);}
+		lcd_send_string(LCDArray, 3);
+
+		lcd_set_cursor(3, i * 4);
+		if (ArrayType) {snprintf(LCDArray, 4, "%3u", ArrayU[StartCol + i] / Ratio);}
+		else {snprintf(LCDArray, 4, "%3i", ArrayI[StartCol + i] / Ratio);}
+		lcd_send_string(LCDArray, 3);
+
+		lcd_set_cursor(2, i * 4 + 3);
+		lcd_send_char('|');
+		lcd_set_cursor(3, i * 4 + 3);
+		if (CursorPos == StartCol + i) {
+			if (ValueDelta) {
+				if (ArrayType) {ArrayU[CursorPos] = CONSTRAIN((int16_t) ArrayU[CursorPos] + ValueDelta * Step, Min, Max);}
+				else {ArrayI[CursorPos] = CONSTRAIN((int16_t) ArrayI[CursorPos] + ValueDelta * Step, Min, Max);}
+				ValueDelta = 0;
+			}
+			lcd_send_char('<');
+		}
+		else {lcd_send_char('|');}
+	}
+}
+
+// =========================================================
+	#pragma GCC diagnostic pop
+// =========================================================
 
 static void solenoid_manual_control() {
 	if (PIN_READ(DEBUG_S1_PIN)) {SET_PIN_LOW(SOLENOID_S1_PIN);}

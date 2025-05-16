@@ -13,12 +13,13 @@
 	
 	uint8_t get_slu_pressure_gear2();
 	int8_t get_slu_gear2_temp_corr(uint8_t Value);
+	uint8_t get_slu_add_gear2();
 	
+	uint8_t get_slu_pressure_gear3();
 	uint16_t get_gear3_slu_delay(uint8_t TPS);
 	int16_t get_gear3_sln_offset(uint8_t TPS);
 	
 	int16_t rpm_delta(uint8_t Gear);
-	uint16_t get_free_rpm();
 
 	uint8_t get_tps_index(uint8_t TPS);
 	uint8_t get_temp_index(int16_t Temp);
@@ -37,15 +38,19 @@
 
 	extern uint16_t SLTGraph[];
 	extern int16_t SLTTempCorrGraph[];
+
 	extern uint16_t SLNGraph[];
+
 	extern uint16_t SLUGear2Graph[];
 	extern int16_t SLUGear2TempCorrGraph[];
-	extern uint16_t SLUGear3DelayGraph[];
-	extern int16_t SLNGear3OffsetGraph[];
-	extern uint16_t RPMbyTPSGraph[];
+	extern int16_t SLUGear2AddGraph[];
 
 	extern int16_t SLUGear2TPSAdaptGraph[];
 	extern int16_t SLUGear2TempAdaptGraph[];
+
+	extern uint16_t SLUGear3Graph[];
+	extern uint16_t SLUGear3DelayGraph[];
+	extern int16_t SLNGear3OffsetGraph[];
 
 	// Структура для хранения переменных.
 	typedef struct TCU_t {
