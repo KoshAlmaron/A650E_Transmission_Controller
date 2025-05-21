@@ -247,7 +247,7 @@ void save_gear2_adaptation(int8_t Value) {
 		#ifdef GEAR_2_SLU_TPS_ADAPTATION
 			uint8_t Index = 0;
 			Index = get_tps_index(TCU.InstTPS);
-			SLUGear2TPSAdaptGraph[Index] += Value;
+			SLUGear2TPSAdaptGraph[Index] += (Value * 4);
 			SLUGear2TPSAdaptGraph[Index] = CONSTRAIN(SLUGear2TPSAdaptGraph[Index], -20, 20);
 		#endif
 	}

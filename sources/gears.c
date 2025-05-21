@@ -190,14 +190,14 @@ static void gear_change_1_2() {
 				// Передача включилась слишком рано,
 				// снижаем давление на 1 единицу.
 				Adaptation = -1;
-				save_gear2_adaptation(-4);
+				save_gear2_adaptation(-1);
 			}
 		}
 		if (TCU.GearStep > 15 && rpm_delta(2) > 30 && !Adaptation) {
 			// Передача включилась слишком поздно,
 			// повышаем давление на 1 единицу.
 			Adaptation = 1;
-			save_gear2_adaptation(4);
+			save_gear2_adaptation(1);
 		}
 
 		// Изменение давления по циклу.
@@ -283,6 +283,7 @@ static void gear_change_2_3() {
 
 	// Включаем торможение двигателем в режиме "3".
 	if (TCU.ATMode == 6) {SET_PIN_HIGH(SOLENOID_S3_PIN);}
+	set_sln(SLN_IDLE_PRESSURE);
 
 	TCU.Gear = 3;
 	TCU.Gear2State = 0;
@@ -524,7 +525,7 @@ void slu_gear2_control(uint8_t Time) {
 			else {set_slu(NextSLU);}
 			break;
 		case 8:
-			if (TCU.TPS < TPS_IDLE_LIMIT) {
+			if (TCU.TPS < TPS_IDLE_LIMIT && TCU.ATMode != 6 && TCU.ATMode != 7) {
 				TCU.Gear2State = 0;
 				set_slu(SLU_MIN_VALUE);
 			}
