@@ -13,7 +13,7 @@
 
 	void solenoid_init();
 	void update_gear_speed();
-	uint16_t gear_control();
+	void gear_control();
 	void slu_gear2_control(uint8_t Time);
 
 #endif

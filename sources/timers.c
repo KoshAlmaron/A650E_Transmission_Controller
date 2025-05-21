@@ -2,16 +2,22 @@
 
 #include "timers.h"			// Свой заголовок.
 
+static void timer_0_init();
+static void timer_1_init();
+static void timer_2_init();
+static void timer_4_init();
+static void timer_5_init();
+
 void timers_init() {
 	timer_0_init();		// Настройка таймера 0 как счетчик времени (1 мс).
 	timer_1_init();		// Настройка таймера 1 как ШИМ для соленоидов.
-	timer_3_init();		// Настройка таймера 3 как ШИМ для спидометра (изменение частоты).
+	timer_2_init();		// Настройка таймера 3.
 	timer_4_init();		// Настройка таймера 4 для измерения скорости корзины овердрайва.
 	timer_5_init();		// Настройка таймера 5 для измерения скорости выходного вала.	
 }
 
 // Настройка таймера 0 как счетчик времени (1 мс).
-void timer_0_init() {
+static void timer_0_init() {
 	TCCR0A = 0;
 	TCCR0B = 0;
 	TIMSK0 = 0;
@@ -28,7 +34,7 @@ void timer_0_init() {
 }
 
 // Настройка таймера 1 на ШИМ для соленоидов.
-void timer_1_init() {
+static void timer_1_init() {
 	TCCR1A = 0;
 	TCCR1B = 0;
 	TCCR1C = 0;
@@ -39,30 +45,31 @@ void timer_1_init() {
 	DDRB |= (1 << 6);	// Вывод PB6 ШИМ OC1B.
 	DDRB |= (1 << 7);	// Вывод PB7 ШИМ OC1C.
 
-	TCCR1A |= (1 << WGM10);						// Шим Phase Correct, 8-bit.
-	TCCR1A |= (1 << COM1A1) | (1 << COM1A0);	// Инверсный режим работы OC1A (SLN).
-	TCCR1A |= (1 << COM1B1);					// Неинверсный режим работы OC1B (SLT).
+	TCCR1A |= (1 << WGM10) | (1 << WGM11);		// Шим Fast PWM, 10-bit.
+	TCCR1B |= (1 << WGM12);
+
+	TCCR1A |= (1 << COM1A1) | (1 << COM1A0);	// Инверсный режим работы OC1A (SLT).
+	TCCR1A |= (1 << COM1B1);					// Неинверсный режим работы OC1B (SLN).
 	TCCR1A |= (1 << COM1C1);					// Неинверсный режим работы OC1C (SLU).
 	TCCR1B |= (1 << CS11) | (1 << CS10);		// Предделитель 64.
 }
 
-// Настройка таймера 3 как ШИМ для спидометра (измерение частоты).
-void timer_3_init() {
-	TCCR3A = 0;
-	TCCR3B = 0;
-	TCCR3C = 0;
-	TIMSK3 = 0;
-	TCNT3 = 0;
+// Настройка таймера 2 как счетчик времени (10 мкс) для проверки времени цикла.
+static void timer_2_init() {
+	TCCR2A = 0;
+	TCCR2B = 0;
+	TIMSK2 = 0;
+	TCNT2 = 0;
 
-	DDRE |= (1 << 3);	// Вывод PE3 ШИМ OC3A.
-	
-	TCCR3B |= (1 << WGM32);					// CTC, TOP = OCR1A.
-	TCCR3A |= (1 << COM3A0);				// Toggle OC3A.
-	TCCR3B |= (1 << CS31) | (1 << CS30);	// Предделитель 64.
+	TCCR2A |= (1 << WGM21);			// Сброс счетчика при совпадении.
+	TCCR2B |= (1 << CS21);  		// Делитель x8.
+	OCR2A = 20;						// Регистр сравнения.
+	TIMSK2|= (1 << OCIE2A);			// Прерывание по достижению OCR0A.
+
 }
 
 // Настройка таймера 4 на измерение скорости вращения корзины овердрайва.
-void timer_4_init() {
+static void timer_4_init() {
 	TCCR4A = 0;
 	TCCR4B = 0;
 	TIMSK4 = 0;
@@ -80,7 +87,7 @@ void timer_4_init() {
 }
 
 // Настройка таймера 5 на измерение скорости вращения выходного вала.
-void timer_5_init() {
+static void timer_5_init() {
 	TCCR5A = 0;
 	TCCR5B = 0;
 	TIMSK5 = 0;

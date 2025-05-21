@@ -27,6 +27,7 @@ volatile uint8_t UseMarkers = 0;
 // Признак, что предыдущий символ был заменен.
 volatile uint8_t MarkerByte = 0;
 
+char CharArray[8] = {0};
 static void send_uint16_array(uint16_t* Array, uint8_t ASize);
 static void send_int16_array(int16_t* Array, uint8_t ASize);
 
@@ -149,28 +150,27 @@ void send_eeprom_to_uart() {
 	uart_send_char('\n');
 }
 
+void uart_send_uint16(uint16_t N) {
+	snprintf(CharArray, 6, "%u", N);
+	uart_send_string(CharArray);
+}
+void uart_send_int16(int16_t N) {
+	snprintf(CharArray, 7, "%i", N);
+	uart_send_string(CharArray);
+}
+
 static void send_uint16_array(uint16_t* Array, uint8_t ASize) {
-	char Chararray[8] = {0};
-
-	snprintf(Chararray, 4, "%3u", Array[0]);
-	uart_send_string(Chararray);
-
-	for (uint8_t i = 1; i < ASize; i++) {
-		snprintf(Chararray, 6, ", %3u", Array[i]);
-		uart_send_string(Chararray);
+	for (uint8_t i = 0; i < ASize; i++) {
+		snprintf(CharArray, 6, ", %u", Array[i]);
+		uart_send_string(CharArray);
 	}
 	uart_send_char('\n');
 }
 
 static void send_int16_array(int16_t* Array, uint8_t ASize) {
-	char Chararray[8] = {0};
-
-	snprintf(Chararray, 4, "%3i", Array[0]);
-	uart_send_string(Chararray);
-
-	for (uint8_t i = 1; i < ASize; i++) {
-		snprintf(Chararray, 6, ", %3i", Array[i]);
-		uart_send_string(Chararray);
+	for (uint8_t i = 0; i < ASize; i++) {
+		snprintf(CharArray, 7, ", %i", Array[i]);
+		uart_send_string(CharArray);
 	}
 	uart_send_char('\n');
 }

@@ -82,14 +82,10 @@ uint16_t get_adc_value(uint8_t Channel) {
 	// Находим среднее значение.
 	uint32_t AVG = 0;
 	for (uint8_t i = 0; i < ADC_BUFFER_SIZE; i++) {AVG += ADCValues[Channel][i];}
-	return AVG >> ADC_BUFFER_SHIFT;
+	return AVG >> (ADC_BUFFER_SHIFT);
 }
 
 void add_channels_on(uint8_t Value) {
-	if (Value) {
-		ChannelsCount = ADC_CHANNEL_MAX;
-	}
-	else {
-		ChannelsCount = ADC_CHANNEL_STD;
-	}
+	if (Value) {ChannelsCount = ADC_CHANNEL_MAX;}
+	else {ChannelsCount = ADC_CHANNEL_STD;}
 }

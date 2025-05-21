@@ -6,6 +6,7 @@
 #include "macros.h"		// Макросы.
 #include "pinout.h"		// Список назначенных выводов.
 #include "eeprom.h"		// Чтение и запись EEPROM.
+#include "configuration.h"	// Настройки.
 
 // Счетчик для установки ошибки.
 uint8_t ErrorTimer = 0;
@@ -79,6 +80,8 @@ void engine_n_break_state() {
 	// Флаг работы двигателя.
 	uint8_t EW = PIN_READ(ENGINE_WORK_PIN) ? 1 : 0;
 	// Сохранение настроек при выключении двигателя.
-	if (TCU.EngineWork && !EW) {update_eeprom();}
+	#ifndef DEBUG_MODE_PRINT
+		if (TCU.EngineWork && !EW) {update_eeprom();}
+	#endif
 	TCU.EngineWork = EW;
 }

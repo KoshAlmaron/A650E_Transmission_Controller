@@ -11,6 +11,9 @@
 	void uart_send_char(char Data);
 	void uart_send_string(char* s);
 
+	void uart_send_uint16(uint16_t N);
+	void uart_send_int16(int16_t N);
+	
 	void send_eeprom_to_uart();
 
 	void uart_send_array();

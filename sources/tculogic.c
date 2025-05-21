@@ -1,5 +1,6 @@
 #include <stdint.h>			// Коротние название int.
 #include <avr/io.h>			// Названия регистров и номера бит.
+#include <avr/interrupt.h>	// Прерывания.
 
 #include "tculogic.h"		// Свой заголовок.
 #include "configuration.h"	// Настройки.
@@ -13,8 +14,11 @@ static void engine_brake_solenoid();
 
 // Управление линейным давлением SLT.
 void slt_control() {
+	if (TCU.DebugMode == 2) {return;}
 	TCU.SLT = get_slt_pressure();
-	OCR1A = TCU.SLT;	// SLT - выход A таймера 1.
+	cli();
+		OCR1A = TCU.SLT;	// SLT - выход A таймера 1.
+	sei();
 }
 
 void at_mode_control() {
@@ -112,7 +116,7 @@ static void engine_brake_solenoid() {
 
 void glock_control(uint8_t Timer) {
 	static uint16_t GTimer = 0;
-	static uint8_t SLUStartValue = 0;
+	static uint16_t SLUStartValue = 0;
 
 	// Условия для включения блокировки гидротрансформатора.
 	if (!TCU.Break 
@@ -129,7 +133,9 @@ void glock_control(uint8_t Timer) {
 			// При отпускании педали газа сразу отключаем блокировку ГТ.
 			if (TCU.TPS < TPS_IDLE_LIMIT) {
 				TCU.SLU = SLU_MIN_VALUE;
-				OCR1C = TCU.SLU;
+				cli();
+					OCR1C = TCU.SLU;
+				sei();
 				TCU.Glock = 0;
 				GTimer = 0;
 				return;
@@ -138,20 +144,22 @@ void glock_control(uint8_t Timer) {
 			// Начальное значение схватывания с учетом температурной коррекции.
 			SLUStartValue = SLU_GLOCK_START_VALUE + get_slu_gear2_temp_corr(SLU_GLOCK_START_VALUE);
 			
-			if (TCU.SLU > SLUStartValue + 5) {
-				// Устанавливаем давление схватывания + 5.
-				TCU.SLU = SLUStartValue + 5;
+			if (TCU.SLU > SLUStartValue + 20) {
+				// Устанавливаем давление схватывания + 20.
+				TCU.SLU = SLUStartValue + 20;
 			}
-			else if (TCU.SLU > SLUStartValue - 5) {
+			else if (TCU.SLU > SLUStartValue - 20) {
 				// Плавно снижаем на 10 единиц.
-				TCU.SLU -= 2;
+				TCU.SLU -= 8;
 			}
 			else {
 				// Потом выключаем полностью.
 				TCU.Glock = 0;
 				TCU.SLU = SLU_MIN_VALUE;
 			}
-			OCR1C = TCU.SLU;	// Применение значения.
+			cli();
+				OCR1C = TCU.SLU;	// Применение значения.
+			sei();
 		}
 		GTimer = 0;
 		return;
@@ -167,11 +175,13 @@ void glock_control(uint8_t Timer) {
 		}
 		else {
 			if (TCU.SLU >= SLU_GLOCK_MAX_VALUE) {return;}
-			uint8_t PressureAdd = 5;
-			if (TCU.SLU < SLUStartValue + 15) {PressureAdd = 1;}
+			uint8_t PressureAdd = 20;
+			if (TCU.SLU < SLUStartValue + 60) {PressureAdd = 4;}
 			TCU.SLU = MIN(SLU_GLOCK_MAX_VALUE, TCU.SLU + PressureAdd);
 		}
-		OCR1C = TCU.SLU;	// Применение значения.
+		cli();
+			OCR1C = TCU.SLU;	// Применение значения.
+		sei();
 	}
 }
 
@@ -198,8 +208,4 @@ void rear_lamp() {
 		if (TCU.Selector == 2) {SET_PIN_HIGH(REAR_LAMP_PIN);}
 		else {SET_PIN_LOW(REAR_LAMP_PIN);}
 	}
-}
-
-void speedometer_control() {
-	OCR3A = TCU.SpdTimerVal;	// Выход на спидометр.
 }
