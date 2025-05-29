@@ -174,7 +174,7 @@ static void gear_change_1_2() {
 				else {set_slu(NextSLU);}
 			}
 
-			if (!PDR && rpm_delta(1) < -125) {			// Переключение началось.
+			if (!PDR && rpm_delta(1) < -100) {			// Переключение началось.
 				PDR = 1;
 				SLUDelay = 5;
 				PDRStep = TCU.GearStep;
@@ -329,7 +329,17 @@ static void gear_change_4_5() {
 //=========================== Переключения вниз ===============================
 static void gear_change_5_4() {
 	TCU.GearChange = -1;
+
+	// Подгазовка.
+	if (TCU.InstTPS < TPS_IDLE_LIMIT) {SET_PIN_HIGH(REQUEST_POWER_DOWN_PIN);}
 	
+	if (TCU.Glock) {			// Отключаем блокировку ГТ.
+		set_slu(SLU_MIN_VALUE);
+		TCU.Glock = 64;			// Сброс счётчика блокировки
+	}
+
+	loop_wait(GearChangeStep * 5);
+
 	SET_PIN_LOW(SOLENOID_S1_PIN);
 	SET_PIN_LOW(SOLENOID_S2_PIN);
 	SET_PIN_HIGH(SOLENOID_S3_PIN);
@@ -337,9 +347,10 @@ static void gear_change_5_4() {
 
 	set_sln(get_sln_pressure());
 
-	glock_control(101);
 	loop_wait(GearChangeStep * 10);
 	set_sln(SLN_IDLE_PRESSURE);
+
+	SET_PIN_LOW(REQUEST_POWER_DOWN_PIN);
 
 	TCU.Gear = 4;
 	TCU.GearChange = 0;		
@@ -421,11 +432,11 @@ static void gear_change_wait(uint16_t Delay, uint8_t Gear) {
 	while (WaitTimer && rpm_delta(Gear) > 30) {
 		set_sln(get_sln_pressure());
 		if (rpm_delta(Gear - 1) < -120) {	// Переключение началось.
-			if (TCU.Glock) {	// Отключаем блокировку ГТ.
+			if (TCU.Glock) {				// Отключаем блокировку ГТ.
 				set_slu(SLU_MIN_VALUE);
-				TCU.Glock = 0;
+				TCU.Glock = 64;				// Сброс счётчика блокировки
 			}
-			if (!PDR) {		// Запрашиваем снижение мощности.
+			if (!PDR) {						// Запрашиваем снижение мощности.
 				PDR = 1;
 				PDRTime = WaitTimer;
 				SET_PIN_HIGH(REQUEST_POWER_DOWN_PIN);
@@ -546,7 +557,7 @@ static void slu_boost() {
 	if (TCU.SLU > SLU_MIN_VALUE) {return;}
 	
 	uint16_t CurrSLU = TCU.SLU;
-	uint16_t Add = (CurrSLU * 32) >> 6; // +50%.
+	uint16_t Add = (CurrSLU * 20) >> 6; // +31%.
 	set_slu(MIN(920, CurrSLU + Add));
 	loop_wait(SOLENOID_BOOST_TIME);
 	set_slu(CurrSLU);

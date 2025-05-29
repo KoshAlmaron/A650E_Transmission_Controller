@@ -118,6 +118,12 @@ void glock_control(uint8_t Timer) {
 	static uint16_t GTimer = 0;
 	static uint16_t SLUStartValue = 0;
 
+	// Сброс счетчика блокировки.
+	if (TCU.Glock == 64) {
+		TCU.Glock  = 0;
+		GTimer = 0;
+	}
+
 	// Условия для включения блокировки гидротрансформатора.
 	if (!TCU.Break 
 			&& TCU.Gear >= 4
