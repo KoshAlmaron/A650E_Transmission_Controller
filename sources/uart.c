@@ -129,20 +129,24 @@ void send_eeprom_to_uart() {
 
 	uart_send_string("SLUGear2Graph\n");
 	send_uint16_array(SLUGear2Graph, TPS_GRID_SIZE);
-	uart_send_string("SLUGear2TempCorrGraph\n");
-	send_int16_array(SLUGear2TempCorrGraph, TEMP_GRID_SIZE);
-	uart_send_string("SLUGear2AddGraph\n");
-	send_int16_array(SLUGear2AddGraph, TPS_GRID_SIZE);
-
 	uart_send_string("SLUGear2TPSAdaptGraph\n");
 	send_int16_array(SLUGear2TPSAdaptGraph, TPS_GRID_SIZE);
+
+	uart_send_string("SLUGear2TempCorrGraph\n");
+	send_int16_array(SLUGear2TempCorrGraph, TEMP_GRID_SIZE);
 	uart_send_string("SLUGear2TempAdaptGraph\n");
 	send_int16_array(SLUGear2TempAdaptGraph, TEMP_GRID_SIZE);
+
+	uart_send_string("SLUGear2AddGraph\n");
+	send_int16_array(SLUGear2AddGraph, TPS_GRID_SIZE);
 
 	uart_send_string("SLUGear3Graph\n");
 	send_uint16_array(SLUGear3Graph, TPS_GRID_SIZE);
 	uart_send_string("SLUGear3DelayGraph\n");
 	send_uint16_array(SLUGear3DelayGraph, TPS_GRID_SIZE);
+	
+	uart_send_string("SLNGear3Graph\n");
+	send_uint16_array(SLNGear3Graph, TPS_GRID_SIZE);
 	uart_send_string("SLNGear3OffsetGraph\n");
 	send_int16_array(SLNGear3OffsetGraph, TPS_GRID_SIZE);
 

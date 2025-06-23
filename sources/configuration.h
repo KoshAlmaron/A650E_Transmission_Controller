@@ -23,8 +23,8 @@
 	#define GLOCK_MAX_TPS 26			// Максимальное положение дросселя для блокировки гидротрансформатора.
 	#define SOLENOID_BOOST_TIME 30		// Время буста в мс.
 
-	#define PDR_MAX_TPS 40				// Ограничение активации PDR по дросселю.
-	#define GEAR_2_SLU_ADAPTATION_MAX_TPS 60	// Ограничение адаптации по ДПДЗ.
+	#define PDR_MAX_TPS 38				// Ограничение активации PDR по дросселю.
+	#define GEAR_2_SLU_ADAPTATION_MAX_TPS 50	// Ограничение адаптации по ДПДЗ.
 	
 	// Расскомментировать для активации.
 	#define GEAR_2_SLU_TPS_ADAPTATION		// Авто коррекция SLU по ДПДЗ при прогретом масле.

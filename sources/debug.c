@@ -42,7 +42,7 @@ static int16_t* ArrayI;
 static uint16_t* ArrayU;
 
 #define COLUMN_COUNT 5
-#define SCREEN_COUNT 12
+#define SCREEN_COUNT 13
 
 extern int8_t MinGear[];
 extern int8_t MaxGear[];
@@ -64,6 +64,7 @@ static void print_config_gear2_temp_adaptation();
 
 static void print_config_gear3_slu_pressure();
 static void print_config_gear3_slu_delay();
+static void print_config_gear3_sln_pressure();
 static void print_config_gear3_sln_offset();
 
 static void print_config_sln_pressure();
@@ -185,18 +186,21 @@ static void print_data() {
 			print_config_gear3_slu_delay();
 			break;
 		case 8:
-			print_config_gear3_sln_offset();
+			print_config_gear3_sln_pressure();
 			break;
 		case 9:
-			print_config_sln_pressure();
+			print_config_gear3_sln_offset();
 			break;
 		case 10:
-			print_config_slt_pressure();
+			print_config_sln_pressure();
 			break;
 		case 11:
-			print_config_slt_temp_corr();
+			print_config_slt_pressure();
 			break;
 		case 12:
+			print_config_slt_temp_corr();
+			break;
+		case 13:
 			print_config_d4_max_gear();
 			break;
 	}
@@ -401,13 +405,13 @@ static void print_config_gear3_slu_pressure() {
 // Экран настройки задержки выключения SLU при включении третьей передачи.
 static void print_config_gear3_slu_delay() {
 	//	----------------------
-	//	|G3 SLU DL x100  |100|
+	//	|G3 SLU DL x10   |100|
 	//	|St 12 P1000 A99 U101|
 	//	|  0|  5| 10| 15| 20||
 	//	| 67| 72| 74| 77| 81||
 	//	----------------------
 
-	snprintf(StringArray, STR_ARR_SZ, "G3 SLU DL x100  |%3u", TCU.InstTPS);
+	snprintf(StringArray, STR_ARR_SZ, "G3 SLU DL x10   |%3u", TCU.InstTPS);
 	lcd_update_buffer(0, StringArray);
 
 	snprintf(StringArray, STR_ARR_SZ, "St %2u P%4u A%2u U%3u"
@@ -419,19 +423,45 @@ static void print_config_gear3_slu_delay() {
 
 	// Изменяемые значения.
 	ArrayU = SLUGear3DelayGraph;
-	print_values(1, 1, 100, 0, 1500, 100);
+	print_values(1, 1, 25, 0, 1500, 10);
+}
+
+// Экран настройка давления аккумуляторов SLN при включении третьей передачи.
+static void print_config_gear3_sln_pressure() {
+	//	----------------------
+	//	|SLN Gear 3 |100|1.00|
+	//	|TP-12 TV 12 A99 N101|
+	//	|  0|  5| 10| 15| 20||
+	//	| 67| 72| 74| 77| 81||
+	//	----------------------
+
+	snprintf(StringArray, STR_ARR_SZ, "SLN Gear 3 |%3u|%s"
+		, TCU.InstTPS
+		, GearRatioChar);
+	lcd_update_buffer(0, StringArray);
+
+	snprintf(StringArray, STR_ARR_SZ, "TP%3i TV%3i A%2u T%3u"
+		, get_slt_temp_corr(0)					// В %.
+		, get_slt_temp_corr(TCU.GearChangeSLT)	// В единицах ШИМ.
+		, MIN(99, TCU.GearChangeTPS)
+		, MIN(999, TCU.GearChangeSLN));
+	lcd_update_buffer(1, StringArray);
+
+	// Изменяемые значения.
+	ArrayU = SLNGear3Graph;
+	print_values(1, 1, 4, 20, 1000, 1);
 }
 
 // Экран настройки задержки выключения SLN при включении третьей передачи.
 static void print_config_gear3_sln_offset() {
 	//	----------------------
-	//	|G3 SLN Ofs x100 |100|
+	//	|G3 SLN Ofs x10  |100|
 	//	|St 16 P1200 A99 O101|
 	//	|  0|  5| 10| 15| 20||
 	//	| 67| 72| 74| 77| 81||
 	//	----------------------
 
-	snprintf(StringArray, STR_ARR_SZ, "G3 SLN Ofs x100 |%3u", TCU.InstTPS);
+	snprintf(StringArray, STR_ARR_SZ, "G3 SLN Ofs x10  |%3u", TCU.InstTPS);
 	lcd_update_buffer(0, StringArray);
 
 	snprintf(StringArray, STR_ARR_SZ, "St %2u P%4u A%2u O%3i"
@@ -443,7 +473,7 @@ static void print_config_gear3_sln_offset() {
 
 	// Изменяемые значения.
 	ArrayI = SLNGear3OffsetGraph;
-	print_values(1, 0, 100, -1500, 1500, 100);
+	print_values(1, 0, 25, -1500, 1500, 10);
 }
 
 // Экран настройка давления аккумуляторов SLN.

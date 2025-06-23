@@ -11,7 +11,7 @@
 void read_eeprom() {
 	//update_eeprom();
 	// Адрес массива, адрес ячейки, кол-во байт.
-
+	
 	// 0-41 - SLTGraph.
 	eeprom_read_block((void*)&SLTGraph, (const void*) 0, TPS_GRID_SIZE * 2);
 	// 42-103 - SLTTempCorrGraph.
@@ -37,6 +37,9 @@ void read_eeprom() {
 	eeprom_read_block((void*)&SLUGear3DelayGraph, (const void*) 438, TPS_GRID_SIZE * 2);
 	// 480-521 - SLNGear3OffsetGraph.
 	eeprom_read_block((void*)&SLNGear3OffsetGraph, (const void*) 480, TPS_GRID_SIZE * 2);
+
+	// 522-563 - SLNGear3Graph.
+	eeprom_read_block((void*)&SLNGear3Graph, (const void*) 522, TPS_GRID_SIZE * 2);
 }
 
 // Запись EEPROM.
@@ -66,6 +69,9 @@ void update_eeprom() {
 	eeprom_update_block((void*)&SLUGear3DelayGraph, (void*) 438, TPS_GRID_SIZE * 2);
 	// 480-521 - SLNGear3OffsetGraph.
 	eeprom_update_block((void*)&SLNGear3OffsetGraph, (void*) 480, TPS_GRID_SIZE * 2);
+
+	// 522-563 - SLNGear3Graph.
+	eeprom_update_block((void*)&SLNGear3Graph, (void*) 522, TPS_GRID_SIZE * 2);
 
 	// Пихаем все в UART, чтобы потом можно было копипастить.
 	send_eeprom_to_uart();

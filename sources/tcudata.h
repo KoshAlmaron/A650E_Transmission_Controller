@@ -17,6 +17,7 @@
 	
 	uint16_t get_slu_pressure_gear3();
 	uint16_t get_gear3_slu_delay(uint8_t TPS);
+	uint16_t get_sln_pressure_gear3();
 	int16_t get_gear3_sln_offset(uint8_t TPS);
 	
 	int16_t rpm_delta(uint8_t Gear);
@@ -87,6 +88,7 @@
 
 	extern uint16_t SLUGear3Graph[];
 	extern uint16_t SLUGear3DelayGraph[];
+	extern uint16_t SLNGear3Graph[];
 	extern int16_t SLNGear3OffsetGraph[];
 
 #endif

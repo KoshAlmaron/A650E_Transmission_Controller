@@ -132,6 +132,12 @@ uint16_t get_sln_pressure() {
 	return SLN;
 }
 
+uint16_t get_sln_pressure_gear3() {
+	// Вычисляем значение в зависимости от ДПДЗ.
+	uint16_t SLN = get_interpolated_value_uint16_t(TCU.InstTPS, TPSGrid, SLNGear3Graph, TPS_GRID_SIZE);
+	return SLN;
+}
+
 // Давление включения и работы второй передачи SLU B3.
 uint16_t get_slu_pressure_gear2() {
 	uint16_t SLU = get_interpolated_value_uint16_t(TCU.InstTPS, TPSGrid, SLUGear2Graph, TPS_GRID_SIZE);
@@ -181,7 +187,9 @@ uint16_t get_gear3_slu_delay(uint8_t TPS) {
 
 // Смещение впемени включения SLN при включении третьей передачи.
 int16_t get_gear3_sln_offset(uint8_t TPS) {
-	return get_interpolated_value_int16_t(TPS, TPSGrid, SLNGear3OffsetGraph, TPS_GRID_SIZE);
+	int16_t Offset = get_interpolated_value_int16_t(TPS, TPSGrid, SLNGear3OffsetGraph, TPS_GRID_SIZE);
+	Offset = Offset - 70 + TCU.OilTemp;		// Коррекция по температуре.
+	return Offset;
 }
 
 uint8_t get_tps_index(uint8_t TPS) {
@@ -215,7 +223,7 @@ uint8_t get_temp_index(int16_t Temp) {
 }
 
 // Расчет разницы скорости входного вала относительно расчетной 
-// под датчику скорости и передаточному числу. 
+// по датчику скорости и передаточному числу. 
 int16_t rpm_delta(uint8_t Gear) {
 	if (Gear == 5) {return TCU.DrumRPM;}
 	if (!TCU.OutputRPM || (!TCU.DrumRPM && TCU.Gear != 5))  {return 0;}
@@ -248,7 +256,7 @@ void save_gear2_adaptation(int8_t Value) {
 			uint8_t Index = 0;
 			Index = get_tps_index(TCU.InstTPS);
 			SLUGear2TPSAdaptGraph[Index] += (Value * 4);
-			SLUGear2TPSAdaptGraph[Index] = CONSTRAIN(SLUGear2TPSAdaptGraph[Index], -20, 20);
+			SLUGear2TPSAdaptGraph[Index] = CONSTRAIN(SLUGear2TPSAdaptGraph[Index], -32, 32);
 		#endif
 	}
 	else {		// Адаптация по температуре масла.
@@ -257,7 +265,7 @@ void save_gear2_adaptation(int8_t Value) {
 			uint8_t Index = 0;
 			Index = get_temp_index(TCU.OilTemp);
 			SLUGear2TempAdaptGraph[Index] += Value;
-			SLUGear2TempAdaptGraph[Index] = CONSTRAIN(SLUGear2TempAdaptGraph[Index], -6, 6);
+			SLUGear2TempAdaptGraph[Index] = CONSTRAIN(SLUGear2TempAdaptGraph[Index], -12, 12);
 		#endif
 	}
 }
