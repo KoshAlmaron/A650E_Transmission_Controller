@@ -581,8 +581,8 @@ static void print_config_d4_max_gear() {
 	if (CursorPos > 1) {CursorPos = 0;}
 
 	if (ValueDelta) {
-		if (!CursorPos) {MaxGear[5] = CONSTRAIN(MaxGear[5] + ValueDelta, 1, 4);}
-		else {MinGear[5] = CONSTRAIN(MinGear[5] + ValueDelta, 1, 4);}
+		if (!CursorPos) {MaxGear[5] = CONSTRAIN(MaxGear[5] + ValueDelta, 1, 5);}
+		else {MinGear[5] = CONSTRAIN(MinGear[5] + ValueDelta, 1, 5);}
 		ValueDelta = 0;
 	}
 }
