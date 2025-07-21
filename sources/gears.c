@@ -168,9 +168,9 @@ static void gear_change_1_2() {
 				SLUTimer = WaitTimer;
 				NextSLU = get_slu_pressure_gear2() + TCU.GearStep * 2 - SLUDelay;
 				if (NextSLU > TCU.SLU) {
-					// Прирост не более чем 4 единицы за цикл.
-					if (NextSLU - TCU.SLU <= 4) {set_slu(NextSLU);}
-					else {set_slu(TCU.SLU + 4);}
+					// Прирост не более чем 8 единиц за цикл.
+					if (NextSLU - TCU.SLU <= 8) {set_slu(NextSLU);}
+					else {set_slu(TCU.SLU + 8);}
 				}
 				else {set_slu(NextSLU);}
 			}
@@ -207,9 +207,9 @@ static void gear_change_1_2() {
 		// Изменение давления по циклу.
 		NextSLU = get_slu_pressure_gear2() + TCU.GearStep * 2 - SLUDelay;
 		if (NextSLU > TCU.SLU) {
-			// Прирост не более чем 4 единицы за цикл.
-			if (NextSLU - TCU.SLU <= 4) {set_slu(NextSLU);}
-			else {set_slu(TCU.SLU + 4);}
+			// Прирост не более чем 8 единицы за цикл.
+			if (NextSLU - TCU.SLU <= 8) {set_slu(NextSLU);}
+			else {set_slu(TCU.SLU + 8);}
 		}
 		else {set_slu(NextSLU);}
 	}
@@ -511,7 +511,7 @@ void slu_gear2_control(uint8_t Time) {
 					TCU.Gear2State = 0;
 				}
 				else {
-					SLUAdd = get_slu_add_gear2() - RPMDelta / 16;
+					SLUAdd = get_slu_add_gear2() + RPMDelta / 16;
 					if (SLUAdd > 0)	{TCU.GearStep = SLUAdd / 2;}
 					else {TCU.GearStep = 0;}
 					NextSLU += SLUAdd;
@@ -519,7 +519,7 @@ void slu_gear2_control(uint8_t Time) {
 				}
 			}
 			else {
-				SLUAdd = get_slu_add_gear2() - RPMDelta / 16;
+				SLUAdd = get_slu_add_gear2() + RPMDelta / 16;
 				if (SLUAdd > 0)	{TCU.GearStep = SLUAdd / 2;}
 				else {TCU.GearStep = 0;}
 				NextSLU += SLUAdd;
@@ -541,10 +541,10 @@ void slu_gear2_control(uint8_t Time) {
 				}
 			}
 			NextSLU += TCU.GearStep * 2;
-			// Прирост не более чем 4 единицы за цикл.
+			// Прирост не более чем 8 единиц за цикл.
 			if (NextSLU > TCU.SLU) {
-				if (NextSLU - TCU.SLU <= 4) {set_slu(NextSLU);}
-				else {set_slu(TCU.SLU + 4);}
+				if (NextSLU - TCU.SLU <= 8) {set_slu(NextSLU);}
+				else {set_slu(TCU.SLU + 8);}
 			}
 			else {set_slu(NextSLU);}
 			break;
@@ -677,7 +677,7 @@ static void gear_down() {
 }
 
 static void set_gear_change_delays() {
-	GearChangeStep = get_interpolated_value_uint16_t(TCU.InstTPS, TPSGrid, GearChangeStepArray, TPS_GRID_SIZE);
+	GearChangeStep = get_interpolated_value_uint16_t(TCU.InstTPS, TPSGrid, GearChangeStepArray, TPS_GRID_SIZE) / 16;
 }
 
 // Ожидание с основным циклом.
@@ -706,7 +706,7 @@ uint8_t get_gear_max_speed(int8_t Gear) {
 		default:
 			return 0;
 	}
-	return get_interpolated_value_uint16_t(TCU.TPS, TPSGrid, Array, TPS_GRID_SIZE);
+	return get_interpolated_value_uint16_t(TCU.TPS, TPSGrid, Array, TPS_GRID_SIZE) / 16;
 }
 
 uint8_t get_gear_min_speed(int8_t Gear) {
@@ -729,7 +729,7 @@ uint8_t get_gear_min_speed(int8_t Gear) {
 		default:
 			return 0;
 	}
-	return get_interpolated_value_uint16_t(TCU.TPS, TPSGrid, Array, TPS_GRID_SIZE);
+	return get_interpolated_value_uint16_t(TCU.TPS, TPSGrid, Array, TPS_GRID_SIZE) / 16;
 }
 
 static uint8_t rpm_after_ok(uint8_t Shift) {

@@ -30,8 +30,6 @@ uint16_t get_interpolated_value_uint16_t(uint16_t x, int16_t* ArrayX, uint16_t* 
 			break;
 		}
 	}
-
-	Result /= 16;
 	return Result;
 }
 
@@ -67,7 +65,5 @@ int16_t get_interpolated_value_int16_t(int16_t x, int16_t* ArrayX, int16_t* Arra
 			break;
 		}
 	}
-
-	Result = Result / 16;
 	return Result;
 }
