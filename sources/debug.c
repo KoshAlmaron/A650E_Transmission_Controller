@@ -289,7 +289,7 @@ static void print_config_gear2_slu_temp_corr() {
 
 	snprintf(StringArray, STR_ARR_SZ, "UP%3i UV%3i A%2u U%3u"
 		, get_slu_gear2_temp_corr(0)					// В %.
-		, get_slu_gear2_temp_corr(TCU.GearChangeSLU)	// В единицах ШИМ.
+		, get_slu_gear2_temp_corr(TCU.SLU)	// В единицах ШИМ.
 		, MIN(99, TCU.GearChangeTPS)
 		, MIN(999, TCU.GearChangeSLU));
 	lcd_update_buffer(1, StringArray);
@@ -314,7 +314,7 @@ static void print_config_gear2_react_add() {
 
 	snprintf(StringArray, STR_ARR_SZ, "UP%3i UV%3i A%2u U%3u"
 		, get_slu_gear2_temp_corr(0)					// В %.
-		, get_slu_gear2_temp_corr(TCU.GearChangeSLU)	// В единицах ШИМ.
+		, get_slu_gear2_temp_corr(TCU.SLU)	// В единицах ШИМ.
 		, MIN(99, TCU.GearChangeTPS)
 		, TCU.GearChangeSLU);
 	lcd_update_buffer(1, StringArray);
@@ -340,7 +340,7 @@ static void print_config_gear2_tps_adaptation() {
 
 	snprintf(StringArray, STR_ARR_SZ, "UP%3i UV%3i A%2u U%3u"
 		, get_slu_gear2_temp_corr(0)					// В %.
-		, get_slu_gear2_temp_corr(TCU.GearChangeSLU)	// В единицах ШИМ.
+		, get_slu_gear2_temp_corr(TCU.SLU)	// В единицах ШИМ.
 		, MIN(99, TCU.GearChangeTPS)
 		, MIN(999, TCU.GearChangeSLU));
 	lcd_update_buffer(1, StringArray);
@@ -366,7 +366,7 @@ static void print_config_gear2_temp_adaptation() {
 
 	snprintf(StringArray, STR_ARR_SZ, "UP%3i UV%3i A%2u U%3u"
 		, get_slu_gear2_temp_corr(0)					// В %.
-		, get_slu_gear2_temp_corr(TCU.GearChangeSLU)	// В единицах ШИМ.
+		, get_slu_gear2_temp_corr(TCU.SLU)	// В единицах ШИМ.
 		, TCU.GearChangeTPS
 		, MIN(999, TCU.GearChangeSLU));
 	lcd_update_buffer(1, StringArray);
@@ -518,7 +518,7 @@ static void print_config_slt_pressure() {
 
 	snprintf(StringArray, STR_ARR_SZ, "TP%3i TV%3i A%2u T%3u"
 		, get_slt_temp_corr(0)					// В %.
-		, get_slt_temp_corr(TCU.GearChangeSLT)	// В единицах ШИМ.
+		, get_slt_temp_corr(TCU.SLT)	// В единицах ШИМ.
 		, MIN(99, TCU.GearChangeTPS)
 		, MIN(999, TCU.GearChangeSLT));
 	lcd_update_buffer(1, StringArray);

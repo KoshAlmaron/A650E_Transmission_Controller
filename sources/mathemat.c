@@ -6,8 +6,8 @@
 uint16_t get_interpolated_value_uint16_t(uint16_t x, int16_t* ArrayX, uint16_t* ArrayY, uint8_t ArraySize) {
 	uint16_t Result = 0;
 
-	if (x <= ArrayX[0]) {return ArrayY[0];}
-	if (x >= ArrayX[ArraySize - 1]) {return ArrayY[ArraySize - 1];}		
+	if (x <= ArrayX[0]) {return ArrayY[0] * 16;}
+	if (x >= ArrayX[ArraySize - 1]) {return ArrayY[ArraySize - 1] * 16;}
 
 	// Находим позицию в графике.
 	for (uint8_t i = 0; i < ArraySize; i++) {
@@ -43,12 +43,12 @@ int16_t get_interpolated_value_int16_t(int16_t x, int16_t* ArrayX, int16_t* Arra
 
 	// Значение за пределами графика.
 	if (Reverse) {
-		if (x >= ArrayX[0]) {return ArrayY[0];}
-		if (x <= ArrayX[ArraySize - 1]) {return ArrayY[ArraySize - 1];}
+		if (x >= ArrayX[0]) {return ArrayY[0] * 16;}
+		if (x <= ArrayX[ArraySize - 1]) {return ArrayY[ArraySize - 1] * 16;}
 	}
 	else {
-		if (x <= ArrayX[0]) {return ArrayY[0];}
-		if (x >= ArrayX[ArraySize - 1]) {return ArrayY[ArraySize - 1];}		
+		if (x <= ArrayX[0]) {return ArrayY[0] * 16;}
+		if (x >= ArrayX[ArraySize - 1]) {return ArrayY[ArraySize - 1] * 16;}
 	}
 
 	// Находим позицию в графике.

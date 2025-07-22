@@ -251,7 +251,7 @@ int16_t rpm_delta(uint8_t Gear) {
 }
 
 void save_gear2_adaptation(int8_t Value) {
-	if (TCU.OilTemp >= 65 && TCU.OilTemp <= 73) {		// Адаптация по ДПДЗ.
+	if (TCU.OilTemp >= 63 && TCU.OilTemp <= 73) {		// Адаптация по ДПДЗ.
 		#ifdef GEAR_2_SLU_TPS_ADAPTATION
 			uint8_t Index = 0;
 			Index = get_tps_index(TCU.InstTPS);

@@ -495,7 +495,7 @@ void slu_gear2_control(uint8_t Time) {
 					set_slu(SLU_MIN_VALUE);
 				}
 				else {
-					if (RPMDelta > -200) {
+					if (RPMDelta > -75) {
 						set_slu(NextSLU);
 						TCU.GearStep = 0;
 						TCU.Gear2State = 2;
@@ -706,7 +706,9 @@ uint8_t get_gear_max_speed(int8_t Gear) {
 		default:
 			return 0;
 	}
-	return get_interpolated_value_uint16_t(TCU.TPS, TPSGrid, Array, TPS_GRID_SIZE) / 16;
+
+	uint16_t Speed = get_interpolated_value_uint16_t(TCU.TPS, TPSGrid, Array, TPS_GRID_SIZE) / 16;
+	return Speed;
 }
 
 uint8_t get_gear_min_speed(int8_t Gear) {
@@ -729,7 +731,8 @@ uint8_t get_gear_min_speed(int8_t Gear) {
 		default:
 			return 0;
 	}
-	return get_interpolated_value_uint16_t(TCU.TPS, TPSGrid, Array, TPS_GRID_SIZE) / 16;
+	uint16_t Speed = get_interpolated_value_uint16_t(TCU.TPS, TPSGrid, Array, TPS_GRID_SIZE) / 16;
+	return Speed;
 }
 
 static uint8_t rpm_after_ok(uint8_t Shift) {
