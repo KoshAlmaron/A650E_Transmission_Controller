@@ -163,14 +163,14 @@ static void gear_change_1_2() {
 		while (WaitTimer) {
 			loop_main(1);
 
-			// Изменение давления из-за изменения значения ДПДЗ.
+			// Изменение давления по циклу.
 			if (SLUTimer - WaitTimer >= 25) {
 				SLUTimer = WaitTimer;
 				NextSLU = get_slu_pressure_gear2() + TCU.GearStep * 2 - SLUDelay;
 				if (NextSLU > TCU.SLU) {
-					// Прирост не более чем 8 единиц за цикл.
-					if (NextSLU - TCU.SLU <= 8) {set_slu(NextSLU);}
-					else {set_slu(TCU.SLU + 8);}
+					// Прирост не более чем 6 единиц за цикл.
+					if (NextSLU - TCU.SLU <= 6) {set_slu(NextSLU);}
+					else {set_slu(TCU.SLU + 6);}
 				}
 				else {set_slu(NextSLU);}
 			}
@@ -203,15 +203,6 @@ static void gear_change_1_2() {
 			Adaptation = 1;
 			save_gear2_adaptation(1);
 		}
-
-		// Изменение давления по циклу.
-		NextSLU = get_slu_pressure_gear2() + TCU.GearStep * 2 - SLUDelay;
-		if (NextSLU > TCU.SLU) {
-			// Прирост не более чем 8 единицы за цикл.
-			if (NextSLU - TCU.SLU <= 8) {set_slu(NextSLU);}
-			else {set_slu(TCU.SLU + 8);}
-		}
-		else {set_slu(NextSLU);}
 	}
 
 	TCU.LastStep -= GEAR_2_STEP_ADD;
@@ -482,6 +473,7 @@ void slu_gear2_control(uint8_t Time) {
 
 	switch (TCU.Gear2State) {
 		case 0:
+			Timer = 0;
 			TCU.GearStep = 0;
 			SET_PIN_HIGH(SOLENOID_S3_PIN);
 			// В режимах "2" и "3", должно быть торможение двигателем.
@@ -490,7 +482,7 @@ void slu_gear2_control(uint8_t Time) {
 				TCU.Gear2State = 2;
 			}
 			else {
-				if (TCU.TPS < TPS_IDLE_LIMIT) {
+				if (TCU.InstTPS < TPS_IDLE_LIMIT) {
 					TCU.Gear2State = 0;
 					set_slu(SLU_MIN_VALUE);
 				}
@@ -505,7 +497,7 @@ void slu_gear2_control(uint8_t Time) {
 			}
 			break;
 		case 1:
-			if (RPMDelta <= -50) {
+			if (RPMDelta <= -32) {
 				if (RPMDelta <= -500) {
 					set_slu(SLU_MIN_VALUE);
 					TCU.Gear2State = 0;
@@ -524,6 +516,7 @@ void slu_gear2_control(uint8_t Time) {
 				else {TCU.GearStep = 0;}
 				NextSLU += SLUAdd;
 				set_slu(NextSLU);
+				Timer = 0;
 				TCU.Gear2State = 2;
 			}
 			break;
@@ -549,7 +542,7 @@ void slu_gear2_control(uint8_t Time) {
 			else {set_slu(NextSLU);}
 			break;
 		case 8:
-			if (TCU.TPS < TPS_IDLE_LIMIT && TCU.ATMode != 6 && TCU.ATMode != 7) {
+			if (TCU.InstTPS < TPS_IDLE_LIMIT && TCU.ATMode != 6 && TCU.ATMode != 7) {
 				TCU.Gear2State = 0;
 				set_slu(SLU_MIN_VALUE);
 			}
