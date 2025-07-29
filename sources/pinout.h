@@ -8,6 +8,15 @@
 	#define SOLENOID_S3_PIN H, 5
 	#define SOLENOID_S4_PIN H, 6
 
+	#define SELECTOR_P_PIN C, 0
+	#define SELECTOR_R_PIN C, 1
+	#define SELECTOR_N_PIN C, 2
+	#define SELECTOR_D_PIN C, 3
+	#define SELECTOR_3_PIN C, 4
+	#define SELECTOR_2_PIN C, 5
+	#define SELECTOR_4_PIN C, 6
+	#define SELECTOR_L_PIN C, 7
+
 	#define BREAK_PEDAL_PIN G, 5
 	#define REAR_LAMP_PIN B, 4
 

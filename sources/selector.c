@@ -11,11 +11,29 @@
 // Счетчик для установки ошибки.
 uint8_t ErrorTimer = 0;
 
+// Прототипы локальных функций.
+static uint8_t get_selector_byte();
+
 // Настройка выводов для селектора.
 void selector_init() {
-	// Весь порт PA как вход с подтяжкой.
-	SET_PORT_MODE(C, 0);
-	PORT_WRITE(C, 0xFF);
+	// Все пины селектора как вход с подтяжкой.
+	SET_PIN_MODE_INPUT(SELECTOR_P_PIN);
+	SET_PIN_MODE_INPUT(SELECTOR_R_PIN);
+	SET_PIN_MODE_INPUT(SELECTOR_N_PIN);
+	SET_PIN_MODE_INPUT(SELECTOR_D_PIN);
+	SET_PIN_MODE_INPUT(SELECTOR_3_PIN);
+	SET_PIN_MODE_INPUT(SELECTOR_2_PIN);
+	SET_PIN_MODE_INPUT(SELECTOR_4_PIN);
+	SET_PIN_MODE_INPUT(SELECTOR_L_PIN);
+
+	SET_PIN_HIGH(SELECTOR_P_PIN);
+	SET_PIN_HIGH(SELECTOR_R_PIN);
+	SET_PIN_HIGH(SELECTOR_N_PIN);
+	SET_PIN_HIGH(SELECTOR_D_PIN);
+	SET_PIN_HIGH(SELECTOR_3_PIN);
+	SET_PIN_HIGH(SELECTOR_2_PIN);
+	SET_PIN_HIGH(SELECTOR_4_PIN);
+	SET_PIN_HIGH(SELECTOR_L_PIN);
 	
 	// Вход без подтяжки для педали тормоза.
 	SET_PIN_MODE_INPUT(BREAK_PEDAL_PIN);
@@ -26,11 +44,27 @@ void selector_init() {
 	SET_PIN_LOW(ENGINE_WORK_PIN);
 }
 
+static uint8_t get_selector_byte() {
+	uint8_t Val = 0;
+
+	if (!PIN_READ(SELECTOR_P_PIN)) {BITSET(Val, 0);}
+	if (!PIN_READ(SELECTOR_R_PIN)) {BITSET(Val, 1);}
+	if (!PIN_READ(SELECTOR_N_PIN)) {BITSET(Val, 2);}
+	if (!PIN_READ(SELECTOR_D_PIN)) {BITSET(Val, 3);}
+	if (!PIN_READ(SELECTOR_3_PIN)) {BITSET(Val, 4);}
+	if (!PIN_READ(SELECTOR_2_PIN)) {BITSET(Val, 5);}
+	if (!PIN_READ(SELECTOR_4_PIN)) {BITSET(Val, 6);}
+	if (!PIN_READ(SELECTOR_L_PIN)) {BITSET(Val, 7);}
+
+	return Val;
+}
+
+
 // Текущая позиция селектора АКПП.
 void selector_position() {
 	// На селекторе АКПП 6 позиций + две дополнительные.
 	// Это позволяет использовать один порт контроллера.
-	uint8_t Val = ~PINC;
+	uint8_t Val = get_selector_byte();
 	switch (Val) {
 		case 1:
 			TCU.Selector = 1;	// P

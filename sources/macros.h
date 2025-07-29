@@ -8,6 +8,8 @@
 	#define ABS(x) ((x)>0?(x):-(x))
 	#define CONSTRAIN(amt, low, high) ((amt)<(low)?(low):((amt)>(high)?(high):(amt)))
 
+	#define BITREAD(value, bit) (((value) >> (bit)) & 0x01)
+	#define BITSET(value, bit) ((value) |= (1UL << (bit)))
 
 	// Макросы для работы с целыми портами.
 	#define SET_PORT_MODE(port, data) (DDR ## port = data)
