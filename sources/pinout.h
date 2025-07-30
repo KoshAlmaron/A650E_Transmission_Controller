@@ -17,9 +17,16 @@
 	#define SELECTOR_4_PIN C, 6
 	#define SELECTOR_L_PIN C, 7
 
+	#define TIP_GEAR_UP_PIN G, 1
+	#define TIP_GEAR_DOWN_PIN G, 0
+
 	#define BREAK_PEDAL_PIN G, 5
 	#define REAR_LAMP_PIN B, 4
 
+	#define ENGINE_WORK_PIN J, 0
+	#define REQUEST_POWER_DOWN_PIN J, 1
+
+	// ============== DEBUG ==============
 	#define DEBUG_LCD_ON_PIN A, 0
 	#define DEBUG_MODE_ON_PIN A, 1
 	#define DEBUG_S1_PIN A, 2
@@ -30,11 +37,8 @@
 	#define DEBUG_SCREEN_BUTTON_F_PIN K, 4
 	#define DEBUG_SCREEN_BUTTON_R_PIN K, 5
 
-	#define ENGINE_WORK_PIN J, 0
-	#define REQUEST_POWER_DOWN_PIN J, 1
-
 	#define CYCLE_TEST_PIN E, 3
-	
+	// ============== DEBUG ==============
 #endif
 
 
@@ -81,8 +85,8 @@
 	37 PC0					|+	Положение селектора АКПП "P".
 	38 PD7					|	
 	39 PG2					|
-	40 PG1					|	
-	41 PG0					|	
+	40 PG1					|	Типтроник передача вверх.
+	41 PG0					|	Типтроник передача вниз.
 	42 PL7					|	
 	43 PL6					|	
    ~44 PL5	(OC5C)			|

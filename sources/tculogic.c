@@ -15,7 +15,10 @@ static void engine_brake_solenoid();
 // Управление линейным давлением SLT.
 void slt_control() {
 	if (TCU.DebugMode == 2) {return;}
-	TCU.SLT = get_slt_pressure();
+
+	if (!TCU.EngineWork) {TCU.SLT = 1023;}
+	else {TCU.SLT = get_slt_pressure();}
+
 	cli();
 		OCR1A = TCU.SLT;	// SLT - выход A таймера 1.
 	sei();

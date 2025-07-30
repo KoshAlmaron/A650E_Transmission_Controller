@@ -4,6 +4,7 @@
 #include "uart.h"			// Свой заголовок.
 #include "pinout.h"			// Список назначенных выводов.
 #include "tcudata.h"		// Расчет и хранение всех необходимых параметров.
+#include "adc.h"			// АЦП.
 #include <stdio.h>			// Стандартная библиотека ввода/вывода
 
 // Скорость передачи UART 57600 бит/с.
@@ -74,6 +75,8 @@ void send_tcu_data() {
 	SendBuffer[TxBuffPos++] = FOBEGIN;	// Байт начала пакета.
 
 	//TCU.OilTemp = 78;
+	// TCU.SLT = get_adc_value(0); // Температура масла.
+	// TCU.SLN = get_adc_value(1); // ДПДЗ.
 
 	// Начальный адрес структуры TCU.
 	uint8_t* TCUAddr = (uint8_t*) &TCU;

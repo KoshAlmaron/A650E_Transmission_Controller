@@ -59,7 +59,6 @@ static uint8_t get_selector_byte() {
 	return Val;
 }
 
-
 // Текущая позиция селектора АКПП.
 void selector_position() {
 	// На селекторе АКПП 6 позиций + две дополнительные.

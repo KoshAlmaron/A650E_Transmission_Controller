@@ -21,6 +21,7 @@
 #include "gears.h"			// Фунции переключения передач.
 #include "debug.h"			// Модуль отладки.
 #include "lcd.h"			// LCD экран.
+#include "buttons.h"			// Кнопки.
 
 // Основной счетчик времени,
 // увеличивается по прерыванию на единицу каждую 1 мс.
@@ -29,16 +30,17 @@ volatile uint8_t MainTimer = 0;
 volatile uint16_t CycleTimer = 0;
 
 // Счетчики времени.
-uint16_t UartTimer = 0;
-uint16_t SensorTimer = 0;
-uint16_t SelectorTimer = 0;
-uint16_t DataUpdateTimer = 0;
-uint16_t AtModeTimer = 0;
-uint16_t GearsTimer = 0;
-uint16_t TPSTimer = 0;
-uint16_t GlockTimer = 0;
-uint16_t SLTPressureTimer = 0;
-uint16_t SLUPressureTimer = 0;
+static uint16_t UartTimer = 0;
+static uint16_t SensorTimer = 0;
+static uint16_t SelectorTimer = 0;
+static uint16_t DataUpdateTimer = 0;
+static uint16_t AtModeTimer = 0;
+static uint16_t GearsTimer = 0;
+static uint16_t TPSTimer = 0;
+static uint16_t GlockTimer = 0;
+static uint16_t SLTPressureTimer = 0;
+static uint16_t SLUPressureTimer = 0;
+static uint16_t ButtonsTimer = 0;
 
 // Таймер ожидания.
 uint16_t WaitTimer = 0;
@@ -100,6 +102,7 @@ void loop_main(uint8_t Wait) {
 		TPSTimer += TimerAdd;
 		GlockTimer += TimerAdd;
 		SLTPressureTimer += TimerAdd;
+		ButtonsTimer += TimerAdd;
 
 		if (WaitTimer > TimerAdd) {WaitTimer -= TimerAdd;}
 		else {WaitTimer = 0;}
@@ -210,6 +213,11 @@ static void loop_add() {
 		TCU.Gear = 0;
 		TCU.Glock = 0;
 		return;
+	}
+
+	if (ButtonsTimer >= 25) {		// Обработка кнопок.
+		ButtonsTimer = 0;
+		buttons_update();
 	}
 
 	if (AtModeTimer >= 67) {
