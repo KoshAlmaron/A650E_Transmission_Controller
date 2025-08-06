@@ -1,5 +1,6 @@
 #include <avr/io.h>			// Номера бит в регистрах.
 
+#include "configuration.h"	// Настройки.
 #include "timers.h"			// Свой заголовок.
 
 static void timer_0_init();
@@ -48,9 +49,20 @@ static void timer_1_init() {
 	TCCR1A |= (1 << WGM10) | (1 << WGM11);		// Шим Fast PWM, 10-bit.
 	TCCR1B |= (1 << WGM12);
 
-	TCCR1A |= (1 << COM1A1) | (1 << COM1A0);	// Инверсный режим работы OC1A (SLT).
-	TCCR1A |= (1 << COM1B1);					// Неинверсный режим работы OC1B (SLN).
-	TCCR1A |= (1 << COM1C1);					// Неинверсный режим работы OC1C (SLU).
+	TCCR1A |= (1 << COM1A1);		// Неинверсный режим работы OC1A (SLT).
+	TCCR1A |= (1 << COM1B1);		// Неинверсный режим работы OC1B (SLN).
+	TCCR1A |= (1 << COM1C1);		// Неинверсный режим работы OC1C (SLU).
+
+	#ifndef INVERSE_SLT_PWM			// По умолчанию включен.
+		TCCR1A |= (1 << COM1A0); 	// Инверсный режим работы OC1A (SLT).
+	#endif
+	#ifdef INVERSE_SLN_PWM
+		TCCR1A |= (1 << COM1B0); 	// Инверсный режим работы OC1B (SLN).
+	#endif
+	#ifdef INVERSE_SLU_PWM
+		TCCR1A |= (1 << COM1C0); 	// Инверсный режим работы OC1C (SLU).
+	#endif
+
 	TCCR1B |= (1 << CS11) | (1 << CS10);		// Предделитель 64.
 }
 
