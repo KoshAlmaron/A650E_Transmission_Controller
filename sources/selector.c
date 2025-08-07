@@ -35,9 +35,13 @@ void selector_init() {
 	SET_PIN_HIGH(SELECTOR_4_PIN);
 	SET_PIN_HIGH(SELECTOR_L_PIN);
 	
-	// Вход без подтяжки для педали тормоза.
+	// Вход для педали тормоза.
 	SET_PIN_MODE_INPUT(BREAK_PEDAL_PIN);
-	SET_PIN_LOW(BREAK_PEDAL_PIN);
+	#ifdef INVERSE_BREAK_PEDAL
+		SET_PIN_HIGH(BREAK_PEDAL_PIN);	// Поддтяжка при инверсии.
+	#else
+		SET_PIN_LOW(BREAK_PEDAL_PIN);	// Без подтяжки.
+	#endif
 
 	// Вход без подтяжки для определение работы двигателя.
 	SET_PIN_MODE_INPUT(ENGINE_WORK_PIN);
@@ -108,7 +112,11 @@ void selector_position() {
 
 void engine_n_break_state() {
 	// Педаль тормоза.
-	TCU.Break = PIN_READ(BREAK_PEDAL_PIN) ? 1 : 0;
+	#ifdef INVERSE_BREAK_PEDAL
+		TCU.Break = PIN_READ(BREAK_PEDAL_PIN) ? 0 : 1;
+	#else
+		TCU.Break = PIN_READ(BREAK_PEDAL_PIN) ? 1 : 0;
+	#endif
 
 	// Флаг работы двигателя.
 	uint8_t EW = PIN_READ(ENGINE_WORK_PIN) ? 1 : 0;
