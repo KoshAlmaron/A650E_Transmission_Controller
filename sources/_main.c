@@ -132,6 +132,7 @@ void loop_main(uint8_t Wait) {
 		DataUpdateTimer = 0;
 		calculate_tcu_data();		// Расчет значений TCU.
 		update_gear_speed();		// Обновление порогов переключения передач.
+		speedometer_control();		// Выход на спидометр.
 	}
 
 	if (TPSTimer >= 75) {

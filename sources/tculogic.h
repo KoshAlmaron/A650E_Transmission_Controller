@@ -9,6 +9,8 @@
 	void slip_detect();
 
 	void rear_lamp();
+
+	void speedometer_control();
 	
 #endif
 

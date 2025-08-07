@@ -55,7 +55,7 @@
 	#define OUTPUT_SHAFT_TEETH_COUNT 12
 
 	// Количество импульсов на 1 км для спидометра.
-	#define SPEED_INPULS_PER_KM 6000
+	#define SPEED_INPULS_PER_KM 6000LU
 
 #endif
 /*

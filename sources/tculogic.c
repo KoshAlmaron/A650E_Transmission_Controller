@@ -218,3 +218,7 @@ void rear_lamp() {
 		else {SET_PIN_LOW(REAR_LAMP_PIN);}
 	}
 }
+
+void speedometer_control() {
+	OCR3A = get_speed_timer_value();	// Выход на спидометр.
+}

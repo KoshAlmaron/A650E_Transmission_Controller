@@ -56,7 +56,7 @@ void calculate_tcu_data() {
 	TCU.DrumRPM = get_overdrive_drum_rpm();
 	TCU.OutputRPM = get_output_shaft_rpm();
 	TCU.CarSpeed = get_car_speed();
-	
+
 	TCU.OilTemp = get_oil_temp();
 
 	TCU.S1 = PIN_READ(SOLENOID_S1_PIN) ? 1 : 0;
@@ -73,6 +73,18 @@ static uint16_t get_car_speed() {
 	// Коэффициент для оборотов = 1 / 3.909 * 1.807 * 60 / 1000 = 0.027735994
 	// Умножаем на 4096 (смещение 12 бит) = 113.6066309
 	return ((uint32_t) TCU.OutputRPM * 114) >> 12;
+}
+
+// Расчет значения регистра сравнения для таймера спидометра.
+uint16_t get_speed_timer_value() {
+	// Таймер 3, делитель х64, Частота 250 кГц, 1 шаг таймера 4 мкс.
+	// Количество импульсов на 1 км для спидометра - 6000.
+	// [Частота для спидометра] = (6000 / 3600) * [Скорость].
+	// [Значение для счетчика OCR3A] = (125000 * 3600) / (6000  * [Скорость])
+	// 125000 - это 1000000 мкс в 1с разделить на шаг таймера и еще на 2.
+	// Рассчитываем итоговый коэффициент для вычисления (28125).
+	#define SPEED_FREQ_COEF 125000LU * 3600LU / SPEED_INPULS_PER_KM
+	return ((uint32_t) SPEED_FREQ_COEF / TCU.CarSpeed);
 }
 
 // Расчет температуры масла.
