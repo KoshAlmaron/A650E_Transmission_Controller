@@ -5,9 +5,9 @@
 
 	void uart_init(uint8_t mode);
 
-	void send_tcu_data();
+	void uart_send_tcu_data();
+	void uart_command_processing();
 
-	uint8_t uart_get_byte();
 	void uart_send_char(char Data);
 	void uart_send_string(char* s);
 
@@ -27,5 +27,24 @@
 	#define TFOBEGIN 0x82       // Измененный FOBEGIN
 	#define TFIOEND  0x83       // Измененный FIOEND
 	#define TFESC    0x84       // Измененный FESC
+
+	#define TCU_DATA_PACKET 0x71
+
+	#define GET_TABLE_COMMAND 0xc1
+	#define TCU_TABLE_ANSWER 0xc2
+
+	#define NEW_TABLE_DATA 0xc8
+	#define WRITE_EEPROM_COMMAND 0xee
 	
 #endif
+
+
+/*
+0x71 - Стандартный пакет с параметрами ЭБУ
+0x80 - Запрос таблицы из ЭБУ
+0x81 - Ответ ЭБУ с таблицей
+0x90 - Таблица для ЭБУ
+0xee - Комманда на запись параметров в EEPROM
+
+
+*/

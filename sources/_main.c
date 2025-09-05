@@ -56,7 +56,7 @@ static void loop_add();
 int main() {
 	wdt_enable(WDTO_500MS);	// Сторожевой собак на 500 мс на время инициализации.
 	cli();					// Отключаем глобальные прерывания на время инициализации.
-		uart_init(2);		// Настройка uart только на передачу.
+		uart_init(3);		// Настройка uart на прием и передачу.
 		timers_init();		// Настройка таймеров.
 		adc_init();			// Настройка АЦП
 		selector_init();	// Настройка выводов для селектора.
@@ -175,7 +175,8 @@ void loop_main(uint8_t Wait) {
 					CycleTimer = 0;
 				sei();
 			#else
-				send_tcu_data();
+				uart_command_processing();
+				uart_send_tcu_data();
 			#endif
 			TCU.CycleTime = 0;
 		}

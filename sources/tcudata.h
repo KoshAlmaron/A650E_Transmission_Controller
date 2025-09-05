@@ -71,10 +71,24 @@
 	#define TPS_GRID_SIZE 21 
 	#define TEMP_GRID_SIZE 31
 
+	#define SLT_GRAPH					0
+	#define SLT_TEMP_CORR_GRAPH			1
+	#define SLN_GRAPH					2
+	#define SLU_GEAR2_GRAPH				3
+	#define SLU_GEAR2_TEMP_CORR_GRAPH	4
+	#define SLU_GEAR2_TPS_ADAPT_GRAPH	5
+	#define SLU_GEAR2_TEMP_ADAPT_GRAPH	6
+	#define SLU_GEAR2_ADD_GRAPH			7
+	#define SLU_GEAR3_GRAPH				8
+	#define SLU_GEAR3_DELAY_GRAPH		9
+	#define SLN_GEAR3_GRAPH				10
+	#define SLN_GEAR3_OFFSET_GRAPH		11
+
 	// Сетки стандартных осей.
 	extern int16_t TempGrid[];
 	extern int16_t TPSGrid[];
 
+	// Таблицы.
 	extern uint16_t SLTGraph[];
 	extern int16_t SLTTempCorrGraph[];
 
@@ -82,10 +96,10 @@
 
 	extern uint16_t SLUGear2Graph[];
 	extern int16_t SLUGear2TempCorrGraph[];
-	extern int16_t SLUGear2AddGraph[];
 
-	extern int16_t SLUGear2TPSAdaptGraph[];
 	extern int16_t SLUGear2TempAdaptGraph[];
+	extern int16_t SLUGear2TPSAdaptGraph[];
+	extern int16_t SLUGear2AddGraph[];
 
 	extern uint16_t SLUGear3Graph[];
 	extern uint16_t SLUGear3DelayGraph[];
