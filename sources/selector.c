@@ -1,11 +1,12 @@
-#include <stdint.h>		// Коротние название int.
-#include <avr/io.h>		// Номера бит в регистрах.
+#include <stdint.h>			// Коротние название int.
+#include <avr/io.h>			// Номера бит в регистрах.
 
-#include "selector.h"	// Свой заголовок.
-#include "tcudata.h"	// Расчет и хранение всех необходимых параметров.
-#include "macros.h"		// Макросы.
-#include "pinout.h"		// Список назначенных выводов.
-#include "eeprom.h"		// Чтение и запись EEPROM.
+#include "selector.h"		// Свой заголовок.
+#include "tcudata.h"		// Расчет и хранение всех необходимых параметров.
+#include "macros.h"			// Макросы.
+#include "pinout.h"			// Список назначенных выводов.
+#include "eeprom.h"			// Чтение и запись EEPROM.
+#include "tacho.h"			// Тахометр двигателя.
 #include "configuration.h"	// Настройки.
 
 // Счетчик для установки ошибки.
@@ -119,7 +120,12 @@ void engine_n_break_state() {
 	#endif
 
 	// Флаг работы двигателя.
-	uint8_t EW = PIN_READ(ENGINE_WORK_PIN) ? 1 : 0;
+	#ifdef USE_ENGINE_RPM
+		uint8_t EW = tacho_get_rpm() > ENGINE_RPM_THRESHOLD ? 1: 0;
+	#else
+		uint8_t EW = PIN_READ(ENGINE_WORK_PIN) ? 1 : 0;
+	#endif
+
 	// Сохранение настроек при выключении двигателя.
 	#ifndef DEBUG_MODE_PRINT
 		if (TCU.EngineWork && !EW) {update_eeprom();}

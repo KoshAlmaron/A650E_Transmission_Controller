@@ -6,6 +6,10 @@
 	// Вывод отладочной информации в UART.
 	//#define DEBUG_MODE_PRINT
 
+	// Использовать обороты для определения работы двигателя.
+	//#define USE_ENGINE_RPM
+	#define ENGINE_RPM_THRESHOLD 500	// Порог определения работы двигателя.
+
 	// Лимиты оборотов после переключения.
 	#define RPM_MIN	1000
 	#define RPM_MAX	4700

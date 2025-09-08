@@ -21,7 +21,8 @@
 #include "gears.h"			// Фунции переключения передач.
 #include "debug.h"			// Модуль отладки.
 #include "lcd.h"			// LCD экран.
-#include "buttons.h"			// Кнопки.
+#include "buttons.h"		// Кнопки.
+#include "tacho.h"			// Тахометр двигателя.
 
 // Основной счетчик времени,
 // увеличивается по прерыванию на единицу каждую 1 мс.
@@ -61,6 +62,7 @@ int main() {
 		adc_init();			// Настройка АЦП
 		selector_init();	// Настройка выводов для селектора.
 		solenoid_init();	// Настройка выходов селеноидов, а также лампы заднего хода.
+		tacho_init();		// Обороты двигателя по сигналу тахометра.
 		debug_mode_init();	// Настройка перефирии для режима отладки.
 		read_eeprom();		// Чтение параметров из EEPROM.
 	sei();				// Включаем глобальные прерывания.
@@ -106,6 +108,8 @@ void loop_main(uint8_t Wait) {
 
 		if (WaitTimer > TimerAdd) {WaitTimer -= TimerAdd;}
 		else {WaitTimer = 0;}
+
+		tacho_timer();
 
 		// Отключение счетчиков дополнительного цикла.
 		if (!Wait) {
