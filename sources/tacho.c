@@ -29,7 +29,7 @@ void tacho_timer() {
 	if (TachoTimer >= 500) {
 		TachoTimer = 0;
 		TachoImps = 0;
-	}	
+	}
 }
 
 uint16_t tacho_get_rpm() {

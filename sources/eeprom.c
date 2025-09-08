@@ -1,6 +1,5 @@
 #include <avr/eeprom.h>
 #include "tcudata.h"		// Расчет и хранение всех необходимых параметров.
-#include "uart.h"			// UART.
 
 #include "eeprom.h"			// Свой заголовок.
 
@@ -72,7 +71,4 @@ void update_eeprom() {
 
 	// 522-563 - SLNGear3Graph.
 	eeprom_update_block((void*)&SLNGear3Graph, (void*) 522, TPS_GRID_SIZE * 2);
-
-	// Пихаем все в UART, чтобы потом можно было копипастить.
-	send_eeprom_to_uart();
 }

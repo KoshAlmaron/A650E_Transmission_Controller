@@ -22,19 +22,18 @@
 
 #define UART_RX_BUFFER_SIZE 128						// Размер буфера приема.
 uint8_t	ReceiveBuffer[UART_RX_BUFFER_SIZE] = {0};	// Буфер приема.
-volatile uint8_t RxBuffPos = 0;					// Позиция в буфере.
+volatile uint8_t RxBuffPos = 0;						// Позиция в буфере.
 // Состояние принятой комманды.
 // 0 - ожидание приёма,
 // 1 - идёт приём,
 // 2 - команда принята.
 volatile uint8_t RxCommandStatus = 0;
-volatile uint8_t RxMarkerByte = 0;			// Признак, что предыдущий символ был заменен.
-
+volatile uint8_t RxMarkerByte = 0;					// Признак, что предыдущий символ был заменен.
 
 #define UART_TX_BUFFER_SIZE 128						// Размер буфера отправки.
 uint8_t	SendBuffer[UART_TX_BUFFER_SIZE] = {0};		// Буфер отправки.
 uint16_t TxMsgSize = 0;								// Количество байт для отправки.
-volatile uint8_t TxBuffPos = 0;					// Позиция в буфере.
+volatile uint8_t TxBuffPos = 0;						// Позиция в буфере.
 volatile uint8_t TxReady = 1;						// UART готов к отправке.
 
 volatile uint8_t UseMarkers = 0;	// Использовать спецсимволы начала/конца пакета.

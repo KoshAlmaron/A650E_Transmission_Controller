@@ -4,7 +4,6 @@
 #include <stdlib.h> 		// Общие утилиты.
 #include <avr/interrupt.h>	// Прерывания.
 
-
 #include "debug.h"			// Свой заголовок.
 #include "macros.h"			// Макросы.
 #include "pinout.h"			// Список назначенных выводов.
@@ -13,6 +12,7 @@
 #include "tcudata.h"		// Расчет и хранение всех необходимых параметров.
 #include "adc.h"			// АЦП.
 #include "eeprom.h"			// Чтение и запись EEPROM.
+#include "uart.h"			// UART.
 #include "configuration.h"	// Настройки.
 
 // Номер экрана для отображения:
@@ -717,6 +717,8 @@ static void button_action() {
 		if (ScreenMode > SCREEN_COUNT) {
 			ScreenMode = 0;		// Сброс экрана.
 			update_eeprom();	// Запись в EEPROM.
+			// Пихаем все в UART, чтобы потом можно было копипастить.
+			send_eeprom_to_uart();
 		}
 	}
 }

@@ -163,14 +163,20 @@ static void gear_change_1_2() {
 		while (WaitTimer) {
 			loop_main(1);
 
+			// Отключение передачи при сбросе газа.
+			if (TCU.InstTPS < TPS_IDLE_LIMIT && TCU.ATMode != 6 && TCU.ATMode != 7) {
+				TCU.Gear2State = 0;
+				set_slu(SLU_MIN_VALUE);
+			}
+
 			// Изменение давления по циклу.
 			if (SLUTimer - WaitTimer >= 25) {
 				SLUTimer = WaitTimer;
 				NextSLU = get_slu_pressure_gear2() + TCU.GearStep * 2 - SLUDelay;
 				if (NextSLU > TCU.SLU) {
-					// Прирост не более чем 6 единиц за цикл.
-					if (NextSLU - TCU.SLU <= 6) {set_slu(NextSLU);}
-					else {set_slu(TCU.SLU + 6);}
+					// Прирост не более чем 12 единиц за цикл.
+					if (NextSLU - TCU.SLU <= 12) {set_slu(NextSLU);}
+					else {set_slu(TCU.SLU + 12);}
 				}
 				else {set_slu(NextSLU);}
 			}
@@ -467,6 +473,12 @@ void slu_gear2_control(uint8_t Time) {
 		return;
 	}
 
+	// Отключение передачи при сбросе газа.
+	if (TCU.InstTPS < TPS_IDLE_LIMIT && TCU.ATMode != 6 && TCU.ATMode != 7) {
+		TCU.Gear2State = 0;
+		set_slu(SLU_MIN_VALUE);
+	}
+
 	int16_t RPMDelta = rpm_delta(2);
 	int16_t SLUAdd = 0;
 	uint16_t NextSLU = get_slu_pressure_gear2();
@@ -534,22 +546,16 @@ void slu_gear2_control(uint8_t Time) {
 				}
 			}
 			NextSLU += TCU.GearStep * 2;
-			// Прирост не более чем 8 единиц за цикл.
+			// Прирост не более чем 12 единиц за цикл.
 			if (NextSLU > TCU.SLU) {
-				if (NextSLU - TCU.SLU <= 8) {set_slu(NextSLU);}
-				else {set_slu(TCU.SLU + 8);}
+				if (NextSLU - TCU.SLU <= 12) {set_slu(NextSLU);}
+				else {set_slu(TCU.SLU + 12);}
 			}
 			else {set_slu(NextSLU);}
 			break;
 		case 8:
-			if (TCU.InstTPS < TPS_IDLE_LIMIT && TCU.ATMode != 6 && TCU.ATMode != 7) {
-				TCU.Gear2State = 0;
-				set_slu(SLU_MIN_VALUE);
-			}
-			else {
-				NextSLU = (uint16_t) NextSLU + ((NextSLU * 32) >> 7);	// +25%
-				set_slu(NextSLU);
-			}
+			NextSLU = (uint16_t) NextSLU + ((NextSLU * 32) >> 7);	// +25%
+			set_slu(NextSLU);
 			break;
 	}
 }
