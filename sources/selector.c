@@ -120,10 +120,14 @@ void engine_n_break_state() {
 	#endif
 
 	// Флаг работы двигателя.
+	uint8_t EW = TCU.EngineWork;
 	#ifdef USE_ENGINE_RPM
+		if (!TCU.EngineWork && tacho_get_rpm() > ENGINE_ON_RPM_THRESHOLD) {EW = 1;}
+		if (TCU.EngineWork && tacho_get_rpm() < ENGINE_OFF_RPM_THRESHOLD) {EW = 0;}
+
 		uint8_t EW = tacho_get_rpm() > ENGINE_RPM_THRESHOLD ? 1: 0;
 	#else
-		uint8_t EW = PIN_READ(ENGINE_WORK_PIN) ? 1 : 0;
+		EW = PIN_READ(ENGINE_WORK_PIN) ? 1 : 0;
 	#endif
 
 	// Сохранение настроек при выключении двигателя.

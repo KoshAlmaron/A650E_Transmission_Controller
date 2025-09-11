@@ -8,7 +8,8 @@
 
 	// Использовать обороты для определения работы двигателя.
 	//#define USE_ENGINE_RPM
-	#define ENGINE_RPM_THRESHOLD 500	// Порог определения работы двигателя.
+	#define ENGINE_ON_RPM_THRESHOLD 500		// Порог определения запуска двигателя.
+	#define ENGINE_OFF_RPM_THRESHOLD 100	// Порог определения останова двигателя.
 
 	// Лимиты оборотов после переключения.
 	#define RPM_MIN	1000
