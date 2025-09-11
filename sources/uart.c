@@ -249,6 +249,12 @@ void uart_command_processing() {
 		case NEW_TABLE_DATA:
 			uart_write_table(ReceiveBuffer[1]);
 			break;
+		case READ_EEPROM_COMMAND:
+			if (RxBuffPos == 3 && ReceiveBuffer[2] == READ_EEPROM_COMMAND) {
+				read_eeprom();
+				uart_send_table(ReceiveBuffer[1]);
+			}
+			break;
 		case WRITE_EEPROM_COMMAND:
 			if (RxBuffPos == 3 && ReceiveBuffer[2] == WRITE_EEPROM_COMMAND) {
 				update_eeprom();

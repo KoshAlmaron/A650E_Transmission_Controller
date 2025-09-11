@@ -32,8 +32,9 @@
 
 	#define GET_TABLE_COMMAND 0xc1
 	#define TCU_TABLE_ANSWER 0xc2
-
 	#define NEW_TABLE_DATA 0xc8
+
+	#define READ_EEPROM_COMMAND 0xcc
 	#define WRITE_EEPROM_COMMAND 0xee
 	
 #endif
