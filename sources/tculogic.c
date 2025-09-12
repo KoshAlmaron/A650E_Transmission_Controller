@@ -220,13 +220,16 @@ void rear_lamp() {
 }
 
 void speedometer_control() {
-	uint16_t Value = get_speed_timer_value();
-	if (Value > 0) {
+	if (TCU.CarSpeed > 0) {
 		TCCR3A |= (1 << COM3A0);			// Toggle OC3A.
-		OCR3A = get_speed_timer_value();	// Выход на спидометр.
+		OCR3A = get_speed_timer_value(0);	// Выход на спидометр 0.
+
+		TCCR3A |= (1 << COM3C0);			// Toggle OC3C.
+		OCR3C = get_speed_timer_value(1);	// Выход на спидометр 1.
 	}
 	else
 	{
 		TCCR3A &= ~(1 << COM3A0);			// Normal port operation, OCnA/OCnB/OCnC disconnected.
+		TCCR3A &= ~(1 << COM3C0);
 	}
 }

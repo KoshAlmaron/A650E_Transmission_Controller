@@ -48,6 +48,8 @@ TCU_t TCU = {
 	.DebugMode = 0
 };
 
+ uint8_t SpeedTestFlag = 0;	// Флаг включения тестирования скорости.
+
 // Прототипы локальных функций.
 static uint16_t get_car_speed();
 
@@ -73,21 +75,27 @@ static uint16_t get_car_speed() {
 	// Коэффициент для оборотов = 1 / 3.909 * 1.807 * 60 / 1000 = 0.027735994,
 	// Умножаем на 4096 (смещение 12 бит) = 113.6066309,
 	// Округляем до целого и получается 114.
-	return ((uint32_t) TCU.OutputRPM * 114) >> 12;
+	if (SpeedTestFlag) {return 100;}
+	else {return ((uint32_t) TCU.OutputRPM * 114) >> 12;}
 }
 
 // Расчет значения регистра сравнения для таймера спидометра.
-uint16_t get_speed_timer_value() {
+uint16_t get_speed_timer_value(uint8_t N) {
 	// Таймер 3, делитель х64, Частота 250 кГц, 1 шаг таймера 4 мкс.
 	// Количество импульсов на 1 км для спидометра - 6000.
 	// [Частота для спидометра] = (6000 / 3600) * [Скорость].
 	// [Значение для счетчика OCR3A] = (125000 * 3600) / (6000  * [Скорость])
 	// 125000 - это 1000000 мкс в 1с разделить на шаг таймера и еще на 2.
 	// Рассчитываем итоговый коэффициент для вычисления (28125).
-	#define SPEED_FREQ_COEF 125000LU * 3600LU / SPEED_INPULS_PER_KM
+
+	#define SPEED_FREQ_COEF_0 125000LU * 3600LU / SPEED_INPULS_PER_KM_0
+	#define SPEED_FREQ_COEF_1 125000LU * 3600LU / SPEED_INPULS_PER_KM_1
 
 	if (TCU.CarSpeed == 0) {return 0;}
-	else {return ((uint32_t) SPEED_FREQ_COEF / TCU.CarSpeed);}
+	else {
+		if (!N) {return ((uint32_t) SPEED_FREQ_COEF_0 / TCU.CarSpeed);}
+		else {return ((uint32_t) SPEED_FREQ_COEF_1 / TCU.CarSpeed);}
+	}
 }
 
 // Расчет температуры масла.

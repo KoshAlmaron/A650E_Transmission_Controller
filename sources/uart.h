@@ -36,6 +36,8 @@
 
 	#define READ_EEPROM_COMMAND 0xcc
 	#define WRITE_EEPROM_COMMAND 0xee
+
+	#define SPEED_TEST_COMMAND 0xde
 	
 #endif
 

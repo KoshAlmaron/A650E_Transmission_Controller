@@ -4,7 +4,7 @@
 	#define _TCUDATA_H_
 
 	void calculate_tcu_data();
-	uint16_t get_speed_timer_value();
+	uint16_t get_speed_timer_value(uint8_t N);
 	int16_t get_oil_temp();
 	void calc_tps();
 
@@ -66,6 +66,8 @@
 	} TCU_t;
 
 	extern struct TCU_t TCU; 		// Делаем структуру внешней.
+
+	extern uint8_t SpeedTestFlag;	// Флаг включения тестирования скорости.
 
 	// Размеры массивов.
 	#define TPS_GRID_SIZE 21 

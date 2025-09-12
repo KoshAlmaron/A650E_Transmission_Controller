@@ -8,7 +8,6 @@
 #include "eeprom.h"			// Чтение и запись EEPROM.
 #include "macros.h"			// Макросы.
 
-
 #include <stdio.h>			// Стандартная библиотека ввода/вывода
 
 // Скорость передачи UART 57600 бит/с.
@@ -40,6 +39,7 @@ volatile uint8_t UseMarkers = 0;	// Использовать спецсимво�
 volatile uint8_t TxMarkerByte = 0;	// Признак, что предыдущий символ был заменен.
 
 char CharArray[8] = {0};
+
 static void send_uint16_array(uint16_t* Array, uint8_t ASize);
 static void send_int16_array(int16_t* Array, uint8_t ASize);
 
@@ -260,6 +260,10 @@ void uart_command_processing() {
 				update_eeprom();
 				uart_send_table(ReceiveBuffer[1]);
 			}
+			break;
+		case SPEED_TEST_COMMAND:
+			if (SpeedTestFlag) {SpeedTestFlag = 0;}
+			else {SpeedTestFlag = 1;}
 			break;
 	}
 
