@@ -7,6 +7,7 @@
 #include "adc.h"			// АЦП.
 #include "eeprom.h"			// Чтение и запись EEPROM.
 #include "macros.h"			// Макросы.
+#include "gears.h"			// Фунции переключения передач.
 
 #include <stdio.h>			// Стандартная библиотека ввода/вывода
 
@@ -265,8 +266,18 @@ void uart_command_processing() {
 			if (SpeedTestFlag) {SpeedTestFlag = 0;}
 			else {SpeedTestFlag = 1;}
 			break;
-	}
+		case GEAR_LIMIT_COMMAND:
+			if (RxBuffPos == 4) {
+				uint8_t Min = ReceiveBuffer[2];
+				uint8_t Max = ReceiveBuffer[3];
 
+				if (Min <= Max && Min >= 1 && Min <= 5 && Max >= 1 && Max <= 5) {
+					set_gear_limit(Min, Max);
+					uart_send_table(ReceiveBuffer[1]);
+				}
+			}
+			break;
+	}
 	RxCommandStatus = 0;
 }
 

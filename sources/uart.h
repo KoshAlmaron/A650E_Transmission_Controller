@@ -38,6 +38,7 @@
 	#define WRITE_EEPROM_COMMAND 0xee
 
 	#define SPEED_TEST_COMMAND 0xde
+	#define GEAR_LIMIT_COMMAND 0xbe
 	
 #endif
 

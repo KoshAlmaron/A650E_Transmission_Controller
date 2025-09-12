@@ -16,4 +16,8 @@
 	void gear_control();
 	void slu_gear2_control(uint8_t Time);
 
+	int8_t get_min_gear(uint8_t Mode);
+	int8_t get_max_gear(uint8_t Mode);
+	void set_gear_limit(uint8_t Min, uint8_t Max);
+
 #endif

@@ -13,6 +13,7 @@
 #include "adc.h"			// АЦП.
 #include "eeprom.h"			// Чтение и запись EEPROM.
 #include "uart.h"			// UART.
+#include "gears.h"			// Фунции переключения передач.
 #include "configuration.h"	// Настройки.
 
 // Номер экрана для отображения:
@@ -43,9 +44,6 @@ static uint16_t* ArrayU;
 
 #define COLUMN_COUNT 5
 #define SCREEN_COUNT 13
-
-extern int8_t MinGear[];
-extern int8_t MaxGear[];
 
 // Локальные переменные для хранения последнего значения TPS, 
 // это нужно для установки курсора один раз после переключения.
@@ -567,8 +565,8 @@ static void print_config_d4_max_gear() {
 	lcd_update_buffer(0, StringArray);
 
 	snprintf(StringArray, STR_ARR_SZ, "       %1u - %1u        "
-		, MinGear[5]
-		, MaxGear[5]);
+		, get_min_gear(5)
+		, get_max_gear(5));
 	lcd_update_buffer(2, StringArray);
 
 	for (uint8_t i = 0; i < 20; i++) {StringArray[i] = ' ';}
@@ -581,8 +579,12 @@ static void print_config_d4_max_gear() {
 	if (CursorPos > 1) {CursorPos = 0;}
 
 	if (ValueDelta) {
-		if (!CursorPos) {MaxGear[5] = CONSTRAIN(MaxGear[5] + ValueDelta, 1, 5);}
-		else {MinGear[5] = CONSTRAIN(MinGear[5] + ValueDelta, 1, 5);}
+		uint8_t Min = get_min_gear(5);
+		uint8_t Max = get_max_gear(5);
+		if (!CursorPos) {Max = CONSTRAIN(Max + ValueDelta, 1, 5);}
+		else {Min = CONSTRAIN(Min + ValueDelta, 1, 5);}
+
+		set_gear_limit(Min, Max);
 		ValueDelta = 0;
 	}
 }

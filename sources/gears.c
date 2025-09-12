@@ -775,3 +775,21 @@ static void set_slu(uint16_t Value) {
 		OCR1C = TCU.SLU;	// SLU - выход C таймера 1.
 	sei();
 }
+
+int8_t get_min_gear(uint8_t Mode) {
+	return MinGear[Mode];
+}
+int8_t get_max_gear(uint8_t Mode) {
+	return MaxGear[Mode];
+}
+
+void set_gear_limit(uint8_t Min, uint8_t Max) {
+	#ifdef SELECTOR_HAS_D4_MODE
+		MinGear[5] = Min;
+		MaxGear[5] = Max;
+	#else
+		MinGear[4] = Min;
+		MaxGear[4] = Max;
+	#endif
+}
+

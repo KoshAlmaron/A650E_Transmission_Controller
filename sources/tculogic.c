@@ -45,10 +45,16 @@ void at_mode_control() {
 	switch (TCU.ATMode) {
 		case 0:
 			// Если селектор в положении P или N.
-			if (TCU.Selector == 1 || TCU.Selector == 3) {TCU.ATMode = TCU.Selector;}
+			if (TCU.Selector == 1 || TCU.Selector == 3) {
+				TCU.ATMode = TCU.Selector;
+				set_gear_n();	// Устанавливаем соленойды в режим N.
+			}
 			else {TCU.ATMode = 9;}	// Иначе устанавливаем ошибку.
-			// В любом случае устанавливаем соленойды в режим N.
-			set_gear_n();
+			// Устанавливаем соленойды в режим третьей передачи.
+				SET_PIN_LOW(SOLENOID_S1_PIN);
+				SET_PIN_HIGH(SOLENOID_S2_PIN);
+				SET_PIN_LOW(SOLENOID_S3_PIN);
+				SET_PIN_LOW(SOLENOID_S4_PIN);
 			break;
 		case 9:
 			// Чтобы убрать ошибку, надо остановиться и включить P или N (1).
