@@ -1,4 +1,5 @@
 #include <stdint.h>			// Коротние название int.
+#include <avr/eeprom.h>		// EEPROM.
 #include <avr/interrupt.h>	// Прерывания.
 
 #include "uart.h"			// Свой заголовок.
@@ -11,7 +12,7 @@
 
 #include <stdio.h>			// Стандартная библиотека ввода/вывода
 
-// Скорость передачи UART 57600 бит/с.
+// Скорость передачи UART 115200 бит/с.
 #define UART_BAUD_RATE 115200UL
 // Значения регистров для настройки скорости UART.
 // Вычисляется требуемое значение по формуле:
@@ -47,11 +48,16 @@ static void send_int16_array(int16_t* Array, uint8_t ASize);
 static void uart_buffer_add_uint16(uint16_t Value);
 static void uart_buffer_add_int16(int16_t Value);
 
-static void uart_send_table(uint8_t N);
+//static void uart_send_table(uint8_t N);
 static void uart_write_table(uint8_t N);
 
 static int16_t uart_build_int16(uint8_t i);
 static uint16_t uart_build_uint16(uint8_t i);
+
+// Функция программного сброса
+void(* resetFunc) (void) = 0;
+
+//eeprom_update_byte (uint8_t *__p, uint8_t __value)
 
 void uart_init(uint8_t mode) {
 	// Сброс регистров настроек, так как загрузчик Arduino может нагадить.
@@ -113,7 +119,7 @@ void uart_send_tcu_data() {
 	uart_send_array();
 }
 
-static void uart_send_table(uint8_t N) {
+void uart_send_table(uint8_t N) {
 	TxBuffPos = 0;	// Сброс позиции.
 	UseMarkers = 1;	// Используем байты маркеры.
 	SendBuffer[TxBuffPos++] = FOBEGIN;			// Байт начала пакета.
@@ -270,13 +276,19 @@ void uart_command_processing() {
 			if (RxBuffPos == 4) {
 				uint8_t Min = ReceiveBuffer[2];
 				uint8_t Max = ReceiveBuffer[3];
-
 				if (Min <= Max && Min >= 1 && Min <= 5 && Max >= 1 && Max <= 5) {
 					set_gear_limit(Min, Max);
 					uart_send_table(ReceiveBuffer[1]);
 				}
 			}
 			break;
+		case TABLES_INIT_COMMAND:
+			if (RxBuffPos == 3 && ReceiveBuffer[2] == TABLES_INIT_COMMAND) {
+			    eeprom_update_byte((uint8_t*) 2048, TABLES_INIT_COMMAND);	// Устанавливаем метку.
+				resetFunc();	// Перезапускаем код ЭБУ (переход к нулевому адресу).
+			}
+			break;
+
 	}
 	RxCommandStatus = 0;
 }

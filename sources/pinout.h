@@ -37,7 +37,6 @@
 	#define DEBUG_SCREEN_BUTTON_F_PIN K, 4
 	#define DEBUG_SCREEN_BUTTON_R_PIN K, 5
 
-	#define CYCLE_TEST_PIN E, 3
 	// ============== DEBUG ==============
 #endif
 

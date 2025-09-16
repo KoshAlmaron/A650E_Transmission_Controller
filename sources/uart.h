@@ -6,6 +6,7 @@
 	void uart_init(uint8_t mode);
 
 	void uart_send_tcu_data();
+	void uart_send_table(uint8_t N);
 	void uart_command_processing();
 
 	void uart_send_char(char Data);
@@ -28,17 +29,18 @@
 	#define TFIOEND  0x83       // Измененный FIOEND
 	#define TFESC    0x84       // Измененный FESC
 
-	#define TCU_DATA_PACKET 0x71
+	#define TCU_DATA_PACKET 0x71		// Стандартный пакет с данными.
 
-	#define GET_TABLE_COMMAND 0xc1
-	#define TCU_TABLE_ANSWER 0xc2
-	#define NEW_TABLE_DATA 0xc8
+	#define GET_TABLE_COMMAND 0xc1		// Запрос таблицы.
+	#define TCU_TABLE_ANSWER 0xc2		// Ответ с таблицей.
+	#define NEW_TABLE_DATA 0xc8			// Новые значения для таблицы.
 
-	#define READ_EEPROM_COMMAND 0xcc
-	#define WRITE_EEPROM_COMMAND 0xee
+	#define READ_EEPROM_COMMAND 0xcc	// Считать EEPROM.
+	#define WRITE_EEPROM_COMMAND 0xee	// Записать  EEPROM.
 
-	#define SPEED_TEST_COMMAND 0xde
-	#define GEAR_LIMIT_COMMAND 0xbe
+	#define SPEED_TEST_COMMAND 0xde		// Переключить режим тестирования спидометра.
+	#define GEAR_LIMIT_COMMAND 0xbe		// Установить ограничения передачь.
+	#define TABLES_INIT_COMMAND 0xab	// Записать в таблицы значения из прошивки.
 	
 #endif
 

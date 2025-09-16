@@ -71,10 +71,7 @@ int main() {
 		uart_send_string("Start\n");
 	#endif
 
-
 	//wdt_enable(WDTO_250MS);	// Сторожевой собак на 250 мс.
-
-	SET_PIN_MODE_OUTPUT(CYCLE_TEST_PIN);	// Пин проверки скорости цикла.
 
 	while(1) {
 		loop_main(0);			// Основной цикл, выполняется всегда.
@@ -164,7 +161,6 @@ void loop_main(uint8_t Wait) {
 
 	// Отправка данных в UART.
 	if (UartTimer >= 50) {
-		PIN_TOGGLE(CYCLE_TEST_PIN);
 		if(uart_tx_ready()) {
 			UartTimer = 0;
 			#ifdef DEBUG_MODE_PRINT

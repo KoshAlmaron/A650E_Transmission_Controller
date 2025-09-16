@@ -1,5 +1,6 @@
-#include <avr/eeprom.h>
+#include <avr/eeprom.h>		// EEPROM.
 #include "tcudata.h"		// Расчет и хранение всех необходимых параметров.
+#include "uart.h"			// UART.
 
 #include "eeprom.h"			// Свой заголовок.
 
@@ -9,8 +10,18 @@
 
 void read_eeprom() {
 	//update_eeprom();
+
+	// В ячейке 2048 хранится байт инициализации, если он равен 0xab,
+	// то при старте значения из прошивки записываются в EEPROM.
+	uint8_t DataInit = eeprom_read_byte((uint8_t*) 2048);
+	if (DataInit == TABLES_INIT_COMMAND) {
+		update_eeprom();
+		eeprom_update_byte((uint8_t*) 2048, 0x00);
+		uart_send_table(0);
+		return;
+	}
+
 	// Адрес массива, адрес ячейки, кол-во байт.
-	
 	// 0-41 - SLTGraph.
 	eeprom_read_block((void*)&SLTGraph, (const void*) 0, TPS_GRID_SIZE * 2);
 	// 42-103 - SLTTempCorrGraph.
