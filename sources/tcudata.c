@@ -13,6 +13,7 @@
 
 // Инициализация структуры
 TCU_t TCU = {
+	.EngineRPM = 0,
 	.DrumRPM = 0,
 	.OutputRPM = 0,
 	.CarSpeed = 0,

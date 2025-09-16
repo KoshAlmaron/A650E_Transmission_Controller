@@ -30,6 +30,7 @@
 
 	// Структура для хранения переменных.
 	typedef struct TCU_t {
+		uint16_t EngineRPM;			// Обороты двигателя.
 		uint16_t DrumRPM;			// Обороты корзины овердрайва.
 		uint16_t OutputRPM;			// Обороты выходного вала.
 		uint8_t CarSpeed;			// Скорость автомобиля.

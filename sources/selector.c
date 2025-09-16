@@ -122,8 +122,9 @@ void engine_n_break_state() {
 	// Флаг работы двигателя.
 	uint8_t EW = TCU.EngineWork;
 	#ifdef USE_ENGINE_RPM
-		if (!TCU.EngineWork && tacho_get_rpm() > ENGINE_ON_RPM_THRESHOLD) {EW = 1;}
-		if (TCU.EngineWork && tacho_get_rpm() < ENGINE_OFF_RPM_THRESHOLD) {EW = 0;}
+		TCU.EngineRPM = tacho_get_rpm();
+		if (!TCU.EngineWork && TCU.EngineRPM > ENGINE_ON_RPM_THRESHOLD) {EW = 1;}
+		if (TCU.EngineWork && TCU.EngineRPM < ENGINE_OFF_RPM_THRESHOLD) {EW = 0;}
 	#else
 		EW = PIN_READ(ENGINE_WORK_PIN) ? 1 : 0;
 	#endif

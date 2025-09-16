@@ -241,7 +241,7 @@ static void uart_buffer_add_int16(int16_t Value) {
 }
 
 void uart_command_processing() {
-	if (!TxReady) {return;}		// Не трогать буффер пока идет передача.
+	if (!TxReady) {return;}		// Не трогать буфер пока идет передача.
 
 	if (RxCommandStatus!= 2) {return;}
 	if (RxBuffPos < 2) {
