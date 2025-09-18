@@ -105,8 +105,9 @@ void uart_send_tcu_data() {
 	SendBuffer[TxBuffPos++] = TCU_DATA_PACKET;		// Тип данных.
 
 	//TCU.OilTemp = 78;
-	// TCU.SLT = get_adc_value(0); // Температура масла.
-	// TCU.SLN = get_adc_value(1); // ДПДЗ.
+	//TCU.SLT = get_adc_value(0); // Температура масла.
+	//TCU.SLN = get_adc_value(1); // ДПДЗ.
+	//TCU.Gear = -1;
 
 	// Начальный адрес структуры TCU.
 	uint8_t* TCUAddr = (uint8_t*) &TCU;

@@ -112,6 +112,8 @@ void selector_position() {
 }
 
 void engine_n_break_state() {
+	static uint8_t Counter = 0;	// Счетчик для задержки отключения флага TCU.EngineWork.
+
 	// Педаль тормоза.
 	#ifdef INVERSE_BREAK_PEDAL
 		TCU.Break = PIN_READ(BREAK_PEDAL_PIN) ? 0 : 1;
@@ -121,17 +123,28 @@ void engine_n_break_state() {
 
 	// Флаг работы двигателя.
 	uint8_t EW = TCU.EngineWork;
-	#ifdef USE_ENGINE_RPM
+	#ifdef USE_ENGINE_RPM	// Используются обороты двигателя.
 		TCU.EngineRPM = tacho_get_rpm();
 		if (!TCU.EngineWork && TCU.EngineRPM > ENGINE_ON_RPM_THRESHOLD) {EW = 1;}
 		if (TCU.EngineWork && TCU.EngineRPM < ENGINE_OFF_RPM_THRESHOLD) {EW = 0;}
-	#else
+	#else	// Используется сигнал от бензонасоса.
 		EW = PIN_READ(ENGINE_WORK_PIN) ? 1 : 0;
 	#endif
 
-	// Сохранение настроек при выключении двигателя.
-	#ifndef DEBUG_MODE_PRINT
-		if (TCU.EngineWork && !EW) {update_eeprom();}
-	#endif
-	TCU.EngineWork = EW;
+	if (EW) {	// При положительном сигнале устанавливается флаг и сбрасывается счетчик.
+		Counter = 0;
+		TCU.EngineWork = EW;
+	}
+	else {			// При отрицательном сигнале.
+		if (TCU.EngineWork) {			// И установленном флаге.
+			Counter++;					// Счетчик увеличивается на единицу.
+			if (Counter == 3) {			// По достижении порога сбрасывается флаг работы двигателя.
+				TCU.EngineWork = EW;
+				Counter = 0;			// Сбрасывается счетчик (на всякий случай).
+				#ifndef DEBUG_MODE_PRINT
+					update_eeprom();	// И сохраняются таблицы в EEPROM.
+				#endif
+			}
+		}
+	}
 }
