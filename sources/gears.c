@@ -152,7 +152,7 @@ static void gear_change_1_2() {
 	uint8_t PDRStep = 0;	// Для фиксации времени работы PDR.
 	TCU.LastStep = GEAR_2_MAX_STEP;	// Номер последнего шага переключения.
 	uint8_t SLUDelay = 0;	// Пауза повышения давления после начала переключния.
-	int8_t Adaptation = 0;	// Флаг применения адаптции.
+	int8_t Adaptation = 0;	// Флаг применения адаптации.
 	uint16_t SLUTimer = 0;
 	TCU.LastPDRTime = 0;
 	if (TCU.InstTPS > PDR_MAX_TPS) {PDR = -1;}
@@ -499,7 +499,7 @@ void slu_gear2_control(uint8_t Time) {
 					set_slu(SLU_MIN_VALUE);
 				}
 				else {
-					if (RPMDelta > -75) {
+					if (RPMDelta > -50) {
 						set_slu(NextSLU);
 						TCU.GearStep = 0;
 						TCU.Gear2State = 2;

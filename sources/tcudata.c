@@ -76,12 +76,15 @@ static uint16_t get_car_speed() {
 	// Коэффициент для оборотов = 1 / 3.909 * 1.807 * 60 / 1000 = 0.027735994,
 	// Умножаем на 4096 (смещение 12 бит) = 113.6066309,
 	// Округляем до целого и получается 114.
+
+	//return TCU.InstTPS;
+
 	if (SpeedTestFlag) {return 100;}
 	else {return ((uint32_t) TCU.OutputRPM * 114) >> 12;}
 }
 
 // Расчет значения регистра сравнения для таймера спидометра.
-uint16_t get_speed_timer_value(uint8_t N) {
+uint16_t get_speed_timer_value() {
 	// Таймер 3, делитель х64, Частота 250 кГц, 1 шаг таймера 4 мкс.
 	// Количество импульсов на 1 км для спидометра - 6000.
 	// [Частота для спидометра] = (6000 / 3600) * [Скорость].
@@ -89,14 +92,10 @@ uint16_t get_speed_timer_value(uint8_t N) {
 	// 125000 - это 1000000 мкс в 1с разделить на шаг таймера и еще на 2.
 	// Рассчитываем итоговый коэффициент для вычисления (28125).
 
-	#define SPEED_FREQ_COEF_0 125000LU * 3600LU / SPEED_INPULS_PER_KM_0
-	#define SPEED_FREQ_COEF_1 125000LU * 3600LU / SPEED_INPULS_PER_KM_1
+	#define SPEED_FREQ_COEF 125000LU * 3600LU / SPEED_INPULS_PER_KM
 
 	if (TCU.CarSpeed == 0) {return 0;}
-	else {
-		if (!N) {return ((uint32_t) SPEED_FREQ_COEF_0 / TCU.CarSpeed);}
-		else {return ((uint32_t) SPEED_FREQ_COEF_1 / TCU.CarSpeed);}
-	}
+	else {return ((uint32_t) SPEED_FREQ_COEF / TCU.CarSpeed);}
 }
 
 // Расчет температуры масла.
@@ -181,7 +180,7 @@ int16_t get_slu_gear2_temp_corr(int16_t Value) {
 	int32_t OilTempCorr = get_interpolated_value_int16_t(TCU.OilTemp, TempGrid, SLUGear2TempCorrGraph, TEMP_GRID_SIZE);
 
 	#ifdef GEAR_2_SLU_TEMP_ADAPTATION
-		OilTempCorr += get_interpolated_value_int16_t(TCU.InstTPS, TPSGrid, SLUGear2TempAdaptGraph, TPS_GRID_SIZE);
+		OilTempCorr += get_interpolated_value_int16_t(TCU.OilTemp, TempGrid, SLUGear2TempAdaptGraph, TEMP_GRID_SIZE);
 	#endif
 
 	if (!Value) {return (OilTempCorr / 16);}	// Возвращаем коррекцию в %.
@@ -275,7 +274,8 @@ int16_t rpm_delta(uint8_t Gear) {
 }
 
 void save_gear2_adaptation(int8_t Value) {
-	if (TCU.OilTemp >= 68 && TCU.OilTemp <= 72) {		// Адаптация по ДПДЗ.
+	// Адаптация по ДПДЗ.
+	if (TCU.OilTemp >= GEAR_2_SLU_ADAPTATION_OIL_MIN && TCU.OilTemp <= GEAR_2_SLU_ADAPTATION_OIL_MAX) {
 		#ifdef GEAR_2_SLU_TPS_ADAPTATION
 			uint8_t Index = 0;
 			Index = get_tps_index(TCU.InstTPS);
@@ -285,7 +285,7 @@ void save_gear2_adaptation(int8_t Value) {
 	}
 	else {		// Адаптация по температуре масла.
 		#ifdef GEAR_2_SLU_TEMP_ADAPTATION
-			if (TCU.InstTPS > 35) {return;} // Адаптация по температуре только на малом газу.
+			if (TCU.InstTPS > GEAR_2_SLU_ADAPTATION_MAX_TPS) {return;} // Адаптация по температуре только на малом газу.
 			uint8_t Index = 0;
 			Index = get_temp_index(TCU.OilTemp);
 			SLUGear2TempAdaptGraph[Index] += Value;
