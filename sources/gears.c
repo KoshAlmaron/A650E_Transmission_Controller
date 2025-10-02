@@ -157,7 +157,7 @@ static void gear_change_1_2() {
 	TCU.LastPDRTime = 0;
 	if (TCU.InstTPS > PDR_MAX_TPS) {PDR = -1;}
 	
-	while (TCU.GearStep < TCU.LastStep) {
+	while (TCU.GearStep < GEAR_2_MAX_STEP) {
 		WaitTimer = GearChangeStep;				// Устанавливаем время ожидания.
 		SLUTimer = GearChangeStep;
 		while (WaitTimer) {
@@ -167,18 +167,20 @@ static void gear_change_1_2() {
 			if (TCU.InstTPS < TPS_IDLE_LIMIT && TCU.ATMode != 6 && TCU.ATMode != 7) {
 				TCU.Gear2State = 0;
 				set_slu(SLU_MIN_VALUE);
+				return;
 			}
 
 			// Изменение давления по циклу.
 			if (SLUTimer - WaitTimer >= 25) {
 				SLUTimer = WaitTimer;
 				NextSLU = get_slu_pressure_gear2() + TCU.GearStep * 2 - SLUDelay;
-				if (NextSLU > TCU.SLU) {
-					// Прирост не более чем 12 единиц за цикл.
-					if (NextSLU - TCU.SLU <= 12) {set_slu(NextSLU);}
-					else {set_slu(TCU.SLU + 12);}
-				}
-				else {set_slu(NextSLU);}
+				set_slu(NextSLU);
+				// if (NextSLU > TCU.SLU) {
+				// 	// Прирост не более чем 12 единиц за цикл.
+				// 	if (NextSLU - TCU.SLU <= 12) {set_slu(NextSLU);}
+				// 	else {set_slu(TCU.SLU + 12);}
+				// }
+				// else {set_slu(NextSLU);}
 			}
 
 			if (!PDR && rpm_delta(1) < -75) {			// Переключение началось.
@@ -195,7 +197,7 @@ static void gear_change_1_2() {
 			if (PDR == 1) {TCU.LastPDRTime = (TCU.GearStep - PDRStep) * GearChangeStep;}
 			SET_PIN_LOW(REQUEST_POWER_DOWN_PIN);
 
-			//if (TCU.LastStep == GEAR_2_MAX_STEP) {TCU.LastStep = TCU.GearStep + GEAR_2_STEP_ADD;}
+			if (TCU.LastStep == GEAR_2_MAX_STEP) {TCU.LastStep = TCU.GearStep;}
 			if (TCU.GearStep < 13 && !Adaptation) {
 				// Передача включилась слишком рано,
 				// снижаем давление на 1 единицу.
@@ -546,12 +548,13 @@ void slu_gear2_control(uint8_t Time) {
 				}
 			}
 			NextSLU += TCU.GearStep * 2;
+			set_slu(NextSLU);
 			// Прирост не более чем 12 единиц за цикл.
-			if (NextSLU > TCU.SLU) {
-				if (NextSLU - TCU.SLU <= 12) {set_slu(NextSLU);}
-				else {set_slu(TCU.SLU + 12);}
-			}
-			else {set_slu(NextSLU);}
+			// if (NextSLU > TCU.SLU) {
+			// 	if (NextSLU - TCU.SLU <= 12) {set_slu(NextSLU);}
+			// 	else {set_slu(TCU.SLU + 12);}
+			// }
+			// else {set_slu(NextSLU);}
 			break;
 		case 8:
 			NextSLU = (uint16_t) NextSLU + ((NextSLU * 32) >> 7);	// +25%
