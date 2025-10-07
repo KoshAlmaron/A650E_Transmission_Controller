@@ -289,7 +289,24 @@ void uart_command_processing() {
 				resetFunc();	// Перезапускаем код ЭБУ (переход к нулевому адресу).
 			}
 			break;
-
+		case APPLY_G2_TPS_ADAPT_COMMAND:
+			if (RxBuffPos == 3 && ReceiveBuffer[2] == APPLY_G2_TPS_ADAPT_COMMAND) {
+				for (uint8_t i = 0; i < TPS_GRID_SIZE; i++) {
+					SLUGear2Graph[i] += SLUGear2TPSAdaptGraph[i];
+					SLUGear2TPSAdaptGraph[i] = 0;
+				}
+				uart_send_table(ReceiveBuffer[1]);
+			}
+			break;
+		case APPLY_G2_TEMP_ADAPT_COMMAND:
+			if (RxBuffPos == 3 && ReceiveBuffer[2] == APPLY_G2_TEMP_ADAPT_COMMAND) {
+				for (uint8_t i = 0; i < TEMP_GRID_SIZE; i++) {
+					SLUGear2TempCorrGraph[i] += SLUGear2TempAdaptGraph[i];
+					SLUGear2TempAdaptGraph[i] = 0;
+				}
+				uart_send_table(ReceiveBuffer[1]);
+			}
+			break;
 	}
 	RxCommandStatus = 0;
 }

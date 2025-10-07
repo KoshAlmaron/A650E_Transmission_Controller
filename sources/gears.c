@@ -165,8 +165,10 @@ static void gear_change_1_2() {
 
 			// Отключение передачи при сбросе газа.
 			if (TCU.InstTPS < TPS_IDLE_LIMIT && TCU.ATMode != 6 && TCU.ATMode != 7) {
-				TCU.Gear2State = 0;
 				set_slu(SLU_MIN_VALUE);
+				TCU.Gear = 2;
+				TCU.Gear2State = 0;
+				TCU.GearChange = 0;
 				return;
 			}
 

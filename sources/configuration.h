@@ -15,7 +15,7 @@
 	#define RPM_MIN	1000
 	#define RPM_MAX	4700
 
-	#define TPS_IDLE_LIMIT 3			// Порог значения ДПДЗ для ХХ.
+	#define TPS_IDLE_LIMIT 2			// Порог значения ДПДЗ для ХХ.
 	#define MAX_SLIP_RPM 60				// Разница в оборотах валов для обнаружения проскальзывания.
 
 	#define SLN_MIN_PRESSURE 500		// Значение ШИМ для минимального давления подпора гидроаккумуляторов.

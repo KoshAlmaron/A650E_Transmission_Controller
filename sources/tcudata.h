@@ -100,8 +100,9 @@
 	extern uint16_t SLUGear2Graph[];
 	extern int16_t SLUGear2TempCorrGraph[];
 
-	extern int16_t SLUGear2TempAdaptGraph[];
 	extern int16_t SLUGear2TPSAdaptGraph[];
+	extern int16_t SLUGear2TempAdaptGraph[];
+
 	extern int16_t SLUGear2AddGraph[];
 
 	extern uint16_t SLUGear3Graph[];

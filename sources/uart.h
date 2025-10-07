@@ -41,6 +41,9 @@
 	#define SPEED_TEST_COMMAND 0xde		// Переключить режим тестирования спидометра.
 	#define GEAR_LIMIT_COMMAND 0xbe		// Установить ограничения передачь.
 	#define TABLES_INIT_COMMAND 0xab	// Записать в таблицы значения из прошивки.
+
+	#define APPLY_G2_TPS_ADAPT_COMMAND 0xfc		// Применить адаптацию второй передачи по ДПДЗ.
+	#define APPLY_G2_TEMP_ADAPT_COMMAND 0xfd	// Применить адаптацию второй передачи по температуре.
 	
 #endif
 
