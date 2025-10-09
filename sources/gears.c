@@ -277,7 +277,7 @@ static void gear_change_2_3() {
 		// Через 40 мс после сброса давления SLU должно начаться изменение передаточного числа.
 		if (GearTestTimer && !Adaptation && GearTestTimer - WaitTimer >= 40) {
 			GearTestTimer = 0;
-			if (Delta2 > 0) {Adaptation = -1;}	// Произошло закусывание (?).
+			if (Delta2 > -5) {Adaptation = -1;}	// Произошло закусывание (?).
 		}
 		
 		if (!PDR && Delta2 < -75) {		// Переключение началось.
