@@ -404,7 +404,7 @@ static void print_config_gear3_slu_pressure() {
 static void print_config_gear3_slu_delay() {
 	//	----------------------
 	//	|G3 SLU DL x10   |100|
-	//	|St 12 P1000 A99 U101|
+	//	|St 12 D1000 A99 U101|
 	//	|  0|  5| 10| 15| 20||
 	//	| 67| 72| 74| 77| 81||
 	//	----------------------
@@ -412,16 +412,16 @@ static void print_config_gear3_slu_delay() {
 	snprintf(StringArray, STR_ARR_SZ, "G3 SLU DL x10   |%3u", TCU.InstTPS);
 	lcd_update_buffer(0, StringArray);
 
-	snprintf(StringArray, STR_ARR_SZ, "St %2u P%4u A%2u U%3u"
+	snprintf(StringArray, STR_ARR_SZ, "St %2u D%4u A%2u U%3u"
 		, TCU.LastStep
-		, TCU.LastPDRTime
+		, get_gear3_slu_delay()
 		, TCU.GearChangeTPS
 		, MIN(999, TCU.GearChangeSLU));
 	lcd_update_buffer(1, StringArray);
 
 	// Изменяемые значения.
 	ArrayU = SLUGear3DelayGraph;
-	print_values(1, 1, 25, 0, 1500, 10);
+	print_values(1, 1, 25, 0, 800, 10);
 }
 
 // Экран настройка давления аккумуляторов SLN при включении третьей передачи.

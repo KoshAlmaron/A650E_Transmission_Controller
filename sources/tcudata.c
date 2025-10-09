@@ -204,14 +204,27 @@ uint16_t get_slu_pressure_gear3() {
 }
 
 // Задержка отключения SLU при включении третьей передачи.
-uint16_t get_gear3_slu_delay(uint8_t TPS) {
-	return get_interpolated_value_uint16_t(TPS, TPSGrid, SLUGear3DelayGraph, TPS_GRID_SIZE) / 16;
+uint16_t get_gear3_slu_delay() {
+	int16_t Delay = get_interpolated_value_uint16_t(TCU.InstTPS, TPSGrid, SLUGear3DelayGraph, TPS_GRID_SIZE) / 16;
+
+	#ifdef GEAR_3_SLU_TPS_ADAPTATION
+		Delay += get_interpolated_value_int16_t(TCU.InstTPS, TPSGrid, SLUGear3TPSAdaptGraph, TPS_GRID_SIZE) / 16;
+	#endif
+
+	// Коррекция задержки от температуры.
+	Delay += get_interpolated_value_int16_t(TCU.OilTemp, TempGrid, SLUG3DelayTempCorrGraph, TEMP_GRID_SIZE) / 16;
+
+	#ifdef GEAR_3_SLU_TEMP_ADAPTATION
+		Delay += get_interpolated_value_int16_t(TCU.OilTemp, TempGrid, SLUGear3TempAdaptGraph, TEMP_GRID_SIZE) / 16;
+	#endif
+
+	if (Delay < 0) {return 0;}
+	else {return Delay;}
 }
 
 // Смещение впемени включения SLN при включении третьей передачи.
-int16_t get_gear3_sln_offset(uint8_t TPS) {
-	int16_t Offset = get_interpolated_value_int16_t(TPS, TPSGrid, SLNGear3OffsetGraph, TPS_GRID_SIZE) / 16;
-	//Offset = Offset - 70 + TCU.OilTemp;		// Коррекция по температуре.
+int16_t get_gear3_sln_offset() {
+	int16_t Offset = get_interpolated_value_int16_t(TCU.InstTPS, TPSGrid, SLNGear3OffsetGraph, TPS_GRID_SIZE) / 16;
 	return Offset;
 }
 
@@ -285,11 +298,32 @@ void save_gear2_adaptation(int8_t Value) {
 	}
 	else {		// Адаптация по температуре масла.
 		#ifdef GEAR_2_SLU_TEMP_ADAPTATION
-			if (TCU.InstTPS > GEAR_2_SLU_ADAPTATION_MAX_TPS) {return;} // Адаптация по температуре только на малом газу.
+			if (TCU.InstTPS > GEAR_2_SLU_ADAPTATION_OIL_MAX_TPS) {return;} // Адаптация по температуре только на малом газу.
 			uint8_t Index = 0;
 			Index = get_temp_index(TCU.OilTemp);
 			SLUGear2TempAdaptGraph[Index] += Value;
 			SLUGear2TempAdaptGraph[Index] = CONSTRAIN(SLUGear2TempAdaptGraph[Index], -12, 12);
+		#endif
+	}
+}
+
+void save_gear3_adaptation(int8_t Value) {
+	// Адаптация по ДПДЗ.
+	if (TCU.OilTemp >= GEAR_3_SLU_ADAPTATION_OIL_MIN && TCU.OilTemp <= GEAR_3_SLU_ADAPTATION_OIL_MAX) {
+		#ifdef GEAR_3_SLU_TPS_ADAPTATION
+			uint8_t Index = 0;
+			Index = get_tps_index(TCU.InstTPS);
+			SLUGear3TPSAdaptGraph[Index] += (Value * 20);
+			SLUGear3TPSAdaptGraph[Index] = CONSTRAIN(SLUGear3TPSAdaptGraph[Index], -200, 200);
+		#endif
+	}
+	else {		// Адаптация по температуре масла.
+		#ifdef GEAR_3_SLU_TEMP_ADAPTATION
+			if (TCU.InstTPS > GEAR_3_SLU_ADAPTATION_OIL_MAX_TPS) {return;} // Адаптация по температуре только на малом газу.
+			uint8_t Index = 0;
+			Index = get_temp_index(TCU.OilTemp);
+			SLUGear3TempAdaptGraph[Index] += Value * 20;
+			SLUGear3TempAdaptGraph[Index] = CONSTRAIN(SLUGear3TempAdaptGraph[Index], -200, 200);
 		#endif
 	}
 }

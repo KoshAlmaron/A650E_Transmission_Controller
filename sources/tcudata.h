@@ -17,9 +17,9 @@
 	uint16_t get_slu_add_gear2();
 	
 	uint16_t get_slu_pressure_gear3();
-	uint16_t get_gear3_slu_delay(uint8_t TPS);
+	uint16_t get_gear3_slu_delay();
 	uint16_t get_sln_pressure_gear3();
-	int16_t get_gear3_sln_offset(uint8_t TPS);
+	int16_t get_gear3_sln_offset();
 	
 	int16_t rpm_delta(uint8_t Gear);
 
@@ -27,6 +27,7 @@
 	uint8_t get_temp_index(int16_t Temp);
 
 	void save_gear2_adaptation(int8_t Value);
+	void save_gear3_adaptation(int8_t Value);
 
 	// Структура для хранения переменных.
 	typedef struct TCU_t {
@@ -74,18 +75,21 @@
 	#define TPS_GRID_SIZE 21 
 	#define TEMP_GRID_SIZE 31
 
-	#define SLT_GRAPH					0
-	#define SLT_TEMP_CORR_GRAPH			1
-	#define SLN_GRAPH					2
-	#define SLU_GEAR2_GRAPH				3
-	#define SLU_GEAR2_TEMP_CORR_GRAPH	4
-	#define SLU_GEAR2_TPS_ADAPT_GRAPH	5
-	#define SLU_GEAR2_TEMP_ADAPT_GRAPH	6
-	#define SLU_GEAR2_ADD_GRAPH			7
-	#define SLU_GEAR3_GRAPH				8
-	#define SLU_GEAR3_DELAY_GRAPH		9
-	#define SLN_GEAR3_GRAPH				10
-	#define SLN_GEAR3_OFFSET_GRAPH		11
+	#define SLT_GRAPH							0
+	#define SLT_TEMP_CORR_GRAPH					1
+	#define SLN_GRAPH							2
+	#define SLU_GEAR2_GRAPH						3
+	#define SLU_GEAR2_TEMP_CORR_GRAPH			4
+	#define SLU_GEAR2_TPS_ADAPT_GRAPH			5
+	#define SLU_GEAR2_TEMP_ADAPT_GRAPH			6
+	#define SLU_GEAR2_ADD_GRAPH					7
+	#define SLU_GEAR3_GRAPH						8
+	#define SLU_GEAR3_DELAY_GRAPH				9
+	#define SLU_G3_DELAY_TEMP_CORR_GRAPH		10
+	#define SLU_GEAR3_TPS_ADAPT_GRAPH			11
+	#define SLU_GEAR3_TEMP_ADAPT_GRAPH			12
+	#define SLN_GEAR3_GRAPH						13
+	#define SLN_GEAR3_OFFSET_GRAPH				14
 
 	// Сетки стандартных осей.
 	extern int16_t TempGrid[];
@@ -107,6 +111,11 @@
 
 	extern uint16_t SLUGear3Graph[];
 	extern uint16_t SLUGear3DelayGraph[];
+	extern int16_t SLUG3DelayTempCorrGraph[];
+
+	extern int16_t SLUGear3TPSAdaptGraph[];
+	extern int16_t SLUGear3TempAdaptGraph[];
+
 	extern uint16_t SLNGear3Graph[];
 	extern int16_t SLNGear3OffsetGraph[];
 

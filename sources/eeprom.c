@@ -50,6 +50,13 @@ void read_eeprom() {
 
 	// 522-563 - SLNGear3Graph.
 	eeprom_read_block((void*)&SLNGear3Graph, (const void*) 522, TPS_GRID_SIZE * 2);
+
+	// 564-625 - SLUG3DelayTempCorrGraph.
+	eeprom_read_block((void*)&SLUG3DelayTempCorrGraph, (const void*) 564, TEMP_GRID_SIZE * 2);
+	// 626-667 - SLUGear3TPSAdaptGraph.
+	eeprom_read_block((void*)&SLUGear3TPSAdaptGraph, (const void*) 626, TPS_GRID_SIZE * 2);
+	// 668-729 - SLUGear3TempAdaptGraph.
+	eeprom_read_block((void*)&SLUGear3TempAdaptGraph, (const void*) 668, TEMP_GRID_SIZE * 2);
 }
 
 // Запись EEPROM.
@@ -82,4 +89,11 @@ void update_eeprom() {
 
 	// 522-563 - SLNGear3Graph.
 	eeprom_update_block((void*)&SLNGear3Graph, (void*) 522, TPS_GRID_SIZE * 2);
+
+	// 564-625 - SLUG3DelayTempCorrGraph.
+	eeprom_update_block((void*)&SLUG3DelayTempCorrGraph, (void*) 564, TEMP_GRID_SIZE * 2);
+	// 626-667 - SLUGear3TPSAdaptGraph.
+	eeprom_update_block((void*)&SLUGear3TPSAdaptGraph, (void*) 626, TPS_GRID_SIZE * 2);
+	// 668-729 - SLUGear3TempAdaptGraph.
+	eeprom_update_block((void*)&SLUGear3TempAdaptGraph, (void*) 668, TEMP_GRID_SIZE * 2);
 }

@@ -158,6 +158,15 @@ void uart_send_table(uint8_t N) {
 		case SLU_GEAR3_DELAY_GRAPH:
 			for (uint8_t i = 0; i < TPS_GRID_SIZE; i++) {uart_buffer_add_uint16(SLUGear3DelayGraph[i]);}
 			break;
+		case SLU_G3_DELAY_TEMP_CORR_GRAPH:
+			for (uint8_t i = 0; i < TEMP_GRID_SIZE; i++) {uart_buffer_add_int16(SLUG3DelayTempCorrGraph[i]);}
+			break;
+		case SLU_GEAR3_TPS_ADAPT_GRAPH:
+			for (uint8_t i = 0; i < TPS_GRID_SIZE; i++) {uart_buffer_add_int16(SLUGear3TPSAdaptGraph[i]);}
+			break;
+		case SLU_GEAR3_TEMP_ADAPT_GRAPH:
+			for (uint8_t i = 0; i < TEMP_GRID_SIZE; i++) {uart_buffer_add_int16(SLUGear3TempAdaptGraph[i]);}
+			break;
 		case SLN_GEAR3_GRAPH:
 			for (uint8_t i = 0; i < TPS_GRID_SIZE; i++) {uart_buffer_add_uint16(SLNGear3Graph[i]);}
 			break;
@@ -214,6 +223,16 @@ static void uart_write_table(uint8_t N) {
 		case SLU_GEAR3_DELAY_GRAPH:
 			if (RxBuffPos != TPS_GRID_SIZE * 2 + 2) {return;}
 			for (uint8_t i = 0; i < TPS_GRID_SIZE; i++) {SLUGear3DelayGraph[i] = uart_build_uint16(2 + i * 2);}
+			break;
+		case SLU_G3_DELAY_TEMP_CORR_GRAPH:
+			if (RxBuffPos != TEMP_GRID_SIZE * 2 + 2) {return;}
+			for (uint8_t i = 0; i < TEMP_GRID_SIZE; i++) {SLUG3DelayTempCorrGraph[i] = uart_build_int16(2 + i * 2);}
+			break;
+		case SLU_GEAR3_TPS_ADAPT_GRAPH:
+			for (uint8_t i = 0; i < TPS_GRID_SIZE; i++) {SLUGear3TPSAdaptGraph[i] = uart_build_int16(2 + i * 2);}
+			break;
+		case SLU_GEAR3_TEMP_ADAPT_GRAPH:
+			for (uint8_t i = 0; i < TEMP_GRID_SIZE; i++) {SLUGear3TempAdaptGraph[i] = uart_build_int16(2 + i * 2);}
 			break;
 		case SLN_GEAR3_GRAPH:
 			if (RxBuffPos != TPS_GRID_SIZE * 2 + 2) {return;}

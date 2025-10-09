@@ -240,9 +240,14 @@ static void gear_change_2_3() {
 	TCU.LastStep = 0;
 	set_sln(SLN_IDLE_PRESSURE);
 
-	WaitTimer = get_gear3_slu_delay(TCU.InstTPS);
-	int16_t SLNOffset = get_gear3_sln_offset(TCU.InstTPS);
-	uint8_t SetSLN = 0;
+	WaitTimer = get_gear3_slu_delay();				// Время удержания давления SLU.
+	int16_t SLNOffset = get_gear3_sln_offset();		// Смещение времени включения SLN.
+	uint8_t SetSLN = 0;		// Флаг установки давления SLN
+	int8_t Adaptation = 0;	// Флаг применения адаптации.
+
+	uint8_t PDR = 0;		// Флаг применения запроса снижения мощности.
+	uint16_t PDRTime = 0;	// Длительность применения снижения мощности.
+
 	// Ждем начало включения B2.
 	while (WaitTimer) {
 		loop_main(1);
@@ -251,54 +256,64 @@ static void gear_change_2_3() {
 		set_slu(get_slu_pressure_gear3());
 		
 		if (!SetSLN) {
-			SLNOffset = get_gear3_sln_offset(TCU.InstTPS);
+			SLNOffset = get_gear3_sln_offset();
 		 	if (WaitTimer + SLNOffset < 5) {SetSLN = 1;}	// Пересечение SNL и SLU при SLNOffset < 0.
 		}
 		else {set_sln(get_sln_pressure_gear3());}
 	}
-
 	set_slu(SLU_MIN_VALUE);		// Убираем давление SLU.
 
-	uint8_t PDR = 0;
-	uint16_t PDRTime = 0;
-	uint8_t Gear2Slip = 0;	// Флаг наличия проскальзывания.
 	if (TCU.InstTPS > PDR_MAX_TPS) {PDR = -1;}
 
+	WaitTimer = 1500;						// Время ожидания завершения переключения.
+	uint16_t GearTestTimer = WaitTimer;		// Таймер для проверки начала переключения.
 	// Ждем включения третьей передачи.
-	WaitTimer = 1500;
-	SLNOffset = WaitTimer - SLNOffset;
 	while (WaitTimer && rpm_delta(3) > 30) {
+		int16_t Delta2 = rpm_delta(2);
+
 		loop_main(1);
-		if (rpm_delta(2) < -100) {		// Переключение началось.
-			if (!PDR) {
-				PDR = 1;
-				PDRTime = WaitTimer;
-				SET_PIN_HIGH(REQUEST_POWER_DOWN_PIN);
-			}
+
+		// Проверка на закусывание передачи 2 и 3.
+		// Через 40 мс после сброса давления SLU должно начаться изменение передаточного числа.
+		if (GearTestTimer && !Adaptation && GearTestTimer - WaitTimer >= 40) {
+			GearTestTimer = 0;
+			if (Delta2 > 0) {Adaptation = -1;}	// Произошло закусывание (?).
+		}
+		
+		if (!PDR && Delta2 < -75) {		// Переключение началось.
+			PDR = 1;
+			PDRTime = WaitTimer;
+			SET_PIN_HIGH(REQUEST_POWER_DOWN_PIN);
 		}
 
-		if (SLNOffset >= WaitTimer) {			// Задержка SLN при SLNOffset > 0.
-			set_sln(get_sln_pressure_gear3());	// Устанавливаем давление SLN.
+		if (!SetSLN) {
+			SLNOffset = get_gear3_sln_offset();
+		 	if (1500 - WaitTimer > SLNOffset) {SetSLN = 1;}		// Задержка SLN при SLNOffset > 0.
 		}
-		if (!Gear2Slip && rpm_delta(2) > 120) {
+		else {set_sln(get_sln_pressure_gear3());}				// Устанавливаем давление SLN.
+
+		if (Adaptation != 1 && Delta2 > 40) {
 			// Проскальзывание второй передачи.
-			// Выключение произошло слишком рано.
-			Gear2Slip = 1;
+			// Выключение SLU произошло слишком рано.
+			Adaptation = 1;
 		}
 	}
 
 	TCU.GearChangeSLN = TCU.SLN;
-	if (Gear2Slip) {TCU.LastStep = 99;}
+	if (Adaptation == 1) {TCU.LastStep = 99;}
 	set_sln(SLN_IDLE_PRESSURE);
 
 	if (PDR == 1) {
-		TCU.LastPDRTime = PDRTime - WaitTimer + 200;
-		loop_wait(200);
+		TCU.LastPDRTime = PDRTime - WaitTimer;
+		//loop_wait(200);
 	}
 	SET_PIN_LOW(REQUEST_POWER_DOWN_PIN);
 
 	// Включаем торможение двигателем в режиме "3".
 	if (TCU.ATMode == 6) {SET_PIN_HIGH(SOLENOID_S3_PIN);}
+
+	// Применение адаптации.
+	if (Adaptation) {save_gear3_adaptation(Adaptation);}
 
 	TCU.Gear = 3;
 	TCU.Gear2State = 0;
