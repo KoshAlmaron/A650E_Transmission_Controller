@@ -326,6 +326,24 @@ void uart_command_processing() {
 				uart_send_table(ReceiveBuffer[1]);
 			}
 			break;
+		case APPLY_G3_TPS_ADAPT_COMMAND:
+			if (RxBuffPos == 3 && ReceiveBuffer[2] == APPLY_G3_TPS_ADAPT_COMMAND) {
+				for (uint8_t i = 0; i < TPS_GRID_SIZE; i++) {
+					SLUGear3DelayGraph[i] += SLUGear3TPSAdaptGraph[i];
+					SLUGear3TPSAdaptGraph[i] = 0;
+				}
+				uart_send_table(ReceiveBuffer[1]);
+			}
+			break;
+		case APPLY_G3_TEMP_ADAPT_COMMAND:
+			if (RxBuffPos == 3 && ReceiveBuffer[2] == APPLY_G3_TEMP_ADAPT_COMMAND) {
+				for (uint8_t i = 0; i < TEMP_GRID_SIZE; i++) {
+					SLUG3DelayTempCorrGraph[i] += SLUGear3TempAdaptGraph[i];
+					SLUGear3TempAdaptGraph[i] = 0;
+				}
+				uart_send_table(ReceiveBuffer[1]);
+			}
+			break;
 	}
 	RxCommandStatus = 0;
 }
