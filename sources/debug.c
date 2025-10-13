@@ -299,27 +299,24 @@ static void print_config_gear2_slu_temp_corr() {
 
 static void print_config_gear2_react_add() {
 	//	----------------------
-	//	|SLU G2r Add|100|1.00|
-	//	|UP-12 UV 12 A99 U101|
+	//	|SLU G2 RPM Adv |1.00|
+	//	|D-200  Adv 100 |A 99|
 	//	|  0|  5| 10| 15| 20||
 	//	| 67| 72| 74| 77| 81||
 	//	----------------------
 
-	snprintf(StringArray, STR_ARR_SZ, "SLU G2r Add|%3u|%s"
-		, TCU.InstTPS
-		, GearRatioChar);
+	snprintf(StringArray, STR_ARR_SZ, "SLU G2 RPM Adv |%s" , GearRatioChar);
 	lcd_update_buffer(0, StringArray);
 
-	snprintf(StringArray, STR_ARR_SZ, "UP%3i UV%3i A%2u U%3u"
-		, get_slu_gear2_temp_corr(0)					// В %.
-		, get_slu_gear2_temp_corr(TCU.SLU)	// В единицах ШИМ.
-		, MIN(99, TCU.GearChangeTPS)
-		, TCU.GearChangeSLU);
+	snprintf(StringArray, STR_ARR_SZ, "D%4i  Adv%4i |A%3u"
+		, TCU.DrumRPMDelta
+		, get_gear2_rpm_adv()
+		, TCU.InstTPS);
 	lcd_update_buffer(1, StringArray);
 
 	// Изменяемые значения.
-	ArrayI = SLUGear2AddGraph;
-	print_values(1, 0, 2, -32, 40, 1);
+	ArrayI = Gear2AdvGraph;
+	print_values(1, 0, 20, 0, 600, 10);
 }
 
 // Экран значений адаптации второй передачи по ДПДЗ.
@@ -603,7 +600,7 @@ static void update_gear_ratio() {
 	}
 }
 
-// GridType		0 - TempGrid, 1 - TPSGrid.
+// GridType		0 - TempGrid, 1 - TPSGrid
 // ArrayType 	0 - int16_t, 1 - uint16_t.
 static void print_values(uint8_t GridType, uint8_t ArrayType, uint8_t Step, int16_t Min, int16_t Max, int16_t Ratio) {
 	// Находим по сетке позицию курсора.

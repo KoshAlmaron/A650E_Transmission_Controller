@@ -34,8 +34,8 @@ void read_eeprom() {
 	eeprom_read_block((void*)&SLUGear2Graph, (const void*) 146, TPS_GRID_SIZE * 2);
 	// 188-249 - SLUGear2TempCorrGraph.
 	eeprom_read_block((void*)&SLUGear2TempCorrGraph, (const void*) 188, TEMP_GRID_SIZE * 2);
-	// 250-291 SLUGear2AddGraph.
-	eeprom_read_block((void*)&SLUGear2AddGraph, (const void*) 250, TPS_GRID_SIZE * 2);
+	// 250-291 Gear2AdvGraph.
+	eeprom_read_block((void*)&Gear2AdvGraph, (const void*) 250, DELTA_RPM_GRID_SIZE * 2);
 	// 292-333 SLUGear2TPSAdaptGraph.
 	eeprom_read_block((void*)&SLUGear2TPSAdaptGraph, (const void*) 292, TPS_GRID_SIZE * 2);
 	// 334-395 SLUGear2TempAdaptGraph.
@@ -57,6 +57,9 @@ void read_eeprom() {
 	eeprom_read_block((void*)&SLUGear3TPSAdaptGraph, (const void*) 626, TPS_GRID_SIZE * 2);
 	// 668-729 - SLUGear3TempAdaptGraph.
 	eeprom_read_block((void*)&SLUGear3TempAdaptGraph, (const void*) 668, TEMP_GRID_SIZE * 2);
+	// 730-771 - Gear2AdvAdaptGraph.
+	eeprom_read_block((void*)&Gear2AdvAdaptGraph, (const void*) 730, DELTA_RPM_GRID_SIZE * 2);
+
 }
 
 // Запись EEPROM.
@@ -73,8 +76,8 @@ void update_eeprom() {
 	eeprom_update_block((void*)&SLUGear2Graph, (void*) 146, TPS_GRID_SIZE * 2);
 	// 188-249 - SLUGear2TempCorrGraph.
 	eeprom_update_block((void*)&SLUGear2TempCorrGraph, (void*) 188, TEMP_GRID_SIZE * 2);
-	// 250-291 SLUGear2AddGraph.
-	eeprom_update_block((void*)&SLUGear2AddGraph, (void*) 250, TEMP_GRID_SIZE * 2);
+	// 250-291 Gear2AdvGraph.
+	eeprom_update_block((void*)&Gear2AdvGraph, (void*) 250, DELTA_RPM_GRID_SIZE * 2);
 	// 292-333 SLUGear2TPSAdaptGraph.
 	eeprom_update_block((void*)&SLUGear2TPSAdaptGraph, (void*) 292, TPS_GRID_SIZE * 2);
 	// 334-395 SLUGear2TempAdaptGraph.
@@ -96,4 +99,6 @@ void update_eeprom() {
 	eeprom_update_block((void*)&SLUGear3TPSAdaptGraph, (void*) 626, TPS_GRID_SIZE * 2);
 	// 668-729 - SLUGear3TempAdaptGraph.
 	eeprom_update_block((void*)&SLUGear3TempAdaptGraph, (void*) 668, TEMP_GRID_SIZE * 2);
+	// 730-771 - Gear2AdvAdaptGraph.
+	eeprom_update_block((void*)&Gear2AdvAdaptGraph, (void*) 730, DELTA_RPM_GRID_SIZE * 2);
 }

@@ -14,7 +14,7 @@
 	
 	uint16_t get_slu_pressure_gear2();
 	int16_t get_slu_gear2_temp_corr(int16_t Value);
-	uint16_t get_slu_add_gear2();
+	int16_t get_gear2_rpm_adv();
 	
 	uint16_t get_slu_pressure_gear3();
 	uint16_t get_gear3_slu_delay();
@@ -25,14 +25,17 @@
 
 	uint8_t get_tps_index(uint8_t TPS);
 	uint8_t get_temp_index(int16_t Temp);
+	uint8_t get_delta_rpm_index(uint8_t RPM);
 
-	void save_gear2_adaptation(int8_t Value);
-	void save_gear3_adaptation(int8_t Value);
+	void save_gear2_slu_adaptation(int8_t Value);
+	void save_gear2_adv_adaptation(int8_t Value, int16_t InitDrumRPMDelta);
+	void save_gear3_slu_adaptation(int8_t Value);
 
 	// Структура для хранения переменных.
 	typedef struct TCU_t {
 		uint16_t EngineRPM;			// Обороты двигателя.
 		uint16_t DrumRPM;			// Обороты корзины овердрайва.
+		int16_t DrumRPMDelta;		// Скорость изменения оборотов корзины овердрайва.		
 		uint16_t OutputRPM;			// Обороты выходного вала.
 		uint8_t CarSpeed;			// Скорость автомобиля.
 		int16_t OilTemp;			// Температура масла.
@@ -74,6 +77,7 @@
 	// Размеры массивов.
 	#define TPS_GRID_SIZE 21 
 	#define TEMP_GRID_SIZE 31
+	#define DELTA_RPM_GRID_SIZE 21
 
 	#define SLT_GRAPH							0
 	#define SLT_TEMP_CORR_GRAPH					1
@@ -82,14 +86,15 @@
 	#define SLU_GEAR2_TEMP_CORR_GRAPH			4
 	#define SLU_GEAR2_TPS_ADAPT_GRAPH			5
 	#define SLU_GEAR2_TEMP_ADAPT_GRAPH			6
-	#define SLU_GEAR2_ADD_GRAPH					7
-	#define SLU_GEAR3_GRAPH						8
-	#define SLU_GEAR3_DELAY_GRAPH				9
-	#define SLU_G3_DELAY_TEMP_CORR_GRAPH		10
-	#define SLU_GEAR3_TPS_ADAPT_GRAPH			11
-	#define SLU_GEAR3_TEMP_ADAPT_GRAPH			12
-	#define SLN_GEAR3_GRAPH						13
-	#define SLN_GEAR3_OFFSET_GRAPH				14
+	#define GEAR2_ADV_GRAPH						7
+	#define GEAR2_ADV_ADAPT_GRAPH				8
+	#define SLU_GEAR3_GRAPH						9
+	#define SLU_GEAR3_DELAY_GRAPH				10
+	#define SLU_G3_DELAY_TEMP_CORR_GRAPH		11
+	#define SLU_GEAR3_TPS_ADAPT_GRAPH			12
+	#define SLU_GEAR3_TEMP_ADAPT_GRAPH			13
+	#define SLN_GEAR3_GRAPH						14
+	#define SLN_GEAR3_OFFSET_GRAPH				15
 
 	// Сетки стандартных осей.
 	extern int16_t TempGrid[];
@@ -107,7 +112,8 @@
 	extern int16_t SLUGear2TPSAdaptGraph[];
 	extern int16_t SLUGear2TempAdaptGraph[];
 
-	extern int16_t SLUGear2AddGraph[];
+	extern int16_t Gear2AdvGraph[];
+	extern int16_t Gear2AdvAdaptGraph[];
 
 	extern uint16_t SLUGear3Graph[];
 	extern uint16_t SLUGear3DelayGraph[];

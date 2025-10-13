@@ -129,7 +129,7 @@ void loop_main(uint8_t Wait) {
 		rear_lamp();				// Лампа заднего хода.
 	}
 
-	if (DataUpdateTimer >= 40) {
+	if (DataUpdateTimer >= 50) {
 		DataUpdateTimer = 0;
 		calculate_tcu_data();		// Расчет значений TCU.
 		update_gear_speed();		// Обновление порогов переключения передач.
@@ -234,8 +234,8 @@ static void loop_add() {
 	}
 
 	if (SLUPressureTimer >= 25) {
-		slu_gear2_control(SLUPressureTimer);// Управление давлением SLU для второй передачи.
 		SLUPressureTimer = 0;
+		slu_gear2_control();		// Управление давлением SLU для второй передачи.
 	}
 }
 

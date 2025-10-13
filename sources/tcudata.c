@@ -15,6 +15,7 @@
 TCU_t TCU = {
 	.EngineRPM = 0,
 	.DrumRPM = 0,
+	.DrumRPMDelta = 0,
 	.OutputRPM = 0,
 	.CarSpeed = 0,
 	.OilTemp = 0,
@@ -56,6 +57,9 @@ static uint16_t get_car_speed();
 
 // Расчет параметров на основе датчиков и таблиц.
 void calculate_tcu_data() {
+	static uint8_t Counter = 0;
+	static uint16_t PrevDrumRPM = 0;
+
 	TCU.DrumRPM = get_overdrive_drum_rpm();
 	TCU.OutputRPM = get_output_shaft_rpm();
 	TCU.CarSpeed = get_car_speed();
@@ -66,6 +70,13 @@ void calculate_tcu_data() {
 	TCU.S2 = PIN_READ(SOLENOID_S2_PIN) ? 1 : 0;
 	TCU.S3 = PIN_READ(SOLENOID_S3_PIN) ? 1 : 0;
 	TCU.S4 = PIN_READ(SOLENOID_S4_PIN) ? 1 : 0;
+
+	Counter++;
+	if (Counter >= 2) {
+		Counter = 0;
+		TCU.DrumRPMDelta = (TCU.DrumRPM - PrevDrumRPM);
+		PrevDrumRPM = TCU.DrumRPM;
+	}
 }
 
 // Расчет скорости авто.
@@ -190,9 +201,9 @@ int16_t get_slu_gear2_temp_corr(int16_t Value) {
 	}
 }
 
-// Добавка к давлению SLU при повторном включении второй передачи.
-uint16_t get_slu_add_gear2() {
-	return get_interpolated_value_int16_t(TCU.InstTPS, TPSGrid, SLUGear2AddGraph, TPS_GRID_SIZE) / 16;
+// Опережение по оборотам реактивации второй передачи.
+int16_t get_gear2_rpm_adv() {
+	return get_interpolated_value_int16_t(TCU.DrumRPMDelta, DeltaRPMGrid, Gear2AdvGraph, DELTA_RPM_GRID_SIZE) / 16;
 }
 
 // Давление включения третьей передачи SLU B2.
@@ -258,6 +269,22 @@ uint8_t get_temp_index(int16_t Temp) {
 	return 0;
 }
 
+uint8_t get_delta_rpm_index(uint8_t RPM) {
+	if (RPM < 10) {return 0;}
+
+	uint16_t Delta = 2048;
+	for (uint8_t i = 1; i < DELTA_RPM_GRID_SIZE; i++) {
+		uint16_t Diff = 0;
+		if (RPM > DeltaRPMGrid[i]) {Diff = RPM - DeltaRPMGrid[i];}
+		else {Diff = DeltaRPMGrid[i] - RPM;}
+
+		if (Diff < Delta) {Delta = Diff;}
+		else {return i - 1;}
+	}
+	return 0;
+}
+
+
 // Расчет разницы скорости входного вала относительно расчетной 
 // по датчику скорости и передаточному числу. 
 int16_t rpm_delta(uint8_t Gear) {
@@ -286,7 +313,7 @@ int16_t rpm_delta(uint8_t Gear) {
 	return (TCU.DrumRPM - CalcDrumRPM);
 }
 
-void save_gear2_adaptation(int8_t Value) {
+void save_gear2_slu_adaptation(int8_t Value) {
 	// Адаптация по ДПДЗ.
 	if (TCU.OilTemp >= GEAR_2_SLU_ADAPTATION_OIL_MIN && TCU.OilTemp <= GEAR_2_SLU_ADAPTATION_OIL_MAX) {
 		#ifdef GEAR_2_SLU_TPS_ADAPTATION
@@ -307,7 +334,13 @@ void save_gear2_adaptation(int8_t Value) {
 	}
 }
 
-void save_gear3_adaptation(int8_t Value) {
+void save_gear2_adv_adaptation(int8_t Value, int16_t InitDrumRPMDelta) {
+	uint8_t Index = get_delta_rpm_index(InitDrumRPMDelta);
+	Gear2AdvAdaptGraph[Index] += (Value * 25);
+	Gear2AdvAdaptGraph[Index] = CONSTRAIN(Gear2AdvAdaptGraph[Index], -300, 300);
+}
+
+void save_gear3_slu_adaptation(int8_t Value) {
 	// Адаптация по ДПДЗ.
 	if (TCU.OilTemp >= GEAR_3_SLU_ADAPTATION_OIL_MIN && TCU.OilTemp <= GEAR_3_SLU_ADAPTATION_OIL_MAX) {
 		#ifdef GEAR_3_SLU_TPS_ADAPTATION

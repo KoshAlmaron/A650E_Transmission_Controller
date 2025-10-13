@@ -14,7 +14,7 @@
 	void solenoid_init();
 	void update_gear_speed();
 	void gear_control();
-	void slu_gear2_control(uint8_t Time);
+	void slu_gear2_control();
 
 	int8_t get_min_gear(uint8_t Mode);
 	int8_t get_max_gear(uint8_t Mode);

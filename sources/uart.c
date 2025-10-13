@@ -149,8 +149,11 @@ void uart_send_table(uint8_t N) {
 		case SLU_GEAR2_TEMP_ADAPT_GRAPH:
 			for (uint8_t i = 0; i < TEMP_GRID_SIZE; i++) {uart_buffer_add_int16(SLUGear2TempAdaptGraph[i]);}
 			break;
-		case SLU_GEAR2_ADD_GRAPH:
-			for (uint8_t i = 0; i < TPS_GRID_SIZE; i++) {uart_buffer_add_int16(SLUGear2AddGraph[i]);}
+		case GEAR2_ADV_GRAPH:
+			for (uint8_t i = 0; i < DELTA_RPM_GRID_SIZE; i++) {uart_buffer_add_int16(Gear2AdvGraph[i]);}
+			break;
+		case GEAR2_ADV_ADAPT_GRAPH:
+			for (uint8_t i = 0; i < DELTA_RPM_GRID_SIZE; i++) {uart_buffer_add_int16(Gear2AdvAdaptGraph[i]);}
 			break;
 		case SLU_GEAR3_GRAPH:
 			for (uint8_t i = 0; i < TPS_GRID_SIZE; i++) {uart_buffer_add_uint16(SLUGear3Graph[i]);}
@@ -212,9 +215,13 @@ static void uart_write_table(uint8_t N) {
 			if (RxBuffPos != TEMP_GRID_SIZE * 2 + 2) {return;}
 			for (uint8_t i = 0; i < TEMP_GRID_SIZE; i++) {SLUGear2TempAdaptGraph[i] = uart_build_int16(2 + i * 2);}
 			break;
-		case SLU_GEAR2_ADD_GRAPH:
-			if (RxBuffPos != TPS_GRID_SIZE * 2 + 2) {return;}
-			for (uint8_t i = 0; i < TPS_GRID_SIZE; i++) {SLUGear2AddGraph[i] = uart_build_int16(2 + i * 2);}
+		case GEAR2_ADV_GRAPH:
+			if (RxBuffPos != DELTA_RPM_GRID_SIZE * 2 + 2) {return;}
+			for (uint8_t i = 0; i < DELTA_RPM_GRID_SIZE; i++) {Gear2AdvGraph[i] = uart_build_int16(2 + i * 2);}
+			break;
+		case GEAR2_ADV_ADAPT_GRAPH:
+			if (RxBuffPos != DELTA_RPM_GRID_SIZE * 2 + 2) {return;}
+			for (uint8_t i = 0; i < DELTA_RPM_GRID_SIZE; i++) {Gear2AdvAdaptGraph[i] = uart_build_int16(2 + i * 2);}
 			break;
 		case SLU_GEAR3_GRAPH:
 			if (RxBuffPos != TPS_GRID_SIZE * 2 + 2) {return;}
@@ -326,6 +333,15 @@ void uart_command_processing() {
 				uart_send_table(ReceiveBuffer[1]);
 			}
 			break;
+		case APPLY_G2_ADV_ADAPT_COMMAND:
+			if (RxBuffPos == 3 && ReceiveBuffer[2] == APPLY_G2_ADV_ADAPT_COMMAND) {
+				for (uint8_t i = 0; i < DELTA_RPM_GRID_SIZE; i++) {
+					Gear2AdvGraph[i] += Gear2AdvAdaptGraph[i];
+					Gear2AdvAdaptGraph[i] = 0;
+				}
+				uart_send_table(ReceiveBuffer[1]);
+			}
+			break;
 		case APPLY_G3_TPS_ADAPT_COMMAND:
 			if (RxBuffPos == 3 && ReceiveBuffer[2] == APPLY_G3_TPS_ADAPT_COMMAND) {
 				for (uint8_t i = 0; i < TPS_GRID_SIZE; i++) {
@@ -409,8 +425,8 @@ void send_eeprom_to_uart() {
 	uart_send_string("SLUGear2TempAdaptGraph\n");
 	send_int16_array(SLUGear2TempAdaptGraph, TEMP_GRID_SIZE);
 
-	uart_send_string("SLUGear2AddGraph\n");
-	send_int16_array(SLUGear2AddGraph, TPS_GRID_SIZE);
+	uart_send_string("Gear2AdvGraph\n");
+	send_int16_array(Gear2AdvGraph, TPS_GRID_SIZE);
 
 	uart_send_string("SLUGear3Graph\n");
 	send_uint16_array(SLUGear3Graph, TPS_GRID_SIZE);

@@ -44,10 +44,11 @@
 
 	#define APPLY_G2_TPS_ADAPT_COMMAND 0xfc		// Применить адаптацию второй передачи по ДПДЗ.
 	#define APPLY_G2_TEMP_ADAPT_COMMAND 0xfd	// Применить адаптацию второй передачи по температуре.
+	#define APPLY_G2_ADV_ADAPT_COMMAND 0xfe		// Применить адаптацию реактивации второй передачи.
 
 	#define APPLY_G3_TPS_ADAPT_COMMAND 0xfa		// Применить адаптацию третьей передачи по ДПДЗ.
 	#define APPLY_G3_TEMP_ADAPT_COMMAND 0xfb	// Применить адаптацию третьей передачи по температуре.
-	
+
 #endif
 
 
