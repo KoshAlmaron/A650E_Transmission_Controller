@@ -60,16 +60,10 @@ void set_gear_n() {
 	if (TCU.Gear < 0) {TCU.GearChange = 1;}
 
 	set_slu(SLU_MIN_VALUE);			// Выключение SLU на случай переключения со второй передачи.
-	TCU.Gear2State = 0;
-	set_sln(SLN_MIN_PRESSURE); 
+	set_sln(get_sln_pressure());
+	set_solenoids(0);				// Установка шифтовых соленоидов.
 
 	TCU.Gear = 0;
-	loop_wait(700);			// Пауза после включения нейтрали.
-
-	set_solenoids(0);		// Установка шифтовых соленоидов.
-
-	set_sln(SLN_IDLE_PRESSURE); 
-
 	TCU.GearChange = 0;
 }
 
@@ -79,13 +73,8 @@ void set_gear_1() {
 
 	set_slu(SLU_MIN_VALUE);		// Выключение SLU на случай переключения со второй передачи.
 	set_sln(get_sln_pressure());
-	loop_wait(200);
-
-	set_solenoids(1);		// Установка шифтовых соленоидов.
+	set_solenoids(1);			// Установка шифтовых соленоидов.
 	if (TCU.ATMode == 7) {SET_PIN_HIGH(SOLENOID_S3_PIN);}	// Отличие для режима L2. 
-	loop_wait(1300);
-
-	set_sln(SLN_IDLE_PRESSURE);
 
 	TCU.Gear = 1;
 	TCU.GearChange = 0;
@@ -96,14 +85,8 @@ void set_gear_r() {
 	TCU.GearChange = -1;
 
 	set_slu(SLU_MIN_VALUE);		// Выключение SLU на случай переключения со второй передачи.
-	TCU.Gear2State = 0;
 	set_sln(get_sln_pressure());
-	loop_wait(200);
-
-	set_solenoids(-1);		// Установка шифтовых соленоидов.
-	loop_wait(1400);
-
-	set_sln(SLN_IDLE_PRESSURE);
+	set_solenoids(-1);			// Установка шифтовых соленоидов.
 
 	TCU.Gear = -1;
 	TCU.GearChange = 0;
@@ -117,7 +100,7 @@ void disable_gear_r() {
 	SET_PIN_LOW(SOLENOID_S4_PIN);
 
 	set_slu(SLU_MIN_VALUE);
-	set_sln(SLN_IDLE_PRESSURE);
+	set_sln(get_sln_pressure());
 }
 
 //=========================== Переключения вверх ==============================
