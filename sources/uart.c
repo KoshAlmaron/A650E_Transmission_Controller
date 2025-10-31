@@ -176,6 +176,12 @@ void uart_send_table(uint8_t N) {
 		case SLN_GEAR3_OFFSET_GRAPH:
 			for (uint8_t i = 0; i < TPS_GRID_SIZE; i++) {uart_buffer_add_int16(SLNGear3OffsetGraph[i]);}
 			break;
+		case TPS_ADC_GRAPH:
+			for (uint8_t i = 0; i < TPS_GRID_SIZE; i++) {uart_buffer_add_int16(TPSGraph[i]);}
+			break;
+		case OIL_ADC_GRAPH:
+			for (uint8_t i = 0; i < TEMP_GRID_SIZE; i++) {uart_buffer_add_int16(OilTempGraph[i]);}
+			break;
 		default:	// Неверный номер таблицы.
 			TxBuffPos = 0;
 			UseMarkers = 0;
@@ -249,6 +255,15 @@ static void uart_write_table(uint8_t N) {
 			if (RxBuffPos != TPS_GRID_SIZE * 2 + 2) {return;}
 			for (uint8_t i = 0; i < TPS_GRID_SIZE; i++) {SLNGear3OffsetGraph[i] = uart_build_int16(2 + i * 2);}
 			break;
+		case TPS_ADC_GRAPH:
+			if (RxBuffPos != TPS_GRID_SIZE * 2 + 2) {return;}
+			for (uint8_t i = 0; i < TPS_GRID_SIZE; i++) {TPSGraph[i] = uart_build_int16(2 + i * 2);}
+			break;
+		case OIL_ADC_GRAPH:
+			if (RxBuffPos != TEMP_GRID_SIZE * 2 + 2) {return;}
+			for (uint8_t i = 0; i < TEMP_GRID_SIZE; i++) {OilTempGraph[i] = uart_build_int16(2 + i * 2);}
+			break;
+
 		default:	// Неверный номер таблицы.
 			return;
 	}

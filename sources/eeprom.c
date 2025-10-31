@@ -60,6 +60,10 @@ void read_eeprom() {
 	// 730-771 - Gear2AdvAdaptGraph.
 	eeprom_read_block((void*)&Gear2AdvAdaptGraph, (const void*) 730, DELTA_RPM_GRID_SIZE * 2);
 
+	// 772-813 - TPSGraph.
+	eeprom_read_block((void*)&TPSGraph, (const void*) 772, TPS_GRID_SIZE * 2);
+	// 814-875 - OilTempGraph.
+	eeprom_read_block((void*)&OilTempGraph, (const void*) 814, TEMP_GRID_SIZE * 2);
 }
 
 // Запись EEPROM.
@@ -101,4 +105,9 @@ void update_eeprom() {
 	eeprom_update_block((void*)&SLUGear3TempAdaptGraph, (void*) 668, TEMP_GRID_SIZE * 2);
 	// 730-771 - Gear2AdvAdaptGraph.
 	eeprom_update_block((void*)&Gear2AdvAdaptGraph, (void*) 730, DELTA_RPM_GRID_SIZE * 2);
+
+	// 772-813 - TPSGraph.
+	eeprom_update_block((void*)&TPSGraph, (void*) 772, TPS_GRID_SIZE * 2);
+	// 814-875 - OilTempGraph.
+	eeprom_update_block((void*)&OilTempGraph, (void*) 814, TEMP_GRID_SIZE * 2);
 }

@@ -68,6 +68,8 @@
 		uint16_t LastPDRTime;		// Последнее время работы PDR.
 		uint16_t CycleTime;			// Время цикла.
 		uint8_t DebugMode;			// Режим отладки.
+		uint16_t RawTPS;			// Сырые значения АЦП ДПДЗ.
+		uint16_t RawOIL;			// Сырые значения АЦП температуры масла.
 	} TCU_t;
 
 	extern struct TCU_t TCU; 		// Делаем структуру внешней.
@@ -95,10 +97,16 @@
 	#define SLU_GEAR3_TEMP_ADAPT_GRAPH			13
 	#define SLN_GEAR3_GRAPH						14
 	#define SLN_GEAR3_OFFSET_GRAPH				15
+	#define TPS_ADC_GRAPH						16
+	#define OIL_ADC_GRAPH						17
 
 	// Сетки стандартных осей.
 	extern int16_t TempGrid[];
 	extern int16_t TPSGrid[];
+
+	// АЦП.
+	extern int16_t TPSGraph[];
+	extern int16_t OilTempGraph[];
 
 	// Таблицы.
 	extern uint16_t SLTGraph[];

@@ -47,7 +47,9 @@ TCU_t TCU = {
 	.GearChangeSLU = 0,
 	.LastPDRTime = 0,
 	.CycleTime = 0,
-	.DebugMode = 0
+	.DebugMode = 0,
+	.RawTPS = 0,
+	.RawOIL = 0
 };
 
  uint8_t SpeedTestFlag = 0;	// Флаг включения тестирования скорости.
@@ -113,6 +115,7 @@ uint16_t get_speed_timer_value() {
 int16_t get_oil_temp() {
 	// Датчик температуры находтся на ADC0.
 	int16_t TempValue = get_adc_value(0);
+	TCU.RawOIL = TempValue;
 	return get_interpolated_value_int16_t(TempValue, OilTempGraph, TempGrid, TEMP_GRID_SIZE) / 16;
 }
 
@@ -122,6 +125,7 @@ void calc_tps() {
 	static uint8_t Counter = 0;
 
 	int16_t TempValue = get_adc_value(1);
+	TCU.RawTPS = TempValue;
 	TCU.InstTPS = get_interpolated_value_int16_t(TempValue, TPSGraph, TPSGrid, TPS_GRID_SIZE) / 16;
 	if (TCU.InstTPS >= TCU.TPS) {
 		TCU.TPS = TCU.InstTPS;
