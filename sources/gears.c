@@ -129,7 +129,8 @@ static void gear_change_1_2() {
 	if (TCU.InstTPS > PDR_MAX_TPS) {PDR = -1;}
 	
 	while (TCU.GearStep < GEAR_2_MAX_STEP) {
-		WaitTimer = GearChangeStep;				// Устанавливаем время ожидания.
+		set_gear_change_delays();		// Длительность 1 шага переключения от ДПДЗ.
+		WaitTimer = GearChangeStep;		// Устанавливаем время ожидания.
 		while (WaitTimer) {
 			loop_main(1);
 
@@ -364,7 +365,8 @@ static void gear_change_3_2() {
 		TCU.GearStep = 0;		// Шаг процесса включения передачи.
 
 		while (TCU.GearStep < GEAR_2_MAX_STEP) {
-			WaitTimer = GearChangeStep;				// Устанавливаем время ожидания.
+			set_gear_change_delays();		// Длительность 1 шага переключения от ДПДЗ.
+			WaitTimer = GearChangeStep;		// Устанавливаем время ожидания.
 			while (WaitTimer) {
 				loop_main(1);
 
@@ -499,9 +501,10 @@ void slu_gear2_control() {
 			SET_PIN_HIGH(SOLENOID_S3_PIN);		// Включаем систему "Clutch to Clutch".
 			TCU.GearStep = 0;
 			while (TCU.GearStep < GEAR_2_MAX_STEP) {
+				set_gear_change_delays();		// Длительность 1 шага переключения от ДПДЗ.
 				// Устанавливаем время ожидания.
 				if (TCU.ATMode == 6 || TCU.ATMode == 7) {WaitTimer = GearChangeStep;}
-				else {WaitTimer = GearChangeStep / 2;}
+				else {WaitTimer = (GearChangeStep * 3) / 4;}
 
 				while (WaitTimer) {
 					loop_main(1);
@@ -531,9 +534,9 @@ void slu_gear2_control() {
 			// Применение адаптации.
 			if (TCU.ATMode != 6 && TCU.ATMode != 7 && InitDrumRPMDelta) {
 				// Обороты проскачили нулевую точку, передача включилась поздно.
-				if (MaxDeltaRPM > 70) {save_gear2_adv_adaptation(1, InitDrumRPMDelta);}
+				if (MaxDeltaRPM > 80) {save_gear2_adv_adaptation(1, InitDrumRPMDelta);}
 				// Обороты сликом близко к нулевойю точку, передача включилась рано.
-				else if (MaxDeltaRPM < 30) {save_gear2_adv_adaptation(-1, InitDrumRPMDelta);}
+				else if (MaxDeltaRPM < 40) {save_gear2_adv_adaptation(-1, InitDrumRPMDelta);}
 			}
 			break;
 		case 8:
@@ -583,7 +586,7 @@ void gear_control() {
 	if (TCU.ATMode < 4 || TCU.ATMode > 8) {return;}
 	if (TCU.Gear < 1 || TCU.Gear > 5) {return;}
 
-	set_gear_change_delays();	// Установка времени на переключение от ДПДЗ.
+	set_gear_change_delays();	// Длительность 1 шага переключения от ДПДЗ.
 
 	TCU.GearUpSpeed = get_gear_max_speed(TCU.Gear);		// Верхняя граница переключения.
 	TCU.GearDownSpeed = get_gear_min_speed(TCU.Gear);	// Нижняя граница переключения.
@@ -658,7 +661,7 @@ static void gear_down() {
 }
 
 static void set_gear_change_delays() {
-	GearChangeStep = get_interpolated_value_uint16_t(TCU.InstTPS, TPSGrid, GearChangeStepArray, TPS_GRID_SIZE) / 16;
+	GearChangeStep = get_interpolated_value_uint16_t(TCU.InstTPS, TPSGrid, GearChangeStepArray, TPS_GRID_SIZE);
 }
 
 // Ожидание с основным циклом.
@@ -688,7 +691,7 @@ uint8_t get_gear_max_speed(int8_t Gear) {
 			return 0;
 	}
 
-	uint16_t Speed = get_interpolated_value_uint16_t(TCU.TPS, TPSGrid, Array, TPS_GRID_SIZE) / 16;
+	uint16_t Speed = get_interpolated_value_uint16_t(TCU.TPS, TPSGrid, Array, TPS_GRID_SIZE);
 	return Speed;
 }
 
@@ -712,7 +715,7 @@ uint8_t get_gear_min_speed(int8_t Gear) {
 		default:
 			return 0;
 	}
-	uint16_t Speed = get_interpolated_value_uint16_t(TCU.TPS, TPSGrid, Array, TPS_GRID_SIZE) / 16;
+	uint16_t Speed = get_interpolated_value_uint16_t(TCU.TPS, TPSGrid, Array, TPS_GRID_SIZE);
 	return Speed;
 }
 
