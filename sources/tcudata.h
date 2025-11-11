@@ -25,7 +25,7 @@
 
 	uint8_t get_tps_index(uint8_t TPS);
 	uint8_t get_temp_index(int16_t Temp);
-	uint8_t get_delta_rpm_index(uint8_t RPM);
+	uint8_t get_delta_rpm_index(int16_t DeltaRPM);
 
 	void save_gear2_slu_adaptation(int8_t Value);
 	void save_gear2_adv_adaptation(int8_t Value, int16_t InitDrumRPMDelta);

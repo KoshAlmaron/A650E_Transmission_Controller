@@ -504,7 +504,7 @@ void slu_gear2_control() {
 				set_gear_change_delays();		// Длительность 1 шага переключения от ДПДЗ.
 				// Устанавливаем время ожидания.
 				if (TCU.ATMode == 6 || TCU.ATMode == 7) {WaitTimer = GearChangeStep;}
-				else {WaitTimer = (GearChangeStep * 3) / 4;}
+				else {WaitTimer = 60;}	// Статическое значение при реактивации.
 
 				while (WaitTimer) {
 					loop_main(1);

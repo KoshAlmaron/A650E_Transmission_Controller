@@ -207,7 +207,12 @@ int16_t get_slu_gear2_temp_corr(int16_t Value) {
 
 // Опережение по оборотам реактивации второй передачи.
 int16_t get_gear2_rpm_adv() {
-	return get_interpolated_value_int16_t(TCU.DrumRPMDelta, DeltaRPMGrid, Gear2AdvGraph, DELTA_RPM_GRID_SIZE);
+	int16_t AdvanceRPM = get_interpolated_value_int16_t(TCU.DrumRPMDelta, DeltaRPMGrid, Gear2AdvGraph, DELTA_RPM_GRID_SIZE);
+	#ifdef GEAR_2_REACT_ADAPTATION
+		AdvanceRPM += get_interpolated_value_int16_t(TCU.DrumRPMDelta, DeltaRPMGrid, Gear2AdvAdaptGraph, DELTA_RPM_GRID_SIZE);
+	#endif
+
+	return AdvanceRPM;
 }
 
 // Давление включения третьей передачи SLU B2.
@@ -264,11 +269,11 @@ uint8_t get_temp_index(int16_t Temp) {
 }
 
 // Возвращает левый индекс из сетки дельты оборотов.
-uint8_t get_delta_rpm_index(uint8_t RPM) {
-	if (RPM == DeltaRPMGrid[DELTA_RPM_GRID_SIZE - 1]) {return DELTA_RPM_GRID_SIZE - 2;}
+uint8_t get_delta_rpm_index(int16_t DeltaRPM) {
+	if (DeltaRPM == DeltaRPMGrid[DELTA_RPM_GRID_SIZE - 1]) {return DELTA_RPM_GRID_SIZE - 2;}
 
 	for (uint8_t i = 1; i < DELTA_RPM_GRID_SIZE; i++) {
-		if (RPM < DeltaRPMGrid[i]) {return i - 1;}
+		if (DeltaRPM < DeltaRPMGrid[i]) {return i - 1;}
 	}
 	return 0;
 }
@@ -345,8 +350,12 @@ void save_gear2_slu_adaptation(int8_t Value) {
 }
 
 void save_gear2_adv_adaptation(int8_t Value, int16_t InitDrumRPMDelta) {
+	#ifndef GEAR_2_REACT_ADAPTATION
+		return;
+	#endif
+
 	uint8_t Index = get_delta_rpm_index(InitDrumRPMDelta);
-	int8_t Step = 10 * ADAPTATION_STEP_RATIO;
+	int8_t Step = 20 * ADAPTATION_STEP_RATIO;
 	int16_t Add = 32 - ((InitDrumRPMDelta - DeltaRPMGrid[Index]) * 32) / 5;
 
 	Add += 16 / Step;
