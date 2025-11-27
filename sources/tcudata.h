@@ -72,7 +72,7 @@
 		uint16_t RawOIL;			// Сырые значения АЦП температуры масла.
 	} TCU_t;
 
-	extern struct TCU_t TCU; 		// Делаем структуру внешней.
+	extern struct TCU_t TCU; 	// Делаем структуру внешней.
 
 	extern uint8_t SpeedTestFlag;	// Флаг включения тестирования скорости.
 
@@ -85,20 +85,23 @@
 	#define SLT_TEMP_CORR_GRAPH					1
 	#define SLN_GRAPH							2
 	#define SLU_GEAR2_GRAPH						3
-	#define SLU_GEAR2_TEMP_CORR_GRAPH			4
-	#define SLU_GEAR2_TPS_ADAPT_GRAPH			5
+	#define SLU_GEAR2_TPS_ADAPT_GRAPH			4
+	#define SLU_GEAR2_TEMP_CORR_GRAPH			5
 	#define SLU_GEAR2_TEMP_ADAPT_GRAPH			6
 	#define GEAR2_ADV_GRAPH						7
 	#define GEAR2_ADV_ADAPT_GRAPH				8
-	#define SLU_GEAR3_GRAPH						9
-	#define SLU_GEAR3_DELAY_GRAPH				10
-	#define SLU_G3_DELAY_TEMP_CORR_GRAPH		11
-	#define SLU_GEAR3_TPS_ADAPT_GRAPH			12
-	#define SLU_GEAR3_TEMP_ADAPT_GRAPH			13
-	#define SLN_GEAR3_GRAPH						14
-	#define SLN_GEAR3_OFFSET_GRAPH				15
-	#define TPS_ADC_GRAPH						16
-	#define OIL_ADC_GRAPH						17
+	#define GEAR2_ADV_TEMP_CORR_GRAPH			9
+	#define GEAR2_ADV_TEMP_ADAPT_GRAPH			10
+	#define SLU_GEAR3_GRAPH						11
+	#define SLU_GEAR3_DELAY_GRAPH				12
+	#define SLU_GEAR3_TPS_ADAPT_GRAPH			13
+	#define SLU_G3_DELAY_TEMP_CORR_GRAPH		14
+	#define SLU_GEAR3_TEMP_ADAPT_GRAPH			15
+	#define SLN_GEAR3_GRAPH						16
+	#define SLN_GEAR3_OFFSET_GRAPH				17
+	#define TPS_ADC_GRAPH						18
+	#define OIL_ADC_GRAPH						19
+	#define GEAR_SPEED_GRAPHS					20
 
 	// Сетки стандартных осей.
 	extern int16_t TempGrid[];
@@ -121,7 +124,10 @@
 	extern int16_t SLUGear2TempAdaptGraph[];
 
 	extern int16_t Gear2AdvGraph[];
+	extern int16_t Gear2AdvTempCorrGraph[];
+
 	extern int16_t Gear2AdvAdaptGraph[];
+	extern int16_t Gear2AdvTempAdaptGraph[];
 
 	extern uint16_t SLUGear3Graph[];
 	extern uint16_t SLUGear3DelayGraph[];
@@ -133,4 +139,14 @@
 	extern uint16_t SLNGear3Graph[];
 	extern int16_t SLNGear3OffsetGraph[];
 
+	extern uint8_t Gear_2_1[];
+	extern uint8_t Gear_1_2[];
+	extern uint8_t Gear_3_2[];
+	extern uint8_t Gear_2_3[];
+	extern uint8_t Gear_4_3[];
+	extern uint8_t Gear_3_4[];
+	extern uint8_t Gear_5_4[];
+	extern uint8_t Gear_4_5[];
+
+	extern uint16_t GearChangeStepArray[];
 #endif

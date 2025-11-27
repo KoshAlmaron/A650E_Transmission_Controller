@@ -15,7 +15,7 @@
 		201 - короткое нажатие,
 		202 - длинное нажатие.
 */
-static uint8_t ButtonState[2] = {};	//Ввер/внизх, влево/вправо.
+static uint8_t ButtonState[2] = {};
 
 // Прототипы функций.
 static void button_read(uint8_t State, uint8_t N);

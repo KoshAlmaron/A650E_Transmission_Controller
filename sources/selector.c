@@ -6,7 +6,6 @@
 #include "macros.h"			// Макросы.
 #include "pinout.h"			// Список назначенных выводов.
 #include "eeprom.h"			// Чтение и запись EEPROM.
-#include "tacho.h"			// Тахометр двигателя.
 #include "configuration.h"	// Настройки.
 
 // Счетчик для установки ошибки.
@@ -123,13 +122,7 @@ void engine_n_break_state() {
 
 	// Флаг работы двигателя.
 	uint8_t EW = TCU.EngineWork;
-	#ifdef USE_ENGINE_RPM	// Используются обороты двигателя.
-		TCU.EngineRPM = tacho_get_rpm();
-		if (!TCU.EngineWork && TCU.EngineRPM > ENGINE_ON_RPM_THRESHOLD) {EW = 1;}
-		if (TCU.EngineWork && TCU.EngineRPM < ENGINE_OFF_RPM_THRESHOLD) {EW = 0;}
-	#else	// Используется сигнал от бензонасоса.
-		EW = PIN_READ(ENGINE_WORK_PIN) ? 1 : 0;
-	#endif
+	EW = PIN_READ(ENGINE_WORK_PIN) ? 1 : 0;
 
 	if (EW) {	// При положительном сигнале устанавливается флаг и сбрасывается счетчик.
 		Counter = 0;
@@ -140,10 +133,8 @@ void engine_n_break_state() {
 			Counter++;					// Счетчик увеличивается на единицу.
 			if (Counter == 3) {			// По достижении порога сбрасывается флаг работы двигателя.
 				TCU.EngineWork = EW;
-				Counter = 0;			// Сбрасывается счетчик (на всякий случай).
-				#ifndef DEBUG_MODE_PRINT
-					update_eeprom();	// И сохраняются таблицы в EEPROM.
-				#endif
+				Counter = 0;				// Сбрасывается счетчик (на всякий случай).
+				update_eeprom_adaptation();	// И сохраняются таблицы в EEPROM.
 			}
 		}
 	}

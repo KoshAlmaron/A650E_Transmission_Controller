@@ -2,6 +2,38 @@
 
 #include "mathemat.h"		// Свой заголовок.
 
+// Возвращаент интерполированное значение uint8_t из графика.
+uint16_t get_interpolated_value_uint8_t(uint16_t x, int16_t* ArrayX, uint8_t* ArrayY, uint8_t ArraySize) {
+	uint16_t Result = 0;
+
+	if (x <= ArrayX[0]) {return ArrayY[0] ;}
+	if (x >= ArrayX[ArraySize - 1]) {return ArrayY[ArraySize - 1];}
+
+	// Находим позицию в графике.
+	for (uint8_t i = 0; i < ArraySize; i++) {
+		if (x <= ArrayX[i]) {
+			// Находим значение с помощью интерполяции.
+			uint16_t x0 = ArrayX[i - 1];
+			uint16_t x1 = ArrayX[i];
+
+			uint16_t y0 = ArrayY[i - 1];
+			uint16_t y1 = ArrayY[i];
+
+			// Переворачиваем значения, если Y идет на уменьшение.
+			if (y0 > y1) {
+				y0 = ArrayY[i];
+				y1 = ArrayY[i - 1];
+				x = x0 + x1 - x;
+			}
+
+			Result = y0 * 16 + (((y1 - y0) * 16) * (x - x0)) / (x1 - x0);
+			break;
+		}
+	}
+	Result /= 16;
+	return Result;
+}
+
 // Возвращаент интерполированное значение uint16_t из графика.
 uint16_t get_interpolated_value_uint16_t(uint16_t x, int16_t* ArrayX, uint16_t* ArrayY, uint8_t ArraySize) {
 	uint16_t Result = 0;
@@ -15,7 +47,7 @@ uint16_t get_interpolated_value_uint16_t(uint16_t x, int16_t* ArrayX, uint16_t* 
 			// Находим значение с помощью интерполяции.
 			uint16_t x0 = ArrayX[i - 1];
 			uint16_t x1 = ArrayX[i];
-			
+
 			uint16_t y0 = ArrayY[i - 1];
 			uint16_t y1 = ArrayY[i];
 
@@ -58,7 +90,7 @@ int16_t get_interpolated_value_int16_t(int16_t x, int16_t* ArrayX, int16_t* Arra
 			// Находим значение с помощью интерполяции.
 			int16_t x0 = ArrayX[i - 1];
 			int16_t x1 = ArrayX[i];
-			
+
 			int16_t y0 = ArrayY[i - 1];
 			int16_t y1 = ArrayY[i];
 

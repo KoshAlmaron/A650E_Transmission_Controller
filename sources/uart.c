@@ -9,6 +9,7 @@
 #include "eeprom.h"			// Чтение и запись EEPROM.
 #include "macros.h"			// Макросы.
 #include "gears.h"			// Фунции переключения передач.
+#include "configuration.h"	// Настройки.
 
 #include <stdio.h>			// Стандартная библиотека ввода/вывода
 
@@ -21,7 +22,7 @@
 
 #define SET_UBRR ((F_CPU / (8UL * UART_BAUD_RATE)) - 1UL)
 
-#define UART_RX_BUFFER_SIZE 128						// Размер буфера приема.
+#define UART_RX_BUFFER_SIZE 200						// Размер буфера приема.
 uint8_t	ReceiveBuffer[UART_RX_BUFFER_SIZE] = {0};	// Буфер приема.
 volatile uint8_t RxBuffPos = 0;						// Позиция в буфере.
 // Состояние принятой комманды.
@@ -31,7 +32,7 @@ volatile uint8_t RxBuffPos = 0;						// Позиция в буфере.
 volatile uint8_t RxCommandStatus = 0;
 volatile uint8_t RxMarkerByte = 0;					// Признак, что предыдущий символ был заменен.
 
-#define UART_TX_BUFFER_SIZE 128						// Размер буфера отправки.
+#define UART_TX_BUFFER_SIZE 200						// Размер буфера отправки.
 uint8_t	SendBuffer[UART_TX_BUFFER_SIZE] = {0};		// Буфер отправки.
 uint16_t TxMsgSize = 0;								// Количество байт для отправки.
 volatile uint8_t TxBuffPos = 0;						// Позиция в буфере.
@@ -42,22 +43,20 @@ volatile uint8_t TxMarkerByte = 0;	// Признак, что предыдущи�
 
 char CharArray[8] = {0};
 
-static void send_uint16_array(uint16_t* Array, uint8_t ASize);
-static void send_int16_array(int16_t* Array, uint8_t ASize);
+static void uart_buffer_add_uint8(uint8_t Value);
 
 static void uart_buffer_add_uint16(uint16_t Value);
 static void uart_buffer_add_int16(int16_t Value);
 
-//static void uart_send_table(uint8_t N);
 static void uart_write_table(uint8_t N);
 
 static int16_t uart_build_int16(uint8_t i);
 static uint16_t uart_build_uint16(uint8_t i);
 
+static void uart_write_cfg_data();
+
 // Функция программного сброса
 void(* resetFunc) (void) = 0;
-
-//eeprom_update_byte (uint8_t *__p, uint8_t __value)
 
 void uart_init(uint8_t mode) {
 	// Сброс регистров настроек, так как загрузчик Arduino может нагадить.
@@ -104,10 +103,7 @@ void uart_send_tcu_data() {
 	SendBuffer[TxBuffPos++] = FOBEGIN;	// Байт начала пакета.
 	SendBuffer[TxBuffPos++] = TCU_DATA_PACKET;		// Тип данных.
 
-	//TCU.OilTemp = 78;
-	//TCU.SLT = get_adc_value(0); // Температура масла.
-	//TCU.SLN = get_adc_value(1); // ДПДЗ.
-	//TCU.Gear = -1;
+	//TCU.GearChangeSLU = 0;
 
 	// Начальный адрес структуры TCU.
 	uint8_t* TCUAddr = (uint8_t*) &TCU;
@@ -115,9 +111,39 @@ void uart_send_tcu_data() {
 	for (uint8_t i = 0; i < sizeof(TCU); i++) {
 		SendBuffer[TxBuffPos++] = *(TCUAddr + i);
 	}
-	
+
 	SendBuffer[TxBuffPos++] = FIOEND;		// Байт конца пакета.
 	uart_send_array();
+}
+
+void uart_send_cfg_data() {
+	TxBuffPos = 0;				// Сброс позиции.
+	UseMarkers = 1;				// Используем байты маркеры.
+	SendBuffer[TxBuffPos++] = FOBEGIN;				// Байт начала пакета.
+	SendBuffer[TxBuffPos++] = TCU_CONFIG_ANSWER;	// Тип данных.
+
+	// Начальный адрес структуры TCU.
+	uint8_t* CFGAddr = (uint8_t*) &CFG;
+	// Запихиваем структуру побайтово в массив на отправку.
+	for (uint8_t i = 0; i < sizeof(CFG); i++) {
+		SendBuffer[TxBuffPos++] = *(CFGAddr + i);
+	}
+
+	SendBuffer[TxBuffPos++] = FIOEND;		// Байт конца пакета.
+	uart_send_array();
+}
+
+static void uart_write_cfg_data() {
+	if (RxBuffPos != sizeof(CFG) + 2) {return;}
+	
+	// Начальный адрес структуры TCU.
+	uint8_t* CFGAddr = (uint8_t*) &CFG;
+	// Запихиваем буфер обратно в структуру побайтово.
+	for (uint8_t i = 0; i < sizeof(CFG); i++) {
+		*(CFGAddr + i) = ReceiveBuffer[i + 2];
+	}
+
+	uart_send_cfg_data();
 }
 
 void uart_send_table(uint8_t N) {
@@ -155,6 +181,12 @@ void uart_send_table(uint8_t N) {
 		case GEAR2_ADV_ADAPT_GRAPH:
 			for (uint8_t i = 0; i < DELTA_RPM_GRID_SIZE; i++) {uart_buffer_add_int16(Gear2AdvAdaptGraph[i]);}
 			break;
+		case GEAR2_ADV_TEMP_CORR_GRAPH:
+			for (uint8_t i = 0; i < TEMP_GRID_SIZE; i++) {uart_buffer_add_int16(Gear2AdvTempCorrGraph[i]);}
+			break;
+		case GEAR2_ADV_TEMP_ADAPT_GRAPH:
+			for (uint8_t i = 0; i < TEMP_GRID_SIZE; i++) {uart_buffer_add_int16(Gear2AdvTempAdaptGraph[i]);}
+			break;
 		case SLU_GEAR3_GRAPH:
 			for (uint8_t i = 0; i < TPS_GRID_SIZE; i++) {uart_buffer_add_uint16(SLUGear3Graph[i]);}
 			break;
@@ -182,6 +214,19 @@ void uart_send_table(uint8_t N) {
 		case OIL_ADC_GRAPH:
 			for (uint8_t i = 0; i < TEMP_GRID_SIZE; i++) {uart_buffer_add_int16(OilTempGraph[i]);}
 			break;
+		case GEAR_SPEED_GRAPHS:
+			for (uint8_t i = 0; i < TPS_GRID_SIZE; i++) {
+				uart_buffer_add_uint8(Gear_2_1[i]);
+				uart_buffer_add_uint8(Gear_1_2[i]);
+				uart_buffer_add_uint8(Gear_3_2[i]);
+				uart_buffer_add_uint8(Gear_2_3[i]);
+				uart_buffer_add_uint8(Gear_4_3[i]);
+				uart_buffer_add_uint8(Gear_3_4[i]);
+				uart_buffer_add_uint8(Gear_5_4[i]);
+				uart_buffer_add_uint8(Gear_4_5[i]);
+			}
+			break;
+
 		default:	// Неверный номер таблицы.
 			TxBuffPos = 0;
 			UseMarkers = 0;
@@ -189,6 +234,190 @@ void uart_send_table(uint8_t N) {
 	}
 	SendBuffer[TxBuffPos++] = FIOEND;		// Байт конца пакета.
 	uart_send_array();
+}
+
+void uart_command_processing() {
+	if (!TxReady) {return;}		// Не трогать буфер пока идет передача.
+
+	if (RxCommandStatus!= 2) {return;}
+	if (RxBuffPos < 2) {
+		RxCommandStatus = 0;
+		return;
+	}
+
+	switch (ReceiveBuffer[0]) {
+		case GET_TABLE_COMMAND:
+			uart_send_table(ReceiveBuffer[1]);
+			break;
+		case NEW_TABLE_DATA:
+			uart_write_table(ReceiveBuffer[1]);
+			break;
+		case GET_CONFIG_COMMAND:
+			uart_send_cfg_data();
+			break;
+		case NEW_CONFIG_DATA:
+			uart_write_cfg_data();
+			break;
+		case READ_EEPROM_MAIN_COMMAND:
+			if (RxBuffPos == 3 && ReceiveBuffer[2] == READ_EEPROM_MAIN_COMMAND) {
+				read_eeprom_tables();
+				uart_send_table(ReceiveBuffer[1]);
+			}
+			break;
+		case READ_EEPROM_ADC_COMMAND:
+			if (RxBuffPos == 3 && ReceiveBuffer[2] == READ_EEPROM_ADC_COMMAND) {
+				read_eeprom_adc();
+				uart_send_table(ReceiveBuffer[1]);
+			}
+			break;
+		case READ_EEPROM_SPEED_COMMAND:
+			if (RxBuffPos == 3 && ReceiveBuffer[2] == READ_EEPROM_SPEED_COMMAND) {
+				read_eeprom_speed();
+				uart_send_table(ReceiveBuffer[1]);
+			}
+			break;
+		case READ_EEPROM_CONFIG_COMMAND:
+			if (RxBuffPos == 3 && ReceiveBuffer[2] == READ_EEPROM_CONFIG_COMMAND) {
+				read_eeprom_config();
+				uart_send_cfg_data();
+			}
+			break;
+		case WRITE_EEPROM_MAIN_COMMAND:
+			if (RxBuffPos == 3 && ReceiveBuffer[2] == WRITE_EEPROM_MAIN_COMMAND) {
+				update_eeprom_tables();
+				uart_send_table(ReceiveBuffer[1]);
+			}
+			break;
+		case WRITE_EEPROM_ADC_COMMAND:
+			if (RxBuffPos == 3 && ReceiveBuffer[2] == WRITE_EEPROM_ADC_COMMAND) {
+				update_eeprom_adc();
+				uart_send_table(ReceiveBuffer[1]);
+			}
+			break;
+		case WRITE_EEPROM_SPEED_COMMAND:
+			if (RxBuffPos == 3 && ReceiveBuffer[2] == WRITE_EEPROM_SPEED_COMMAND) {
+				update_eeprom_speed();
+				uart_send_table(ReceiveBuffer[1]);
+			}
+			break;
+		case WRITE_EEPROM_CONFIG_COMMAND:
+			if (RxBuffPos == 3 && ReceiveBuffer[2] == WRITE_EEPROM_CONFIG_COMMAND) {
+				update_eeprom_config();
+				uart_send_cfg_data();
+			}
+			break;
+		case SPEED_TEST_COMMAND:
+			if (SpeedTestFlag) {SpeedTestFlag = 0;}
+			else {SpeedTestFlag = 1;}
+			break;
+		case GEAR_LIMIT_COMMAND:
+			if (RxBuffPos == 4) {
+				uint8_t Min = ReceiveBuffer[2];
+				uint8_t Max = ReceiveBuffer[3];
+				if (Min <= Max && Min >= 1 && Min <= 5 && Max >= 1 && Max <= 5) {
+					set_gear_limit(Min, Max);
+					uart_send_table(ReceiveBuffer[1]);
+				}
+			}
+			break;
+		case TABLES_INIT_MAIN_COMMAND:
+			if (RxBuffPos == 3 && ReceiveBuffer[2] == TABLES_INIT_MAIN_COMMAND) {
+				eeprom_update_byte((uint8_t*) OVERWRITE_FIRST_BYTE_NUMBER + 0, OVERWRITE_BYTE);	// Устанавливаем метку.
+				resetFunc();	// Перезапускаем код ЭБУ (переход к нулевому адресу).
+			}
+			break;
+		case TABLES_INIT_ADC_COMMAND:
+			if (RxBuffPos == 3 && ReceiveBuffer[2] == TABLES_INIT_ADC_COMMAND) {
+				eeprom_update_byte((uint8_t*) OVERWRITE_FIRST_BYTE_NUMBER + 1, OVERWRITE_BYTE);	// Устанавливаем метку.
+				resetFunc();	// Перезапускаем код ЭБУ (переход к нулевому адресу).
+			}
+			break;
+		case TABLES_INIT_SPEED_COMMAND:
+			if (RxBuffPos == 3 && ReceiveBuffer[2] == TABLES_INIT_SPEED_COMMAND) {
+				eeprom_update_byte((uint8_t*) OVERWRITE_FIRST_BYTE_NUMBER + 2, OVERWRITE_BYTE);	// Устанавливаем метку.
+				resetFunc();	// Перезапускаем код ЭБУ (переход к нулевому адресу).
+			}
+			break;
+		case TABLES_INIT_CONFIG_COMMAND:
+			if (RxBuffPos == 3 && ReceiveBuffer[2] == TABLES_INIT_CONFIG_COMMAND) {
+				eeprom_update_byte((uint8_t*) OVERWRITE_FIRST_BYTE_NUMBER + 3, OVERWRITE_BYTE);	// Устанавливаем метку.
+				resetFunc();	// Перезапускаем код ЭБУ (переход к нулевому адресу).
+			}
+			break;
+		case APPLY_G2_TPS_ADAPT_COMMAND:
+			if (RxBuffPos == 3 && ReceiveBuffer[2] == APPLY_G2_TPS_ADAPT_COMMAND) {
+				for (uint8_t i = 0; i < TPS_GRID_SIZE; i++) {
+					SLUGear2Graph[i] += SLUGear2TPSAdaptGraph[i];
+					SLUGear2TPSAdaptGraph[i] = 0;
+				}
+				uart_send_table(ReceiveBuffer[1]);
+			}
+			break;
+		case APPLY_G2_TEMP_ADAPT_COMMAND:
+			if (RxBuffPos == 3 && ReceiveBuffer[2] == APPLY_G2_TEMP_ADAPT_COMMAND) {
+				for (uint8_t i = 0; i < TEMP_GRID_SIZE; i++) {
+					SLUGear2TempCorrGraph[i] += SLUGear2TempAdaptGraph[i];
+					SLUGear2TempAdaptGraph[i] = 0;
+				}
+				uart_send_table(ReceiveBuffer[1]);
+			}
+			break;
+		case APPLY_G2_ADV_ADAPT_COMMAND:
+			if (RxBuffPos == 3 && ReceiveBuffer[2] == APPLY_G2_ADV_ADAPT_COMMAND) {
+				for (uint8_t i = 0; i < DELTA_RPM_GRID_SIZE; i++) {
+					Gear2AdvGraph[i] += Gear2AdvAdaptGraph[i];
+					Gear2AdvAdaptGraph[i] = 0;
+				}
+				uart_send_table(ReceiveBuffer[1]);
+			}
+			break;
+		case APPLY_G2_ADV_TEMP_ADAPT_COMMAND:
+			if (RxBuffPos == 3 && ReceiveBuffer[2] == APPLY_G2_ADV_TEMP_ADAPT_COMMAND) {
+				for (uint8_t i = 0; i < TEMP_GRID_SIZE; i++) {
+					Gear2AdvTempCorrGraph[i] += Gear2AdvTempAdaptGraph[i];
+					Gear2AdvTempAdaptGraph[i] = 0;
+				}
+				uart_send_table(ReceiveBuffer[1]);
+			}
+			break;
+		case APPLY_G3_TPS_ADAPT_COMMAND:
+			if (RxBuffPos == 3 && ReceiveBuffer[2] == APPLY_G3_TPS_ADAPT_COMMAND) {
+				for (uint8_t i = 0; i < TPS_GRID_SIZE; i++) {
+					SLUGear3DelayGraph[i] += SLUGear3TPSAdaptGraph[i];
+					SLUGear3TPSAdaptGraph[i] = 0;
+				}
+				uart_send_table(ReceiveBuffer[1]);
+			}
+			break;
+		case APPLY_G3_TEMP_ADAPT_COMMAND:
+			if (RxBuffPos == 3 && ReceiveBuffer[2] == APPLY_G3_TEMP_ADAPT_COMMAND) {
+				for (uint8_t i = 0; i < TEMP_GRID_SIZE; i++) {
+					SLUG3DelayTempCorrGraph[i] += SLUGear3TempAdaptGraph[i];
+					SLUGear3TempAdaptGraph[i] = 0;
+				}
+				uart_send_table(ReceiveBuffer[1]);
+			}
+			break;
+	}
+	RxCommandStatus = 0;
+}
+
+// Отправить массив в UART.
+void uart_send_array() {
+	TxMsgSize = TxBuffPos;		// Количество байт на отправку.
+	TxReady = 0;				// UART занят.
+	TxBuffPos = 0;				// Сбрасываем позицию в массиве.
+	UCSR0B |= (1 << UDRIE0);	// Включаем прерывание по опустошению буфера.
+}
+
+// Возвращает готовность интерфейса к новому заданию.
+uint8_t uart_tx_ready() {
+	cli();
+		uint8_t RD = UCSR0A & (1 << UDRE0);
+	sei();
+
+	if (RD && TxReady) {return 1;}	// Буфер свободен и не идет пакетная отправка.
+	else {return 0;}
 }
 
 static void uart_write_table(uint8_t N) {
@@ -229,6 +458,14 @@ static void uart_write_table(uint8_t N) {
 			if (RxBuffPos != DELTA_RPM_GRID_SIZE * 2 + 2) {return;}
 			for (uint8_t i = 0; i < DELTA_RPM_GRID_SIZE; i++) {Gear2AdvAdaptGraph[i] = uart_build_int16(2 + i * 2);}
 			break;
+		case GEAR2_ADV_TEMP_CORR_GRAPH:
+			if (RxBuffPos != TEMP_GRID_SIZE * 2 + 2) {return;}
+			for (uint8_t i = 0; i < TEMP_GRID_SIZE; i++) {Gear2AdvTempCorrGraph[i] = uart_build_int16(2 + i * 2);}
+			break;
+		case GEAR2_ADV_TEMP_ADAPT_GRAPH:
+			if (RxBuffPos != TEMP_GRID_SIZE * 2 + 2) {return;}
+			for (uint8_t i = 0; i < TEMP_GRID_SIZE; i++) {Gear2AdvTempAdaptGraph[i] = uart_build_int16(2 + i * 2);}
+			break;
 		case SLU_GEAR3_GRAPH:
 			if (RxBuffPos != TPS_GRID_SIZE * 2 + 2) {return;}
 			for (uint8_t i = 0; i < TPS_GRID_SIZE; i++) {SLUGear3Graph[i] = uart_build_uint16(2 + i * 2);}
@@ -263,11 +500,28 @@ static void uart_write_table(uint8_t N) {
 			if (RxBuffPos != TEMP_GRID_SIZE * 2 + 2) {return;}
 			for (uint8_t i = 0; i < TEMP_GRID_SIZE; i++) {OilTempGraph[i] = uart_build_int16(2 + i * 2);}
 			break;
+		case GEAR_SPEED_GRAPHS:
+			if (RxBuffPos != TPS_GRID_SIZE * 8 + 2) {return;}
+			for (uint8_t i = 0; i < TPS_GRID_SIZE; i++) {
+				Gear_2_1[i] = ReceiveBuffer[2 + i * 8 + 0];
+				Gear_1_2[i] = ReceiveBuffer[2 + i * 8 + 1];
+				Gear_3_2[i] = ReceiveBuffer[2 + i * 8 + 2];
+				Gear_2_3[i] = ReceiveBuffer[2 + i * 8 + 3];
+				Gear_4_3[i] = ReceiveBuffer[2 + i * 8 + 4];
+				Gear_3_4[i] = ReceiveBuffer[2 + i * 8 + 5];
+				Gear_5_4[i] = ReceiveBuffer[2 + i * 8 + 6];
+				Gear_4_5[i] = ReceiveBuffer[2 + i * 8 + 7];
+			}
+			break;
 
 		default:	// Неверный номер таблицы.
 			return;
 	}
 	uart_send_table(N);
+}
+
+static void uart_buffer_add_uint8(uint8_t Value) {
+	SendBuffer[TxBuffPos++] = Value;
 }
 
 static void uart_buffer_add_uint16(uint16_t Value) {
@@ -279,104 +533,7 @@ static void uart_buffer_add_uint16(uint16_t Value) {
 static void uart_buffer_add_int16(int16_t Value) {
 	uint8_t *pValue = (uint8_t*)&Value;
 	SendBuffer[TxBuffPos++] = *pValue;
-	SendBuffer[TxBuffPos++] = *(pValue + 1);	
-}
-
-void uart_command_processing() {
-	if (!TxReady) {return;}		// Не трогать буфер пока идет передача.
-
-	if (RxCommandStatus!= 2) {return;}
-	if (RxBuffPos < 2) {
-		RxCommandStatus = 0;
-		return;
-	}
-
-	switch (ReceiveBuffer[0]) {
-		case GET_TABLE_COMMAND:
-			uart_send_table(ReceiveBuffer[1]);
-			break;
-		case NEW_TABLE_DATA:
-			uart_write_table(ReceiveBuffer[1]);
-			break;
-		case READ_EEPROM_COMMAND:
-			if (RxBuffPos == 3 && ReceiveBuffer[2] == READ_EEPROM_COMMAND) {
-				read_eeprom();
-				uart_send_table(ReceiveBuffer[1]);
-			}
-			break;
-		case WRITE_EEPROM_COMMAND:
-			if (RxBuffPos == 3 && ReceiveBuffer[2] == WRITE_EEPROM_COMMAND) {
-				update_eeprom();
-				uart_send_table(ReceiveBuffer[1]);
-			}
-			break;
-		case SPEED_TEST_COMMAND:
-			if (SpeedTestFlag) {SpeedTestFlag = 0;}
-			else {SpeedTestFlag = 1;}
-			break;
-		case GEAR_LIMIT_COMMAND:
-			if (RxBuffPos == 4) {
-				uint8_t Min = ReceiveBuffer[2];
-				uint8_t Max = ReceiveBuffer[3];
-				if (Min <= Max && Min >= 1 && Min <= 5 && Max >= 1 && Max <= 5) {
-					set_gear_limit(Min, Max);
-					uart_send_table(ReceiveBuffer[1]);
-				}
-			}
-			break;
-		case TABLES_INIT_COMMAND:
-			if (RxBuffPos == 3 && ReceiveBuffer[2] == TABLES_INIT_COMMAND) {
-			    eeprom_update_byte((uint8_t*) 2048, TABLES_INIT_COMMAND);	// Устанавливаем метку.
-				resetFunc();	// Перезапускаем код ЭБУ (переход к нулевому адресу).
-			}
-			break;
-		case APPLY_G2_TPS_ADAPT_COMMAND:
-			if (RxBuffPos == 3 && ReceiveBuffer[2] == APPLY_G2_TPS_ADAPT_COMMAND) {
-				for (uint8_t i = 0; i < TPS_GRID_SIZE; i++) {
-					SLUGear2Graph[i] += SLUGear2TPSAdaptGraph[i];
-					SLUGear2TPSAdaptGraph[i] = 0;
-				}
-				uart_send_table(ReceiveBuffer[1]);
-			}
-			break;
-		case APPLY_G2_TEMP_ADAPT_COMMAND:
-			if (RxBuffPos == 3 && ReceiveBuffer[2] == APPLY_G2_TEMP_ADAPT_COMMAND) {
-				for (uint8_t i = 0; i < TEMP_GRID_SIZE; i++) {
-					SLUGear2TempCorrGraph[i] += SLUGear2TempAdaptGraph[i];
-					SLUGear2TempAdaptGraph[i] = 0;
-				}
-				uart_send_table(ReceiveBuffer[1]);
-			}
-			break;
-		case APPLY_G2_ADV_ADAPT_COMMAND:
-			if (RxBuffPos == 3 && ReceiveBuffer[2] == APPLY_G2_ADV_ADAPT_COMMAND) {
-				for (uint8_t i = 0; i < DELTA_RPM_GRID_SIZE; i++) {
-					Gear2AdvGraph[i] += Gear2AdvAdaptGraph[i];
-					Gear2AdvAdaptGraph[i] = 0;
-				}
-				uart_send_table(ReceiveBuffer[1]);
-			}
-			break;
-		case APPLY_G3_TPS_ADAPT_COMMAND:
-			if (RxBuffPos == 3 && ReceiveBuffer[2] == APPLY_G3_TPS_ADAPT_COMMAND) {
-				for (uint8_t i = 0; i < TPS_GRID_SIZE; i++) {
-					SLUGear3DelayGraph[i] += SLUGear3TPSAdaptGraph[i];
-					SLUGear3TPSAdaptGraph[i] = 0;
-				}
-				uart_send_table(ReceiveBuffer[1]);
-			}
-			break;
-		case APPLY_G3_TEMP_ADAPT_COMMAND:
-			if (RxBuffPos == 3 && ReceiveBuffer[2] == APPLY_G3_TEMP_ADAPT_COMMAND) {
-				for (uint8_t i = 0; i < TEMP_GRID_SIZE; i++) {
-					SLUG3DelayTempCorrGraph[i] += SLUGear3TempAdaptGraph[i];
-					SLUGear3TempAdaptGraph[i] = 0;
-				}
-				uart_send_table(ReceiveBuffer[1]);
-			}
-			break;
-	}
-	RxCommandStatus = 0;
+	SendBuffer[TxBuffPos++] = *(pValue + 1);
 }
 
 // Сборка int из двух байт
@@ -395,109 +552,6 @@ static uint16_t uart_build_uint16(uint8_t i) {
 	*pValue = ReceiveBuffer[i + 1];
 	*(pValue + 1) = ReceiveBuffer[i];
 	return Value;
-}
-
-// Отправить символ в UART
-void uart_send_char(char Data) {
-	// Ожидание готовности.
-	while (!(UCSR0A & (1 << UDRE0))); 
-	// Отправка.
-	UDR0 = Data;                    
-}
-
-// Отправить строку в UART, используется только для отладки.
-void uart_send_string(char* s) {
-	// Пока строка не закончилась.
-	while (*s) {
-		// Отправить очередной символ.
-		uart_send_char(*s);
-		// Передвинуть указатель на следующий символ.
-		s++;            
-	}
-}
-
-void send_eeprom_to_uart() {
-	while (!uart_tx_ready());	// Ждем окончани предыдущей передачи.
-
-	uart_send_char('\n');
-	uart_send_char('\n');
-
-	uart_send_string("SLTGraph\n");
-	send_uint16_array(SLTGraph, TPS_GRID_SIZE);
-	uart_send_string("SLTTempCorrGraph\n");
-	send_int16_array(SLTTempCorrGraph, TEMP_GRID_SIZE);
-
-	uart_send_string("SLNGraph\n");
-	send_uint16_array(SLNGraph, TPS_GRID_SIZE);
-
-	uart_send_string("SLUGear2Graph\n");
-	send_uint16_array(SLUGear2Graph, TPS_GRID_SIZE);
-	uart_send_string("SLUGear2TPSAdaptGraph\n");
-	send_int16_array(SLUGear2TPSAdaptGraph, TPS_GRID_SIZE);
-
-	uart_send_string("SLUGear2TempCorrGraph\n");
-	send_int16_array(SLUGear2TempCorrGraph, TEMP_GRID_SIZE);
-	uart_send_string("SLUGear2TempAdaptGraph\n");
-	send_int16_array(SLUGear2TempAdaptGraph, TEMP_GRID_SIZE);
-
-	uart_send_string("Gear2AdvGraph\n");
-	send_int16_array(Gear2AdvGraph, TPS_GRID_SIZE);
-
-	uart_send_string("SLUGear3Graph\n");
-	send_uint16_array(SLUGear3Graph, TPS_GRID_SIZE);
-	uart_send_string("SLUGear3DelayGraph\n");
-	send_uint16_array(SLUGear3DelayGraph, TPS_GRID_SIZE);
-	
-	uart_send_string("SLNGear3Graph\n");
-	send_uint16_array(SLNGear3Graph, TPS_GRID_SIZE);
-	uart_send_string("SLNGear3OffsetGraph\n");
-	send_int16_array(SLNGear3OffsetGraph, TPS_GRID_SIZE);
-
-	uart_send_char('\n');
-	uart_send_char('\n');
-}
-
-void uart_send_uint16(uint16_t N) {
-	snprintf(CharArray, 6, "%u", N);
-	uart_send_string(CharArray);
-}
-void uart_send_int16(int16_t N) {
-	snprintf(CharArray, 7, "%i", N);
-	uart_send_string(CharArray);
-}
-
-static void send_uint16_array(uint16_t* Array, uint8_t ASize) {
-	for (uint8_t i = 0; i < ASize; i++) {
-		snprintf(CharArray, 6, ", %u", Array[i]);
-		uart_send_string(CharArray);
-	}
-	uart_send_char('\n');
-}
-
-static void send_int16_array(int16_t* Array, uint8_t ASize) {
-	for (uint8_t i = 0; i < ASize; i++) {
-		snprintf(CharArray, 7, ", %i", Array[i]);
-		uart_send_string(CharArray);
-	}
-	uart_send_char('\n');
-}
-
-// Отправить массив в UART.
-void uart_send_array() {
-	TxMsgSize = TxBuffPos;		// Количество байт на отправку.
-	TxReady = 0;				// UART занят.
-	TxBuffPos = 0;				// Сбрасываем позицию в массиве.
-	UCSR0B |= (1 << UDRIE0);	// Включаем прерывание по опустошению буфера.
-}
-
-// Возвращает готовность интерфейса к новому заданию.
-uint8_t uart_tx_ready() {
-	cli();
-		uint8_t RD = UCSR0A & (1 << UDRE0);
-	sei();
-
-	if (RD && TxReady) {return 1;}	// Буфер свободен и не идет пакетная отправка.
-	else {return 0;}
 }
 
 // Прерывание по опустошению буфера.

@@ -76,12 +76,11 @@ void at_mode_control() {
 		set_gear_n();
 		return;
 	}
-
 	
 	if (TCU.Selector == 2) {
 		// Задняя скорость включается только стоя на тормозе,
 		// или без тормоза, но с режима P.
-		if (TCU.CarSpeed < 5 && (TCU.Break || TCU.ATMode == 1)) {
+		if (TCU.CarSpeed <= CFG.RearGearInitMaxSpeed && (TCU.Break || TCU.ATMode == 1)) {
 			TCU.ATMode = TCU.Selector;
 			set_gear_r();
 		}
@@ -137,8 +136,8 @@ void glock_control(uint8_t Timer) {
 	if (!TCU.Break 
 			&& TCU.Gear >= 4
 			//&& !TCU.GearChange
-			&& TCU.TPS >= TPS_IDLE_LIMIT 
-			&& TCU.TPS <= GLOCK_MAX_TPS 
+			&& TCU.TPS > CFG.IdleTPSLimit
+			&& TCU.TPS <= CFG.GlockMaxTPS
 			&& ((TCU.OilTemp >= 31 && !TCU.Glock) || (TCU.OilTemp >= 30 && TCU.Glock))
 			&& TCU.CarSpeed >= 40) {
 				if(!TCU.Glock) {GTimer += Timer;}
@@ -146,8 +145,8 @@ void glock_control(uint8_t Timer) {
 	else {	// Отключение блокировки при нарушении условий.
 		if (TCU.Glock) {
 			// При отпускании педали газа сразу отключаем блокировку ГТ.
-			if (TCU.TPS < TPS_IDLE_LIMIT) {
-				TCU.SLU = SLU_MIN_VALUE;
+			if (TCU.TPS <= CFG.IdleTPSLimit) {
+				TCU.SLU = CFG.MinPressureSLU;
 				cli();
 					OCR1C = TCU.SLU;
 				sei();
@@ -157,7 +156,7 @@ void glock_control(uint8_t Timer) {
 			}
 
 			// Начальное значение схватывания с учетом температурной коррекции.
-			SLUStartValue = SLU_GLOCK_START_VALUE + get_slu_gear2_temp_corr(SLU_GLOCK_START_VALUE);
+			SLUStartValue = CFG.GlockStartValue + get_slu_gear2_temp_corr(CFG.GlockStartValue);
 			
 			if (TCU.SLU > SLUStartValue + 20) {
 				// Устанавливаем давление схватывания + 20.
@@ -170,7 +169,7 @@ void glock_control(uint8_t Timer) {
 			else {
 				// Потом выключаем полностью.
 				TCU.Glock = 0;
-				TCU.SLU = SLU_MIN_VALUE;
+				TCU.SLU = CFG.MinPressureSLU;
 			}
 			cli();
 				OCR1C = TCU.SLU;	// Применение значения.
@@ -184,15 +183,15 @@ void glock_control(uint8_t Timer) {
 	if (GTimer > 3000) {
 		if (!TCU.Glock) {
 			// Начальное значение схватывания с учетом температурной коррекции.
-			SLUStartValue = SLU_GLOCK_START_VALUE + get_slu_gear2_temp_corr(SLU_GLOCK_START_VALUE);
+			SLUStartValue = CFG.GlockStartValue + get_slu_gear2_temp_corr(CFG.GlockStartValue);
 			TCU.SLU = SLUStartValue;
 			TCU.Glock = 1;
 		}
 		else {
-			if (TCU.SLU >= SLU_GLOCK_MAX_VALUE) {return;}
+			if (TCU.SLU >= CFG.GlockWorkValue) {return;}
 			uint8_t PressureAdd = 20;
 			if (TCU.SLU < SLUStartValue + 60) {PressureAdd = 4;}
-			TCU.SLU = MIN(SLU_GLOCK_MAX_VALUE, TCU.SLU + PressureAdd);
+			TCU.SLU = MIN(CFG.GlockWorkValue, TCU.SLU + PressureAdd);
 		}
 		cli();
 			OCR1C = TCU.SLU;	// Применение значения.
@@ -207,7 +206,7 @@ void slip_detect() {
 		return;
 	}
 
-	if (ABS(rpm_delta(TCU.Gear)) > MAX_SLIP_RPM) {TCU.SlipDetected = 1;}
+	if (ABS(rpm_delta(TCU.Gear)) > CFG.MaxSlipRPM) {TCU.SlipDetected = 1;}
 	else {TCU.SlipDetected = 0;}
 }
 
@@ -228,7 +227,12 @@ void rear_lamp() {
 void speedometer_control() {
 	if (TCU.CarSpeed > 0) {
 		TCCR3A |= (1 << COM3A0);			// Toggle OC3A.
-		OCR3A = get_speed_timer_value();	// Выход на спидометр.
+
+		uint16_t NewValue = get_speed_timer_value();
+		// Чтобы не было пропуска при уменьшении значения.
+		cli();
+			if (TCNT3 < NewValue) {OCR3A = NewValue;}
+		sei();
 	}
 	else {TCCR3A &= ~(1 << COM3A0);}		// Normal port operation, OCnA/OCnB/OCnC disconnected.
 }

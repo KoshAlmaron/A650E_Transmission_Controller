@@ -81,7 +81,7 @@ static void timer_2_init() {
 	TIMSK2|= (1 << OCIE2A);			// Прерывание по достижению OCR2A.
 }
 
-// Настройка таймера 3 как ШИМ для спидометра (измерение частоты).
+// Настройка таймера 3 как ШИМ для спидометра (изменение частоты).
 static void timer_3_init() {
 	TCCR3A = 0;
 	TCCR3B = 0;
@@ -91,7 +91,7 @@ static void timer_3_init() {
 
 	DDRE |= (1 << 3);		// Выход PE3 ШИМ OC3A.
 
-	TCCR3B |= (1 << WGM32);					// CTC, TOP = OCR1A.
+	TCCR3B |= (1 << WGM32);					// CTC, TOP = OCR3A.
 	TCCR3A |= (1 << COM3A0);				// Toggle OC3A.
 	TCCR3B |= (1 << CS31) | (1 << CS30);	// Предделитель 64.
 }

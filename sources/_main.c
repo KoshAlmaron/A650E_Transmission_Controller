@@ -6,7 +6,6 @@
 #include <util/delay.h>		// Задержки.
 
 #include "macros.h"			// Макросы.
-#include "mathemat.h"		// Математические функции.
 #include "pinout.h"			// Список назначенных выводов.
 #include "configuration.h"	// Настройки.
 
@@ -22,7 +21,6 @@
 #include "debug.h"			// Модуль отладки.
 #include "lcd.h"			// LCD экран.
 #include "buttons.h"		// Кнопки.
-#include "tacho.h"			// Тахометр двигателя.
 
 // Основной счетчик времени,
 // увеличивается по прерыванию на единицу каждую 1 мс.
@@ -43,12 +41,8 @@ static uint16_t SLTPressureTimer = 0;
 static uint16_t SLUPressureTimer = 0;
 static uint16_t ButtonsTimer = 0;
 
-// Таймер ожидания.
-uint16_t WaitTimer = 0;
-
-// Состояние режима отладки:
-// 0 - выкл, 1 - только экран, 2 - экран + ручное управление.
-uint16_t DebugTimer = 0;
+uint16_t WaitTimer = 0;		// Таймер ожидания.
+uint16_t DebugTimer = 0;	// Таймер блока отладки.
 
 // Прототипы функций.
 void loop_main(uint8_t Wait);
@@ -62,16 +56,15 @@ int main() {
 		adc_init();			// Настройка АЦП
 		selector_init();	// Настройка выводов для селектора.
 		solenoid_init();	// Настройка выходов селеноидов, а также лампы заднего хода.
-		tacho_init();		// Обороты двигателя по сигналу тахометра.
 		debug_mode_init();	// Настройка перефирии для режима отладки.
-		read_eeprom();		// Чтение параметров из EEPROM.
+
+		read_eeprom_tables();	// Чтение основных таблиц из EEPROM.
+		read_eeprom_adc();		// Чтение таблиц АЦП из EEPROM.
+		read_eeprom_speed();	// Чтение таблиц скоростей  переключений из EEPROM.
+		read_eeprom_config();	// Чтение параметров из EEPROM.
 	sei();				// Включаем глобальные прерывания.
 
-	#ifdef DEBUG_MODE_PRINT
-		uart_send_string("Start\n");
-	#endif
-
-	//wdt_enable(WDTO_250MS);	// Сторожевой собак на 250 мс.
+	wdt_enable(WDTO_250MS);	// Сторожевой собак на 250 мс.
 
 	while(1) {
 		loop_main(0);			// Основной цикл, выполняется всегда.
@@ -106,8 +99,6 @@ void loop_main(uint8_t Wait) {
 		if (WaitTimer > TimerAdd) {WaitTimer -= TimerAdd;}
 		else {WaitTimer = 0;}
 
-		tacho_timer();
-
 		// Отключение счетчиков дополнительного цикла.
 		if (!Wait) {
 			AtModeTimer += TimerAdd;
@@ -141,7 +132,7 @@ void loop_main(uint8_t Wait) {
 		calc_tps();					// Расчет ДПДЗ с замедлением.
 	}
 
-	if (SLTPressureTimer >= 26) {
+	if (SLTPressureTimer >= 47) {
 		slt_control();				// Управление линейными давлением.
 		SLTPressureTimer = 0;
 	}	
@@ -163,21 +154,8 @@ void loop_main(uint8_t Wait) {
 	if (UartTimer >= 50) {
 		if(uart_tx_ready()) {
 			UartTimer = 0;
-			#ifdef DEBUG_MODE_PRINT
-				uart_send_string("Cycle - ");
-				uart_send_uint16(TCU.CycleTime);
-				uart_send_char('0');
-				uart_send_string(" / D - ");
-				uart_send_uint16(TCU.DebugMode);
-				uart_send_char('\n');
-
-				cli();
-					CycleTimer = 0;
-				sei();
-			#else
-				uart_command_processing();
-				uart_send_tcu_data();
-			#endif
+			uart_command_processing();
+			uart_send_tcu_data();
 			TCU.CycleTime = 0;
 		}
 	}

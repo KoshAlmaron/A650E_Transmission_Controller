@@ -11,10 +11,11 @@
 #include "i2c.h"			// I2C (TWI).
 #include "tcudata.h"		// Расчет и хранение всех необходимых параметров.
 #include "adc.h"			// АЦП.
-#include "eeprom.h"			// Чтение и запись EEPROM.
-#include "uart.h"			// UART.
 #include "gears.h"			// Фунции переключения передач.
 #include "configuration.h"	// Настройки.
+
+// Состояние режима отладки:
+// 0 - выкл, 1 - только экран, 2 - экран + ручное управление.
 
 // Номер экрана для отображения:
 static uint8_t ScreenMode = 0;
@@ -39,47 +40,22 @@ static uint8_t CursorPos = 0;			// Позиция курсора на экран
 static uint8_t StartCol = 0;			// Начальная позиция данных
 static int8_t ValueDelta = 0;			// Флаг изменения значения.
 
-static int16_t* ArrayI;
-static uint16_t* ArrayU;
-
-#define COLUMN_COUNT 5
-#define SCREEN_COUNT 13
-
-// Локальные переменные для хранения последнего значения TPS, 
-// это нужно для установки курсора один раз после переключения.
-uint8_t LastGearChangeTPS = 0;
+#define SCREEN_COUNT 2
 
 // Прототипы функций.
 static void lcd_start();
 static void print_data();
 static void print_dispay_main();
 
-static void print_config_gear2_slu_pressure();
-static void print_config_gear2_slu_temp_corr();
-static void print_config_gear2_react_add();
-static void print_config_gear2_tps_adaptation();
-static void print_config_gear2_temp_adaptation();
-
-static void print_config_gear3_slu_pressure();
-static void print_config_gear3_slu_delay();
-static void print_config_gear3_sln_pressure();
-static void print_config_gear3_sln_offset();
-
-static void print_config_sln_pressure();
-
-static void print_config_slt_pressure();
-static void print_config_slt_temp_corr();
-
 static void update_gear_ratio();
-static void print_values(uint8_t GridType, uint8_t ArrayType, uint8_t Step, int16_t Min, int16_t Max, int16_t Ratio);
 
 static void print_config_d4_max_gear();
 static void solenoid_manual_control();
 
-static void button_action();
-static void buttons_clear();
-static void buttons_update();
-static void button_read(uint8_t State, uint8_t N);
+static void debug_buttons_action();
+static void debug_buttons_clear();
+static void debug_buttons_update();
+static void debug_button_read(uint8_t State, uint8_t N);
 
 // Настройка портов для режима отладки.
 void debug_mode_init() {
@@ -111,9 +87,9 @@ void debug_loop() {
 			}
 			break;
 		case 1:
-			buttons_update();
-			button_action();
-			buttons_clear();
+			debug_buttons_update();
+			debug_buttons_action();
+			debug_buttons_clear();
 
 			print_data();
 			if (!PIN_READ(DEBUG_MODE_ON_PIN)) {
@@ -163,42 +139,6 @@ static void print_data() {
 			print_dispay_main();
 			break;
 		case 1:
-			print_config_gear2_slu_pressure();
-			break;
-		case 2:
-			print_config_gear2_slu_temp_corr();
-			break;	
-		case 3:
-			print_config_gear2_react_add();
-			break;
-		case 4:
-			print_config_gear2_tps_adaptation();
-			break;
-		case 5:
-			print_config_gear2_temp_adaptation();
-			break;
-		case 6:
-			print_config_gear3_slu_pressure();
-			break;
-		case 7:
-			print_config_gear3_slu_delay();
-			break;
-		case 8:
-			print_config_gear3_sln_pressure();
-			break;
-		case 9:
-			print_config_gear3_sln_offset();
-			break;
-		case 10:
-			print_config_sln_pressure();
-			break;
-		case 11:
-			print_config_slt_pressure();
-			break;
-		case 12:
-			print_config_slt_temp_corr();
-			break;
-		case 13:
 			print_config_d4_max_gear();
 			break;
 	}
@@ -243,310 +183,6 @@ static void print_dispay_main() {
 		, MIN(99, TCU.LastStep)
 		, TCU.LastPDRTime);
 	lcd_update_buffer(3, StringArray);
-}
-
-// Экран настройки давления в тормозе B3 для включения второй передачи.
-static void print_config_gear2_slu_pressure() {
-	//	----------------------
-	//	|Gear 2 SLU |100|1.00|
-	//	|St 16 P1200 A99 U101|
-	//	|  0|  5| 10| 15| 20||
-	//	| 67| 72| 74| 77| 81||
-	//	----------------------
-
-	snprintf(StringArray, STR_ARR_SZ, "Gear 2 SLU |%3u|%s"
-		, TCU.InstTPS
-		, GearRatioChar);
-	lcd_update_buffer(0, StringArray);
-
-	snprintf(StringArray, STR_ARR_SZ, "St %2u P%4u A%2u U%3u"
-		, MIN(99, TCU.LastStep)
-		, TCU.LastPDRTime
-		, MIN(99, TCU.GearChangeTPS)
-		, MIN(999, TCU.GearChangeSLU));
-	lcd_update_buffer(1, StringArray);
-
-	// Изменяемые значения.
-	ArrayU = SLUGear2Graph;
-	print_values(1, 1, 2, 20, 1000, 1);
-}
-
-// Экран настройки температурной корекции давления SLU по переключению 1>2.
-static void print_config_gear2_slu_temp_corr() {
-	//	----------------------
-	//	|SLU G2 TCor|100|1.00|
-	//	|UP-12 UV 12 A99 U101|
-	//	|  0|  5| 10| 15| 20||
-	//	| 67| 72| 74| 77| 81||
-	//	----------------------
-
-	snprintf(StringArray, STR_ARR_SZ, "SLU G2 TCor|%3u|%s"
-		, TCU.InstTPS
-		, GearRatioChar);
-	lcd_update_buffer(0, StringArray);
-
-	snprintf(StringArray, STR_ARR_SZ, "UP%3i UV%3i A%2u U%3u"
-		, get_slu_gear2_temp_corr(0)					// В %.
-		, get_slu_gear2_temp_corr(TCU.SLU)	// В единицах ШИМ.
-		, MIN(99, TCU.GearChangeTPS)
-		, MIN(999, TCU.GearChangeSLU));
-	lcd_update_buffer(1, StringArray);
-
-	// Изменяемые значения.
-	ArrayI = SLUGear2TempCorrGraph;
-	print_values(0, 0, 1, -50, 50, 1);
-}
-
-static void print_config_gear2_react_add() {
-	//	----------------------
-	//	|SLU G2 RPM Adv |1.00|
-	//	|D-200  Adv 100 |A 99|
-	//	|  0|  5| 10| 15| 20||
-	//	| 67| 72| 74| 77| 81||
-	//	----------------------
-
-	snprintf(StringArray, STR_ARR_SZ, "SLU G2 RPM Adv |%s" , GearRatioChar);
-	lcd_update_buffer(0, StringArray);
-
-	snprintf(StringArray, STR_ARR_SZ, "D%4i  Adv%4i |A%3u"
-		, TCU.DrumRPMDelta
-		, get_gear2_rpm_adv()
-		, TCU.InstTPS);
-	lcd_update_buffer(1, StringArray);
-
-	// Изменяемые значения.
-	ArrayI = Gear2AdvGraph;
-	print_values(1, 0, 20, 0, 600, 10);
-}
-
-// Экран значений адаптации второй передачи по ДПДЗ.
-static void print_config_gear2_tps_adaptation() {
-	//	----------------------
-	//	|Gear 2 ADP |100|1.00|
-	//	|UP-12 UV 12 A99 U101|
-	//	|  0|  5| 10| 15| 20||
-	//	| 67| 72| 74| 77| 81||
-	//	----------------------
-
-	snprintf(StringArray, STR_ARR_SZ, "Gear 2 ADP |%3u|%s"
-		, TCU.InstTPS
-		, GearRatioChar);
-	lcd_update_buffer(0, StringArray);
-
-	snprintf(StringArray, STR_ARR_SZ, "UP%3i UV%3i A%2u U%3u"
-		, get_slu_gear2_temp_corr(0)					// В %.
-		, get_slu_gear2_temp_corr(TCU.SLU)	// В единицах ШИМ.
-		, MIN(99, TCU.GearChangeTPS)
-		, MIN(999, TCU.GearChangeSLU));
-	lcd_update_buffer(1, StringArray);
-
-	// Изменяемые значения.
-	ArrayI = SLUGear2TPSAdaptGraph;
-	print_values(1, 0, 2, -40, 40, 1);
-}
-
-// Экран значений адаптации второй передачи по температуре.
-static void print_config_gear2_temp_adaptation() {
-	//	----------------------
-	//	|SLU G2 TADP|100|1.00|
-	//	|UP-12 UV 12 A99 U101|
-	//	|  0|  5| 10| 15| 20||
-	//	| -1|  0|  2|  0| -2||
-	//	----------------------
-
-	snprintf(StringArray, STR_ARR_SZ, "SLU G2 TADP|%3u|%s"
-		, TCU.InstTPS
-		, GearRatioChar);
-	lcd_update_buffer(0, StringArray);
-
-	snprintf(StringArray, STR_ARR_SZ, "UP%3i UV%3i A%2u U%3u"
-		, get_slu_gear2_temp_corr(0)					// В %.
-		, get_slu_gear2_temp_corr(TCU.SLU)	// В единицах ШИМ.
-		, TCU.GearChangeTPS
-		, MIN(999, TCU.GearChangeSLU));
-	lcd_update_buffer(1, StringArray);
-
-	// Изменяемые значения.
-	ArrayI = SLUGear2TempAdaptGraph;
-	print_values(0, 0, 1, -10, 10, 1);
-}
-
-// Экран настройки давления в тормозе B2 для включения третьей передачи.
-static void print_config_gear3_slu_pressure() {
-	//	----------------------
-	//	|Gear 3 SLU |100|1.00|
-	//	|St 16 P1200 A99 U101|
-	//	|  0|  5| 10| 15| 20||
-	//	| 67| 72| 74| 77| 81||
-	//	----------------------
-
-	snprintf(StringArray, STR_ARR_SZ, "Gear 3 SLU |%3u|%s"
-		, TCU.InstTPS
-		, GearRatioChar);
-	lcd_update_buffer(0, StringArray);
-
-	snprintf(StringArray, STR_ARR_SZ, "St %2u P%4u A%2u U%3u"
-		, MIN(99, TCU.LastStep)
-		, TCU.LastPDRTime
-		, MIN(99, TCU.GearChangeTPS)
-		, MIN(999, TCU.GearChangeSLU));
-	lcd_update_buffer(1, StringArray);
-
-	// Изменяемые значения.
-	ArrayU = SLUGear3Graph;
-	print_values(1, 1, 4, 20, 1000, 1);
-}
-
-// Экран настройки задержки выключения SLU при включении третьей передачи.
-static void print_config_gear3_slu_delay() {
-	//	----------------------
-	//	|G3 SLU DL x10   |100|
-	//	|St 12 D1000 A99 U101|
-	//	|  0|  5| 10| 15| 20||
-	//	| 67| 72| 74| 77| 81||
-	//	----------------------
-
-	snprintf(StringArray, STR_ARR_SZ, "G3 SLU DL x10   |%3u", TCU.InstTPS);
-	lcd_update_buffer(0, StringArray);
-
-	snprintf(StringArray, STR_ARR_SZ, "St %2u D%4u A%2u U%3u"
-		, TCU.LastStep
-		, get_gear3_slu_delay()
-		, TCU.GearChangeTPS
-		, MIN(999, TCU.GearChangeSLU));
-	lcd_update_buffer(1, StringArray);
-
-	// Изменяемые значения.
-	ArrayU = SLUGear3DelayGraph;
-	print_values(1, 1, 25, 0, 800, 10);
-}
-
-// Экран настройка давления аккумуляторов SLN при включении третьей передачи.
-static void print_config_gear3_sln_pressure() {
-	//	----------------------
-	//	|SLN Gear 3 |100|1.00|
-	//	|TP-12 TV 12 A99 N101|
-	//	|  0|  5| 10| 15| 20||
-	//	| 67| 72| 74| 77| 81||
-	//	----------------------
-
-	snprintf(StringArray, STR_ARR_SZ, "SLN Gear 3 |%3u|%s"
-		, TCU.InstTPS
-		, GearRatioChar);
-	lcd_update_buffer(0, StringArray);
-
-	snprintf(StringArray, STR_ARR_SZ, "TP%3i TV%3i A%2u T%3u"
-		, get_slt_temp_corr(0)					// В %.
-		, get_slt_temp_corr(TCU.GearChangeSLT)	// В единицах ШИМ.
-		, MIN(99, TCU.GearChangeTPS)
-		, MIN(999, TCU.GearChangeSLN));
-	lcd_update_buffer(1, StringArray);
-
-	// Изменяемые значения.
-	ArrayU = SLNGear3Graph;
-	print_values(1, 1, 4, 20, 1000, 1);
-}
-
-// Экран настройки задержки выключения SLN при включении третьей передачи.
-static void print_config_gear3_sln_offset() {
-	//	----------------------
-	//	|G3 SLN Ofs x10  |100|
-	//	|St 16 P1200 A99 O101|
-	//	|  0|  5| 10| 15| 20||
-	//	| 67| 72| 74| 77| 81||
-	//	----------------------
-
-	snprintf(StringArray, STR_ARR_SZ, "G3 SLN Ofs x10  |%3u", TCU.InstTPS);
-	lcd_update_buffer(0, StringArray);
-
-	snprintf(StringArray, STR_ARR_SZ, "St %2u P%4u A%2u O%3i"
-		, TCU.LastStep
-		, TCU.LastPDRTime
-		, TCU.GearChangeTPS
-		, MIN(999, TCU.GearChangeSLU));
-	lcd_update_buffer(1, StringArray);
-
-	// Изменяемые значения.
-	ArrayI = SLNGear3OffsetGraph;
-	print_values(1, 0, 25, -1500, 1500, 10);
-}
-
-// Экран настройка давления аккумуляторов SLN.
-static void print_config_sln_pressure() {
-	//	----------------------
-	//	|SLN Press. |100|1.00|
-	//	|TP-12 TV 12 A99 N101|
-	//	|  0|  5| 10| 15| 20||
-	//	| 67| 72| 74| 77| 81||
-	//	----------------------
-
-	snprintf(StringArray, STR_ARR_SZ, "SLN Press. |%3u|%s"
-		, TCU.InstTPS
-		, GearRatioChar);
-	lcd_update_buffer(0, StringArray);
-
-	snprintf(StringArray, STR_ARR_SZ, "TP%3i TV%3i A%2u T%3u"
-		, get_slt_temp_corr(0)					// В %.
-		, get_slt_temp_corr(TCU.GearChangeSLT)	// В единицах ШИМ.
-		, MIN(99, TCU.GearChangeTPS)
-		, MIN(999, TCU.GearChangeSLN));
-	lcd_update_buffer(1, StringArray);
-
-	// Изменяемые значения.
-	ArrayU = SLNGraph;
-	print_values(1, 1, 4, 20, 1000, 1);
-}
-
-// Экран настройки линейного давления SLT по переключению 3>4.
-static void print_config_slt_pressure() {
-	//	----------------------
-	//	|SLT Press. |100|1.00|
-	//	|TP-12 TV 12 A99 T101|
-	//	|  0|  5| 10| 15| 20||
-	//	| 67| 72| 74| 77| 81||
-	//	----------------------
-
-	snprintf(StringArray, STR_ARR_SZ, "SLT Press. |%3u|%s"
-		, TCU.InstTPS
-		, GearRatioChar);
-	lcd_update_buffer(0, StringArray);
-
-	snprintf(StringArray, STR_ARR_SZ, "TP%3i TV%3i A%2u T%3u"
-		, get_slt_temp_corr(0)					// В %.
-		, get_slt_temp_corr(TCU.SLT)	// В единицах ШИМ.
-		, MIN(99, TCU.GearChangeTPS)
-		, MIN(999, TCU.GearChangeSLT));
-	lcd_update_buffer(1, StringArray);
-
-	// Изменяемые значения.
-	ArrayU = SLTGraph;
-	print_values(1, 1, 4, 20, 1000, 1);
-}
-
-// Экран настройки температурной корекции давления SLT по переключению 3>4.
-static void print_config_slt_temp_corr() {
-	//	----------------------
-	//	|SLT Tmp Cor|100|1.00|
-	//	|TP-12 TV 12 A99 U101|
-	//	|  0|  5| 10| 15| 20||
-	//	| 67| 72| 74| 77| 81||
-	//	----------------------
-
-	snprintf(StringArray, STR_ARR_SZ, "SLT Tmp Cor|%3u|%s"
-		, TCU.InstTPS
-		, GearRatioChar);
-	lcd_update_buffer(0, StringArray);
-
-	snprintf(StringArray, STR_ARR_SZ, "TP%3i TV%3i A%2u T%3u"
-		, get_slt_temp_corr(0)					// В %.
-		, get_slt_temp_corr(TCU.SLT)	// В единицах ШИМ.
-		, MIN(99, TCU.GearChangeTPS)
-		, MIN(999, TCU.GearChangeSLT));
-	lcd_update_buffer(1, StringArray);
-
-	// Изменяемые значения.
-	ArrayI = SLTTempCorrGraph;
-	print_values(0, 0, 1, -60, 60, 1);
 }
 
 // Временная установка максимальной передачи в режиме D4.
@@ -600,53 +236,6 @@ static void update_gear_ratio() {
 	}
 }
 
-// GridType		0 - TempGrid, 1 - TPSGrid
-// ArrayType 	0 - int16_t, 1 - uint16_t.
-static void print_values(uint8_t GridType, uint8_t ArrayType, uint8_t Step, int16_t Min, int16_t Max, int16_t Ratio) {
-	// Находим по сетке позицию курсора.
-	if (TCU.GearChangeTPS != LastGearChangeTPS) {
-		LastGearChangeTPS = TCU.GearChangeTPS;
-
-		if (GridType) {CursorPos = get_tps_index(TCU.GearChangeTPS);}
-		else {CursorPos = get_temp_index(TCU.OilTemp);}
-	}
-
-	// Ограничение по длине массива.
-	if (GridType && CursorPos >= TPS_GRID_SIZE) {CursorPos = TPS_GRID_SIZE - 1;}
-	if (!GridType && CursorPos >= TEMP_GRID_SIZE) {CursorPos = TEMP_GRID_SIZE - 1;}
-
-	if (CursorPos < StartCol) {StartCol = CursorPos;}
-	if (CursorPos > StartCol + COLUMN_COUNT - 1) {StartCol = CursorPos + 1 - COLUMN_COUNT;}
-
-	char TMP[4];
-
-	// Изменяемые значения.
-	for (uint8_t i = 0; i < COLUMN_COUNT; i++) {
-		if (GridType) {snprintf(TMP, 4, "%3u", TPSGrid[StartCol + i]);}
-		else {snprintf(TMP, 4, "%3i", TempGrid[StartCol + i]);}
-		
-		for (uint8_t k = 0; k < 4; k++) {StringArray[i * 4 + k] = TMP[k];}
-		StringArray[i * 4 + 3] = '|';
-		lcd_update_buffer(2, StringArray);
-	}
-	for (uint8_t i = 0; i < COLUMN_COUNT; i++) {
-		if (ArrayType) {snprintf(TMP, 4, "%3u", MIN(999, ArrayU[StartCol + i] / Ratio));}
-		else {snprintf(TMP, 4, "%3i", CONSTRAIN(ArrayI[StartCol + i] / Ratio, -99, 999));}
-
-		for (uint8_t k = 0; k < 4; k++) {StringArray[i * 4 + k] = TMP[k];}
-		if (CursorPos == StartCol + i) {
-			if (ValueDelta) {
-				if (ArrayType) {ArrayU[CursorPos] = CONSTRAIN((int16_t) ArrayU[CursorPos] + ValueDelta * Step, Min, Max);}
-				else {ArrayI[CursorPos] = CONSTRAIN((int16_t) ArrayI[CursorPos] + ValueDelta * Step, Min, Max);}
-				ValueDelta = 0;
-			}
-			StringArray[i * 4 + 3] = '<';
-		}
-		else {StringArray[i * 4 + 3] = '|';}
-		lcd_update_buffer(3, StringArray);
-	}
-}
-
 static void solenoid_manual_control() {
 	if (PIN_READ(DEBUG_S1_PIN)) {SET_PIN_LOW(SOLENOID_S1_PIN);}
 	else {SET_PIN_HIGH(SOLENOID_S1_PIN);}
@@ -680,7 +269,7 @@ static void solenoid_manual_control() {
 	sei();
 }
 
-static void button_action() {
+static void debug_buttons_action() {
 	if (ButtonState[0] == 201) {ValueDelta = 1;}	// Короткое S1 Значение +.
 	if (ButtonState[0] == 202) {ValueDelta = 2;}	// Длинное S1 Значение ++.
 
@@ -713,16 +302,11 @@ static void button_action() {
 		CursorPos = 0;
 		StartCol = 0;
 		ScreenMode += 1;
-		if (ScreenMode > SCREEN_COUNT) {
-			ScreenMode = 0;		// Сброс экрана.
-			update_eeprom();	// Запись в EEPROM.
-			// Пихаем все в UART, чтобы потом можно было копипастить.
-			send_eeprom_to_uart();
-		}
+		if (ScreenMode > SCREEN_COUNT) {ScreenMode = 0;} // Сброс экрана.
 	}
 }
 
-static void buttons_clear() {
+static void debug_buttons_clear() {
 	if (PIN_READ(DEBUG_S1_PIN) && ButtonState[0] > 200) {ButtonState[0] = 100;}
 	if (PIN_READ(DEBUG_S2_PIN) && ButtonState[1] > 200) {ButtonState[1] = 100;}
 	if (PIN_READ(DEBUG_S3_PIN) && ButtonState[2] > 200) {ButtonState[2] = 100;}
@@ -733,17 +317,17 @@ static void buttons_clear() {
 }
 
 // Вызов каждые 50 мс.
-static void buttons_update() {
-	button_read(0, PIN_READ(DEBUG_S1_PIN));
-	button_read(1, PIN_READ(DEBUG_S2_PIN));
-	button_read(2, PIN_READ(DEBUG_S3_PIN));
-	button_read(3, PIN_READ(DEBUG_S4_PIN));
+static void debug_buttons_update() {
+	debug_button_read(0, PIN_READ(DEBUG_S1_PIN));
+	debug_button_read(1, PIN_READ(DEBUG_S2_PIN));
+	debug_button_read(2, PIN_READ(DEBUG_S3_PIN));
+	debug_button_read(3, PIN_READ(DEBUG_S4_PIN));
 
-	button_read(4, PIN_READ(DEBUG_SCREEN_BUTTON_F_PIN));
-	button_read(5, PIN_READ(DEBUG_SCREEN_BUTTON_R_PIN));
+	debug_button_read(4, PIN_READ(DEBUG_SCREEN_BUTTON_F_PIN));
+	debug_button_read(5, PIN_READ(DEBUG_SCREEN_BUTTON_R_PIN));
 }
 
-static void button_read(uint8_t N, uint8_t State) {
+static void debug_button_read(uint8_t N, uint8_t State) {
 	if (ButtonState[N] < 100) {
 		if (!State) {
 			ButtonState[N]++;

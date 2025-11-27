@@ -11,7 +11,7 @@
 #include "mathemat.h"			// Математические функции.
 #include "pinout.h"				// Список назначенных выводов.
 
-// Инициализация структуры
+// Инициализация структуры с переменными.
 TCU_t TCU = {
 	.EngineRPM = 0,
 	.DrumRPM = 0,
@@ -52,7 +52,7 @@ TCU_t TCU = {
 	.RawOIL = 0
 };
 
- uint8_t SpeedTestFlag = 0;	// Флаг включения тестирования скорости.
+uint8_t SpeedTestFlag = 0;	// Флаг включения тестирования скорости.
 
 // Прототипы локальных функций.
 static uint16_t get_car_speed();
@@ -90,10 +90,8 @@ static uint16_t get_car_speed() {
 	// Умножаем на 4096 (смещение 12 бит) = 113.6066309,
 	// Округляем до целого и получается 114.
 
-	//return TCU.InstTPS;
-
 	if (SpeedTestFlag) {return 100;}
-	else {return ((uint32_t) TCU.OutputRPM * SPEED_CALC_COEF) >> 12;}
+	else {return ((uint32_t) TCU.OutputRPM * CFG.SpeedCalcCoef) >> 12;}
 }
 
 // Расчет значения регистра сравнения для таймера спидометра.
@@ -105,10 +103,10 @@ uint16_t get_speed_timer_value() {
 	// 125000 - это 1000000 мкс в 1с разделить на шаг таймера и еще на 2.
 	// Рассчитываем итоговый коэффициент для вычисления (28125).
 
-	#define SPEED_FREQ_COEF 125000LU * 3600LU / SPEED_INPULS_PER_KM
-
+	#define SPEED_FREQ_COEF 125000LU * 3600LU
 	if (TCU.CarSpeed == 0) {return 0;}
-	else {return ((uint32_t) SPEED_FREQ_COEF / TCU.CarSpeed);}
+
+	return ((uint32_t) SPEED_FREQ_COEF / ((uint32_t) CFG.SpeedImpulsPerKM * TCU.CarSpeed));
 }
 
 // Расчет температуры масла.
@@ -127,6 +125,7 @@ void calc_tps() {
 	int16_t TempValue = get_adc_value(1);
 	TCU.RawTPS = TempValue;
 	TCU.InstTPS = get_interpolated_value_int16_t(TempValue, TPSGraph, TPSGrid, TPS_GRID_SIZE);
+
 	if (TCU.InstTPS >= TCU.TPS) {
 		TCU.TPS = TCU.InstTPS;
 	}
@@ -180,9 +179,9 @@ uint16_t get_sln_pressure_gear3() {
 uint16_t get_slu_pressure_gear2() {
 	uint16_t SLU = get_interpolated_value_uint16_t(TCU.InstTPS, TPSGrid, SLUGear2Graph, TPS_GRID_SIZE);
 	
-	#ifdef GEAR_2_SLU_TPS_ADAPTATION
+	if (CFG.G2EnableAdaptTPS) {
 		SLU += get_interpolated_value_int16_t(TCU.InstTPS, TPSGrid, SLUGear2TPSAdaptGraph, TPS_GRID_SIZE);
-	#endif
+	}
 
 	// Применяем коррекцию по температуре.
 	SLU = CONSTRAIN(SLU + get_slu_gear2_temp_corr(SLU), 100, 980);
@@ -194,9 +193,9 @@ uint16_t get_slu_pressure_gear2() {
 int16_t get_slu_gear2_temp_corr(int16_t Value) {
 	int32_t OilTempCorr = get_interpolated_value_int16_t(TCU.OilTemp, TempGrid, SLUGear2TempCorrGraph, TEMP_GRID_SIZE);
 
-	#ifdef GEAR_2_SLU_TEMP_ADAPTATION
+	if (CFG.G2EnableAdaptTemp) {
 		OilTempCorr += get_interpolated_value_int16_t(TCU.OilTemp, TempGrid, SLUGear2TempAdaptGraph, TEMP_GRID_SIZE);
-	#endif
+	}
 
 	if (!Value) {return OilTempCorr;}	// Возвращаем коррекцию в %.
 	else {	// Возвращаем скорректированное значение.
@@ -208,9 +207,19 @@ int16_t get_slu_gear2_temp_corr(int16_t Value) {
 // Опережение по оборотам реактивации второй передачи.
 int16_t get_gear2_rpm_adv() {
 	int16_t AdvanceRPM = get_interpolated_value_int16_t(TCU.DrumRPMDelta, DeltaRPMGrid, Gear2AdvGraph, DELTA_RPM_GRID_SIZE);
-	#ifdef GEAR_2_REACT_ADAPTATION
+
+	// Применяем основную адаптацию.
+	if (CFG.G2EnableAdaptReact) {
 		AdvanceRPM += get_interpolated_value_int16_t(TCU.DrumRPMDelta, DeltaRPMGrid, Gear2AdvAdaptGraph, DELTA_RPM_GRID_SIZE);
-	#endif
+	}
+
+	// Применяем коррекцию по температуре.
+	AdvanceRPM += get_interpolated_value_int16_t(TCU.OilTemp, TempGrid, Gear2AdvTempCorrGraph, TEMP_GRID_SIZE);
+
+	// Применяем адаптацию по температуре.
+	if (CFG.G2EnableAdaptRctTemp) {
+		AdvanceRPM += get_interpolated_value_int16_t(TCU.OilTemp, TempGrid, Gear2AdvTempAdaptGraph, TEMP_GRID_SIZE);
+	}
 
 	return AdvanceRPM;
 }
@@ -227,22 +236,22 @@ uint16_t get_slu_pressure_gear3() {
 uint16_t get_gear3_slu_delay() {
 	int16_t Delay = get_interpolated_value_uint16_t(TCU.InstTPS, TPSGrid, SLUGear3DelayGraph, TPS_GRID_SIZE);
 
-	#ifdef GEAR_3_SLU_TPS_ADAPTATION
+	if (CFG.G3EnableAdaptTPS) {
 		Delay += get_interpolated_value_int16_t(TCU.InstTPS, TPSGrid, SLUGear3TPSAdaptGraph, TPS_GRID_SIZE);
-	#endif
+	}
 
 	// Коррекция задержки от температуры.
 	Delay += get_interpolated_value_int16_t(TCU.OilTemp, TempGrid, SLUG3DelayTempCorrGraph, TEMP_GRID_SIZE);
 
-	#ifdef GEAR_3_SLU_TEMP_ADAPTATION
+	if (CFG.G3EnableAdaptTemp) {
 		Delay += get_interpolated_value_int16_t(TCU.OilTemp, TempGrid, SLUGear3TempAdaptGraph, TEMP_GRID_SIZE);
-	#endif
+	}
 
 	if (Delay < 0) {return 0;}
 	else {return Delay;}
 }
 
-// Смещение впемени включения SLN при включении третьей передачи.
+// Смещение времени включения SLN при включении третьей передачи.
 int16_t get_gear3_sln_offset() {
 	int16_t Offset = get_interpolated_value_int16_t(TCU.InstTPS, TPSGrid, SLNGear3OffsetGraph, TPS_GRID_SIZE);
 	return Offset;
@@ -312,10 +321,10 @@ void save_gear2_slu_adaptation(int8_t Value) {
 	int16_t Add = 0;
 
 	// Адаптация по ДПДЗ.
-	if (TCU.OilTemp >= GEAR_2_SLU_ADAPTATION_OIL_MIN && TCU.OilTemp <= GEAR_2_SLU_ADAPTATION_OIL_MAX) {
-		#ifdef GEAR_2_SLU_TPS_ADAPTATION
+	if (TCU.OilTemp >= CFG.G2AdaptTPSTempMin && TCU.OilTemp <= CFG.G2AdaptTPSTempMax) {
+		if (CFG.G2EnableAdaptTPS) {
 			Index = get_tps_index(TCU.InstTPS);		// 2
-			Step = 2 * ADAPTATION_STEP_RATIO;		// 2
+			Step = 2 * CFG.AdaptationStepRatio;		// 2
 
 			Add = 32 - ((TCU.InstTPS - TPSGrid[Index]) * 32) / 5;	// 13
 			Add += 16 / Step;	// 21
@@ -327,59 +336,80 @@ void save_gear2_slu_adaptation(int8_t Value) {
 
 			SLUGear2TPSAdaptGraph[Index] = CONSTRAIN(SLUGear2TPSAdaptGraph[Index], -32, 32);
 			SLUGear2TPSAdaptGraph[Index + 1] = CONSTRAIN(SLUGear2TPSAdaptGraph[Index + 1], -32, 32);
-		#endif
+		}
 	}
 	else {		// Адаптация по температуре масла.
-		#ifdef GEAR_2_SLU_TEMP_ADAPTATION
-			if (TCU.InstTPS > GEAR_2_SLU_ADAPTATION_OIL_MAX_TPS) {return;} // Адаптация по температуре только на малом газу.
-			Index = get_temp_index(TCU.OilTemp);	// 3
-			Step = 5 * ADAPTATION_STEP_RATIO;		// 5
+		if (CFG.G2EnableAdaptTemp) {
+			if (TCU.InstTPS > CFG.G2AdaptTempMaxTPS) {return;} // Адаптация по температуре только на малом газу.
+			Index = get_temp_index(TCU.OilTemp);
+			Step = 5 * CFG.AdaptationStepRatio;
 
-			Add = 32 - ((TCU.OilTemp - TempGrid[Index]) * 32) / 5;	// 20
-			Add += 16 / Step;	// 23
-			Add *= Step;		// 115
-			Add /= 32;			// 3
+			Add = 32 - ((TCU.OilTemp - TempGrid[Index]) * 32) / 5;
+			Add += 16 / Step;
+			Add *= Step;
+			Add /= 32;
 
 			SLUGear2TempAdaptGraph[Index] += Add * Value;
 			SLUGear2TempAdaptGraph[Index + 1] += (Step - Add) * Value;
 
 			SLUGear2TempAdaptGraph[Index] = CONSTRAIN(SLUGear2TempAdaptGraph[Index], -120, 120);
 			SLUGear2TempAdaptGraph[Index + 1] = CONSTRAIN(SLUGear2TempAdaptGraph[Index + 1], -120, 120);
-		#endif
+		}
 	}
 }
 
 void save_gear2_adv_adaptation(int8_t Value, int16_t InitDrumRPMDelta) {
-	#ifndef GEAR_2_REACT_ADAPTATION
-		return;
-	#endif
+	if (InitDrumRPMDelta < CFG.G2AdaptReactMinDRPM)	{return;}
 
-	uint8_t Index = get_delta_rpm_index(InitDrumRPMDelta);
-	int8_t Step = 20 * ADAPTATION_STEP_RATIO;
-	int16_t Add = 32 - ((InitDrumRPMDelta - DeltaRPMGrid[Index]) * 32) / 5;
+	uint8_t Index = 0;
+	int8_t Step = 20 * CFG.AdaptationStepRatio;
+	int16_t Add = 0;
 
-	Add += 16 / Step;
-	Add *= Step;
-	Add /= 32;
+	// Адаптация по ДПДЗ.
+	if (TCU.OilTemp >= CFG.G2AdaptReactTempMin && TCU.OilTemp <= CFG.G2AdaptReactTempMax) {
+		if (CFG.G2EnableAdaptReact) {
+			Index = get_delta_rpm_index(InitDrumRPMDelta);
+			Add = 32 - ((InitDrumRPMDelta - DeltaRPMGrid[Index]) * 32) / 5;
 
-	Gear2AdvAdaptGraph[Index] += Add * Value;
-	Gear2AdvAdaptGraph[Index + 1] += (Step - Add) * Value;
+			Add += 16 / Step;
+			Add *= Step;
+			Add /= 32;
 
-	Gear2AdvAdaptGraph[Index] = CONSTRAIN(Gear2AdvAdaptGraph[Index], -300, 300);
-	Gear2AdvAdaptGraph[Index + 1] = CONSTRAIN(Gear2AdvAdaptGraph[Index + 1], -300, 300);
+			Gear2AdvAdaptGraph[Index] += Add * Value;
+			Gear2AdvAdaptGraph[Index + 1] += (Step - Add) * Value;
+
+			Gear2AdvAdaptGraph[Index] = CONSTRAIN(Gear2AdvAdaptGraph[Index], -300, 300);
+			Gear2AdvAdaptGraph[Index + 1] = CONSTRAIN(Gear2AdvAdaptGraph[Index + 1], -300, 300);
+		}
+	}
+	else {		// Адаптация по температуре масла.
+		if (CFG.G2EnableAdaptRctTemp) {
+			if (TCU.InstTPS > CFG.G2AdaptRctTempMaxTPS) {return;}
+			Index = get_temp_index(TCU.OilTemp);	// 3
+
+			Add = 32 - ((TCU.OilTemp - TempGrid[Index]) * 32) / 5;
+			Add += 16 / Step;
+			Add *= Step;
+			Add /= 32;
+
+			Gear2AdvTempAdaptGraph[Index] = CONSTRAIN(Gear2AdvTempAdaptGraph[Index], -300, 300);
+			Gear2AdvTempAdaptGraph[Index + 1] = CONSTRAIN(Gear2AdvTempAdaptGraph[Index + 1], -300, 300);
+		}
+	}
 }
 
 void save_gear3_slu_adaptation(int8_t Value) {
 	uint8_t Index = 0;
-	int8_t Step = 0;
+	int8_t Step = 12 * CFG.AdaptationStepRatio;
 	int16_t Add = 0;
 
+	if (Value < 0) {Step = 6;}
+
 	// Адаптация по ДПДЗ.
-	if (TCU.OilTemp >= GEAR_3_SLU_ADAPTATION_OIL_MIN && TCU.OilTemp <= GEAR_3_SLU_ADAPTATION_OIL_MAX) {
-		#ifdef GEAR_3_SLU_TPS_ADAPTATION
+	if (TCU.OilTemp >= CFG.G3AdaptTPSTempMin && TCU.OilTemp <= CFG.G3AdaptTPSTempMax) {
+		if (CFG.G3EnableAdaptTPS) {
 
 			Index = get_tps_index(TCU.InstTPS);
-			Step = 10 * ADAPTATION_STEP_RATIO;
 
 			Add = 32 - ((TCU.InstTPS - TPSGrid[Index]) * 32) / 5;
 			Add += 16 / Step;
@@ -391,14 +421,13 @@ void save_gear3_slu_adaptation(int8_t Value) {
 
 			SLUGear3TPSAdaptGraph[Index] = CONSTRAIN(SLUGear3TPSAdaptGraph[Index], -200, 200);
 			SLUGear3TPSAdaptGraph[Index + 1] = CONSTRAIN(SLUGear3TPSAdaptGraph[Index + 1], -200, 200);
-		#endif
+		}
 	}
 	else {		// Адаптация по температуре масла.
-		#ifdef GEAR_3_SLU_TEMP_ADAPTATION
-			if (TCU.InstTPS > GEAR_3_SLU_ADAPTATION_OIL_MAX_TPS) {return;} // Адаптация по температуре только на малом газу.
+		if (CFG.G3EnableAdaptTemp) {
+			if (TCU.InstTPS > CFG.G3AdaptTempMaxTPS) {return;} // Адаптация по температуре только на малом газу.
 
 			Index = get_temp_index(TCU.OilTemp);
-			Step = 10 * ADAPTATION_STEP_RATIO;
 
 			Add = 32 - ((TCU.OilTemp - TempGrid[Index]) * 32) / 5;
 			Add += 16 / Step;
@@ -410,6 +439,6 @@ void save_gear3_slu_adaptation(int8_t Value) {
 
 			SLUGear3TempAdaptGraph[Index] = CONSTRAIN(SLUGear3TempAdaptGraph[Index], -200, 200);
 			SLUGear3TempAdaptGraph[Index + 1] = CONSTRAIN(SLUGear3TempAdaptGraph[Index + 1], -200, 120);
-		#endif
+		}
 	}
 }
