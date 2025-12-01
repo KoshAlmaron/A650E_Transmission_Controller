@@ -139,6 +139,8 @@
 	extern uint16_t SLNGear3Graph[];
 	extern int16_t SLNGear3OffsetGraph[];
 
+	extern uint16_t GearChangeStepArray[];
+
 	extern uint8_t Gear_2_1[];
 	extern uint8_t Gear_1_2[];
 	extern uint8_t Gear_3_2[];
@@ -148,5 +150,4 @@
 	extern uint8_t Gear_5_4[];
 	extern uint8_t Gear_4_5[];
 
-	extern uint16_t GearChangeStepArray[];
 #endif

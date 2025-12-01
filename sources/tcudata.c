@@ -57,6 +57,8 @@ uint8_t SpeedTestFlag = 0;	// Флаг включения тестировани
 // Прототипы локальных функций.
 static uint16_t get_car_speed();
 
+static int16_t get_cell_adapt_step(uint8_t N, int16_t Value, int16_t LeftCell, int8_t GridStep, int16_t AdaptStep);
+
 // Расчет параметров на основе датчиков и таблиц.
 void calculate_tcu_data() {
 	static uint8_t Counter = 0;
@@ -259,7 +261,7 @@ int16_t get_gear3_sln_offset() {
 
 // Возвращает левый индекс из сетки ДПДЗ.
 uint8_t get_tps_index(uint8_t TPS) {
-	if (TPS == TPSGrid[TPS_GRID_SIZE - 1]) {return TPS_GRID_SIZE - 2;}
+	if (TPS >= TPSGrid[TPS_GRID_SIZE - 1]) {return TPS_GRID_SIZE - 2;}
 
 	for (uint8_t i = 1; i < TPS_GRID_SIZE; i++) {
 		if (TPS < TPSGrid[i]) {return i - 1;}
@@ -269,7 +271,7 @@ uint8_t get_tps_index(uint8_t TPS) {
 
 // Возвращает левый индекс из сетки температуры.
 uint8_t get_temp_index(int16_t Temp) {
-	if (Temp == TempGrid[TEMP_GRID_SIZE - 1]) {return TEMP_GRID_SIZE - 2;}
+	if (Temp >= TempGrid[TEMP_GRID_SIZE - 1]) {return TEMP_GRID_SIZE - 2;}
 
 	for (uint8_t i = 1; i < TEMP_GRID_SIZE; i++) {
 		if (Temp < TempGrid[i]) {return i - 1;}
@@ -279,7 +281,7 @@ uint8_t get_temp_index(int16_t Temp) {
 
 // Возвращает левый индекс из сетки дельты оборотов.
 uint8_t get_delta_rpm_index(int16_t DeltaRPM) {
-	if (DeltaRPM == DeltaRPMGrid[DELTA_RPM_GRID_SIZE - 1]) {return DELTA_RPM_GRID_SIZE - 2;}
+	if (DeltaRPM >= DeltaRPMGrid[DELTA_RPM_GRID_SIZE - 1]) {return DELTA_RPM_GRID_SIZE - 2;}
 
 	for (uint8_t i = 1; i < DELTA_RPM_GRID_SIZE; i++) {
 		if (DeltaRPM < DeltaRPMGrid[i]) {return i - 1;}
@@ -315,6 +317,7 @@ int16_t rpm_delta(uint8_t Gear) {
 	return (TCU.DrumRPM - CalcDrumRPM);
 }
 
+// Сохранение адаптации давления включения второй передачи.
 void save_gear2_slu_adaptation(int8_t Value) {
 	uint8_t Index = 0;
 	int8_t Step = 0;
@@ -358,25 +361,37 @@ void save_gear2_slu_adaptation(int8_t Value) {
 	}
 }
 
+// Расчёт значения адаптации для одной точки.
+static int16_t get_cell_adapt_step(uint8_t N, int16_t Value, int16_t LeftCell, int8_t GridStep, int16_t AdaptStep) {
+	if (!N) {Value = LeftCell * 2 + GridStep - Value;}
+
+	AdaptStep *= 4;
+	AdaptStep += (GridStep - ABS((Value - LeftCell) * 2 - GridStep)) * AdaptStep / GridStep;
+
+	int16_t Result = ((Value - LeftCell) * 32) / GridStep;
+	Result = (Result * AdaptStep) / 128;
+	return Result;
+}
+
+// Сохранение адаптации опережения реактивации второй передачи.
 void save_gear2_adv_adaptation(int8_t Value, int16_t InitDrumRPMDelta) {
 	if (InitDrumRPMDelta < CFG.G2AdaptReactMinDRPM)	{return;}
 
+	// Дельта оборотов может выходить за пределы сетки.
+	InitDrumRPMDelta = CONSTRAIN(InitDrumRPMDelta, DeltaRPMGrid[0], DeltaRPMGrid[DELTA_RPM_GRID_SIZE - 1]);
+
 	uint8_t Index = 0;
-	int8_t Step = 20 * CFG.AdaptationStepRatio;
-	int16_t Add = 0;
+	int16_t AdaptStep = 30 * CFG.AdaptationStepRatio;
+	int8_t GridStep = 0;
 
 	// Адаптация по ДПДЗ.
 	if (TCU.OilTemp >= CFG.G2AdaptReactTempMin && TCU.OilTemp <= CFG.G2AdaptReactTempMax) {
 		if (CFG.G2EnableAdaptReact) {
 			Index = get_delta_rpm_index(InitDrumRPMDelta);
-			Add = 32 - ((InitDrumRPMDelta - DeltaRPMGrid[Index]) * 32) / 5;
+			GridStep = DeltaRPMGrid[Index + 1] - DeltaRPMGrid[Index];
 
-			Add += 16 / Step;
-			Add *= Step;
-			Add /= 32;
-
-			Gear2AdvAdaptGraph[Index] += Add * Value;
-			Gear2AdvAdaptGraph[Index + 1] += (Step - Add) * Value;
+			Gear2AdvAdaptGraph[Index] += Value * get_cell_adapt_step(0, InitDrumRPMDelta, DeltaRPMGrid[Index], GridStep, AdaptStep);
+			Gear2AdvAdaptGraph[Index + 1] += Value * get_cell_adapt_step(1, InitDrumRPMDelta, DeltaRPMGrid[Index], GridStep, AdaptStep);
 
 			Gear2AdvAdaptGraph[Index] = CONSTRAIN(Gear2AdvAdaptGraph[Index], -300, 300);
 			Gear2AdvAdaptGraph[Index + 1] = CONSTRAIN(Gear2AdvAdaptGraph[Index + 1], -300, 300);
@@ -386,11 +401,10 @@ void save_gear2_adv_adaptation(int8_t Value, int16_t InitDrumRPMDelta) {
 		if (CFG.G2EnableAdaptRctTemp) {
 			if (TCU.InstTPS > CFG.G2AdaptRctTempMaxTPS) {return;}
 			Index = get_temp_index(TCU.OilTemp);	// 3
+			GridStep = TempGrid[Index + 1] - TempGrid[Index];
 
-			Add = 32 - ((TCU.OilTemp - TempGrid[Index]) * 32) / 5;
-			Add += 16 / Step;
-			Add *= Step;
-			Add /= 32;
+			Gear2AdvTempAdaptGraph[Index] += Value * get_cell_adapt_step(0, TCU.OilTemp, TempGrid[Index], GridStep, AdaptStep);
+			Gear2AdvTempAdaptGraph[Index + 1] += Value * get_cell_adapt_step(1, TCU.OilTemp, TempGrid[Index], GridStep, AdaptStep);
 
 			Gear2AdvTempAdaptGraph[Index] = CONSTRAIN(Gear2AdvTempAdaptGraph[Index], -300, 300);
 			Gear2AdvTempAdaptGraph[Index + 1] = CONSTRAIN(Gear2AdvTempAdaptGraph[Index + 1], -300, 300);
@@ -398,12 +412,13 @@ void save_gear2_adv_adaptation(int8_t Value, int16_t InitDrumRPMDelta) {
 	}
 }
 
+// Сохранение адаптации времени удержания SLU третьей передачи.
 void save_gear3_slu_adaptation(int8_t Value) {
 	uint8_t Index = 0;
 	int8_t Step = 12 * CFG.AdaptationStepRatio;
 	int16_t Add = 0;
 
-	if (Value < 0) {Step = 6;}
+	if (Value < 0) {Step = 6 * CFG.AdaptationStepRatio;}
 
 	// Адаптация по ДПДЗ.
 	if (TCU.OilTemp >= CFG.G3AdaptTPSTempMin && TCU.OilTemp <= CFG.G3AdaptTPSTempMax) {

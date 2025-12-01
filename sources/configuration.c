@@ -5,7 +5,7 @@
 // Инициализация структуры с настройками.
 CFG_t CFG = {
 	.AfterChangeMinRPM = 1000,
-	.AfterChangeMaxRPM = 1700,
+	.AfterChangeMaxRPM = 4700,
 
 	.IdleTPSLimit = 2,
 	.MaxSlipRPM = 60,
