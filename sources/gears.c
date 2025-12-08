@@ -127,6 +127,7 @@ static void gear_change_1_2() {
 	TCU.LastPDRTime = 0;
 	if (TCU.InstTPS > CFG.PowerDownMaxTPS) {PDR = -1;}
 	
+	uint8_t InitTPS = TCU.InstTPS;	// Значение ДПДЗ в начеле цикла.
 	while (TCU.GearStep < GEAR_2_MAX_STEP) {
 		set_gear_change_delays();		// Установка длительности 1 шага переключения от ДПДЗ.
 		WaitTimer = GearChangeStep;		// Устанавливаем время ожидания.
@@ -167,14 +168,14 @@ static void gear_change_1_2() {
 				// Передача включилась слишком рано,
 				// снижаем давление на 1 единицу.
 				Adaptation = -1;
-				save_gear2_slu_adaptation(-1);
+				save_gear2_slu_adaptation(-1, (InitTPS + TCU.InstTPS) / 2);
 			}
 		}
 		if (TCU.GearStep > 16 && rpm_delta(2) > 35 && !Adaptation) {
 			// Передача включилась слишком поздно,
 			// повышаем давление на 1 единицу.
 			Adaptation = 1;
-			save_gear2_slu_adaptation(1);
+			save_gear2_slu_adaptation(1, (InitTPS + TCU.InstTPS) / 2);
 		}
 	}
 
@@ -209,6 +210,7 @@ static void gear_change_2_3() {
 	uint16_t PDRTime = 0;	// Длительность применения снижения мощности.
 
 	// Ждем начало включения B2.
+	uint8_t InitTPS = TCU.InstTPS;	// Значение ДПДЗ в начеле цикла.
 	while (WaitTimer) {
 		loop_main(1);
 
@@ -269,7 +271,7 @@ static void gear_change_2_3() {
 	if (TCU.ATMode == 6) {SET_PIN_HIGH(SOLENOID_S3_PIN);}
 
 	// Применение адаптации.
-	if (Adaptation) {save_gear3_slu_adaptation(Adaptation);}
+	if (Adaptation) {save_gear3_slu_adaptation(Adaptation, (InitTPS + TCU.InstTPS) / 2);}
 
 	TCU.Gear = 3;
 	TCU.Gear2State = 0;
@@ -501,7 +503,7 @@ void slu_gear2_control() {
 				set_gear_change_delays();		// Длительность 1 шага переключения от ДПДЗ.
 				// Устанавливаем время ожидания.
 				if (TCU.ATMode == 6 || TCU.ATMode == 7) {WaitTimer = GearChangeStep;}
-				else {WaitTimer = 60;}	// Статическое значение при реактивации.
+				else {WaitTimer = CFG.G2ReactStepSize;}	// Статическое значение при реактивации.
 
 				while (WaitTimer) {
 					loop_main(1);

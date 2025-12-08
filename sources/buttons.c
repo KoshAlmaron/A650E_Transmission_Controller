@@ -21,7 +21,7 @@ static uint8_t ButtonState[2] = {};
 static void button_read(uint8_t State, uint8_t N);
 
 void buttons_init() {
-	// Настраиваем выводы для кнопок/энкодера.
+	// Настраиваем выводы для кнопок.
 	SET_PIN_MODE_INPUT(TIP_GEAR_UP_PIN);
 	SET_PIN_HIGH(TIP_GEAR_UP_PIN);
 	SET_PIN_MODE_INPUT(TIP_GEAR_DOWN_PIN);

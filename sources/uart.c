@@ -163,6 +163,9 @@ void uart_send_table(uint8_t N) {
 		case SLN_GRAPH:
 			for (uint8_t i = 0; i < TPS_GRID_SIZE; i++) {uart_buffer_add_uint16(SLNGraph[i]);}
 			break;
+		case SLN_TEMP_CORR_GRAPH:
+			for (uint8_t i = 0; i < TEMP_GRID_SIZE; i++) {uart_buffer_add_int16(SLNTempCorrGraph[i]);}
+			break;
 		case SLU_GEAR2_GRAPH:
 			for (uint8_t i = 0; i < TPS_GRID_SIZE; i++) {uart_buffer_add_uint16(SLUGear2Graph[i]);}
 			break;
@@ -174,6 +177,9 @@ void uart_send_table(uint8_t N) {
 			break;
 		case SLU_GEAR2_TEMP_ADAPT_GRAPH:
 			for (uint8_t i = 0; i < TEMP_GRID_SIZE; i++) {uart_buffer_add_int16(SLUGear2TempAdaptGraph[i]);}
+			break;
+		case GEAR_CHANGE_STEP_ARRAY:
+			for (uint8_t i = 0; i < TPS_GRID_SIZE; i++) {uart_buffer_add_uint16(GearChangeStepArray[i]);}
 			break;
 		case GEAR2_ADV_GRAPH:
 			for (uint8_t i = 0; i < DELTA_RPM_GRID_SIZE; i++) {uart_buffer_add_int16(Gear2AdvGraph[i]);}
@@ -239,7 +245,8 @@ void uart_send_table(uint8_t N) {
 void uart_command_processing() {
 	if (!TxReady) {return;}		// Не трогать буфер пока идет передача.
 
-	if (RxCommandStatus!= 2) {return;}
+	if (RxCommandStatus != 2) {return;}
+	
 	if (RxBuffPos < 2) {
 		RxCommandStatus = 0;
 		return;
@@ -434,6 +441,10 @@ static void uart_write_table(uint8_t N) {
 			if (RxBuffPos != TPS_GRID_SIZE * 2 + 2) {return;}
 			for (uint8_t i = 0; i < TPS_GRID_SIZE; i++) {SLNGraph[i] = uart_build_uint16(2 + i * 2);}
 			break;
+		case SLN_TEMP_CORR_GRAPH:
+			if (RxBuffPos != TEMP_GRID_SIZE * 2 + 2) {return;}
+			for (uint8_t i = 0; i < TEMP_GRID_SIZE; i++) {SLNTempCorrGraph[i] = uart_build_int16(2 + i * 2);}
+			break;
 		case SLU_GEAR2_GRAPH:
 			if (RxBuffPos != TPS_GRID_SIZE * 2 + 2) {return;}
 			for (uint8_t i = 0; i < TPS_GRID_SIZE; i++) {SLUGear2Graph[i] = uart_build_uint16(2 + i * 2);}
@@ -449,6 +460,10 @@ static void uart_write_table(uint8_t N) {
 		case SLU_GEAR2_TEMP_ADAPT_GRAPH:
 			if (RxBuffPos != TEMP_GRID_SIZE * 2 + 2) {return;}
 			for (uint8_t i = 0; i < TEMP_GRID_SIZE; i++) {SLUGear2TempAdaptGraph[i] = uart_build_int16(2 + i * 2);}
+			break;
+		case GEAR_CHANGE_STEP_ARRAY:
+			if (RxBuffPos != TPS_GRID_SIZE * 2 + 2) {return;}
+			for (uint8_t i = 0; i < TPS_GRID_SIZE; i++) {GearChangeStepArray[i] = uart_build_int16(2 + i * 2);}
 			break;
 		case GEAR2_ADV_GRAPH:
 			if (RxBuffPos != DELTA_RPM_GRID_SIZE * 2 + 2) {return;}

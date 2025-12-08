@@ -34,6 +34,7 @@ CFG_t CFG = {
 	.G2AdaptReactTempMax = 72,
 	.G2EnableAdaptRctTemp = 1,
 	.G2AdaptRctTempMaxTPS = 35,
+	.G2ReactStepSize = 60,
 
 	.G3EnableAdaptTPS = 1,
 	.G3AdaptTPSTempMin = 63,

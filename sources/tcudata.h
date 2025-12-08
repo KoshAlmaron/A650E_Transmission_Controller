@@ -27,9 +27,9 @@
 	uint8_t get_temp_index(int16_t Temp);
 	uint8_t get_delta_rpm_index(int16_t DeltaRPM);
 
-	void save_gear2_slu_adaptation(int8_t Value);
+	void save_gear2_slu_adaptation(int8_t Value, uint8_t TPS);
 	void save_gear2_adv_adaptation(int8_t Value, int16_t InitDrumRPMDelta);
-	void save_gear3_slu_adaptation(int8_t Value);
+	void save_gear3_slu_adaptation(int8_t Value, uint8_t TPS);
 
 	// Структура для хранения переменных.
 	typedef struct TCU_t {
@@ -84,24 +84,26 @@
 	#define SLT_GRAPH							0
 	#define SLT_TEMP_CORR_GRAPH					1
 	#define SLN_GRAPH							2
-	#define SLU_GEAR2_GRAPH						3
-	#define SLU_GEAR2_TPS_ADAPT_GRAPH			4
-	#define SLU_GEAR2_TEMP_CORR_GRAPH			5
-	#define SLU_GEAR2_TEMP_ADAPT_GRAPH			6
-	#define GEAR2_ADV_GRAPH						7
-	#define GEAR2_ADV_ADAPT_GRAPH				8
-	#define GEAR2_ADV_TEMP_CORR_GRAPH			9
-	#define GEAR2_ADV_TEMP_ADAPT_GRAPH			10
-	#define SLU_GEAR3_GRAPH						11
-	#define SLU_GEAR3_DELAY_GRAPH				12
-	#define SLU_GEAR3_TPS_ADAPT_GRAPH			13
-	#define SLU_G3_DELAY_TEMP_CORR_GRAPH		14
-	#define SLU_GEAR3_TEMP_ADAPT_GRAPH			15
-	#define SLN_GEAR3_GRAPH						16
-	#define SLN_GEAR3_OFFSET_GRAPH				17
-	#define TPS_ADC_GRAPH						18
-	#define OIL_ADC_GRAPH						19
-	#define GEAR_SPEED_GRAPHS					20
+	#define SLN_TEMP_CORR_GRAPH					3
+	#define SLU_GEAR2_GRAPH						4
+	#define SLU_GEAR2_TPS_ADAPT_GRAPH			5
+	#define SLU_GEAR2_TEMP_CORR_GRAPH			6
+	#define SLU_GEAR2_TEMP_ADAPT_GRAPH			7
+	#define GEAR_CHANGE_STEP_ARRAY				8
+	#define GEAR2_ADV_GRAPH						9
+	#define GEAR2_ADV_ADAPT_GRAPH				10
+	#define GEAR2_ADV_TEMP_CORR_GRAPH			11
+	#define GEAR2_ADV_TEMP_ADAPT_GRAPH			12
+	#define SLU_GEAR3_GRAPH						13
+	#define SLU_GEAR3_DELAY_GRAPH				14
+	#define SLU_GEAR3_TPS_ADAPT_GRAPH			15
+	#define SLU_G3_DELAY_TEMP_CORR_GRAPH		16
+	#define SLU_GEAR3_TEMP_ADAPT_GRAPH			17
+	#define SLN_GEAR3_GRAPH						18
+	#define SLN_GEAR3_OFFSET_GRAPH				19
+	#define TPS_ADC_GRAPH						20
+	#define OIL_ADC_GRAPH						21
+	#define GEAR_SPEED_GRAPHS					22
 
 	// Сетки стандартных осей.
 	extern int16_t TempGrid[];
@@ -116,6 +118,7 @@
 	extern int16_t SLTTempCorrGraph[];
 
 	extern uint16_t SLNGraph[];
+	extern int16_t SLNTempCorrGraph[];
 
 	extern uint16_t SLUGear2Graph[];
 	extern int16_t SLUGear2TempCorrGraph[];
