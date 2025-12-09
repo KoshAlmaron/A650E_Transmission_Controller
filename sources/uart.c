@@ -9,6 +9,7 @@
 #include "eeprom.h"			// Чтение и запись EEPROM.
 #include "macros.h"			// Макросы.
 #include "gears.h"			// Фунции переключения передач.
+#include "selector.h"		// Положение селектора АКПП.
 #include "configuration.h"	// Настройки.
 
 #include <stdio.h>			// Стандартная библиотека ввода/вывода
@@ -43,6 +44,8 @@ volatile uint8_t TxMarkerByte = 0;	// Признак, что предыдущи�
 
 char CharArray[8] = {0};
 
+uint8_t SendPortsStateCount = 0;		// Флаг-счетчик отправки пакета с портами вместо стандартного.
+
 static void uart_buffer_add_uint8(uint8_t Value);
 
 static void uart_buffer_add_uint16(uint16_t Value);
@@ -54,6 +57,8 @@ static int16_t uart_build_int16(uint8_t i);
 static uint16_t uart_build_uint16(uint8_t i);
 
 static void uart_write_cfg_data();
+
+static void uart_send_ports_state();
 
 // Функция программного сброса
 void(* resetFunc) (void) = 0;
@@ -98,10 +103,16 @@ void uart_init(uint8_t mode) {
 void uart_send_tcu_data() {
 	if (!TxReady) {return;}		// Не трогать буффер пока идет передача.
 
+	if (SendPortsStateCount) {
+		SendPortsStateCount--;
+		uart_send_ports_state();
+		return;
+	}
+
 	TxBuffPos = 0;	// Сброс позиции.
 	UseMarkers = 1;	// Используем байты маркеры.
-	SendBuffer[TxBuffPos++] = FOBEGIN;	// Байт начала пакета.
-	SendBuffer[TxBuffPos++] = TCU_DATA_PACKET;		// Тип данных.
+	SendBuffer[TxBuffPos++] = FOBEGIN;			// Байт начала пакета.
+	SendBuffer[TxBuffPos++] = TCU_DATA_PACKET;	// Тип данных.
 
 	//TCU.GearChangeSLU = 0;
 
@@ -155,81 +166,81 @@ void uart_send_table(uint8_t N) {
 
 	switch (N) {
 		case SLT_GRAPH:
-			for (uint8_t i = 0; i < TPS_GRID_SIZE; i++) {uart_buffer_add_uint16(SLTGraph[i]);}
+			for (uint8_t i = 0; i < TPS_GRID_SIZE; i++) {uart_buffer_add_uint16(TABLES.SLTGraph[i]);}
 			break;
 		case SLT_TEMP_CORR_GRAPH:
-			for (uint8_t i = 0; i < TEMP_GRID_SIZE; i++) {uart_buffer_add_int16(SLTTempCorrGraph[i]);}
+			for (uint8_t i = 0; i < TEMP_GRID_SIZE; i++) {uart_buffer_add_int16(TABLES.SLTTempCorrGraph[i]);}
 			break;
 		case SLN_GRAPH:
-			for (uint8_t i = 0; i < TPS_GRID_SIZE; i++) {uart_buffer_add_uint16(SLNGraph[i]);}
+			for (uint8_t i = 0; i < TPS_GRID_SIZE; i++) {uart_buffer_add_uint16(TABLES.SLNGraph[i]);}
 			break;
 		case SLN_TEMP_CORR_GRAPH:
-			for (uint8_t i = 0; i < TEMP_GRID_SIZE; i++) {uart_buffer_add_int16(SLNTempCorrGraph[i]);}
+			for (uint8_t i = 0; i < TEMP_GRID_SIZE; i++) {uart_buffer_add_int16(TABLES.SLNTempCorrGraph[i]);}
 			break;
 		case SLU_GEAR2_GRAPH:
-			for (uint8_t i = 0; i < TPS_GRID_SIZE; i++) {uart_buffer_add_uint16(SLUGear2Graph[i]);}
+			for (uint8_t i = 0; i < TPS_GRID_SIZE; i++) {uart_buffer_add_uint16(TABLES.SLUGear2Graph[i]);}
 			break;
 		case SLU_GEAR2_TEMP_CORR_GRAPH:
-			for (uint8_t i = 0; i < TEMP_GRID_SIZE; i++) {uart_buffer_add_int16(SLUGear2TempCorrGraph[i]);}
+			for (uint8_t i = 0; i < TEMP_GRID_SIZE; i++) {uart_buffer_add_int16(TABLES.SLUGear2TempCorrGraph[i]);}
 			break;
 		case SLU_GEAR2_TPS_ADAPT_GRAPH:
-			for (uint8_t i = 0; i < TPS_GRID_SIZE; i++) {uart_buffer_add_int16(SLUGear2TPSAdaptGraph[i]);}
+			for (uint8_t i = 0; i < TPS_GRID_SIZE; i++) {uart_buffer_add_int16(ADAPT.SLUGear2TPSAdaptGraph[i]);}
 			break;
 		case SLU_GEAR2_TEMP_ADAPT_GRAPH:
-			for (uint8_t i = 0; i < TEMP_GRID_SIZE; i++) {uart_buffer_add_int16(SLUGear2TempAdaptGraph[i]);}
+			for (uint8_t i = 0; i < TEMP_GRID_SIZE; i++) {uart_buffer_add_int16(ADAPT.SLUGear2TempAdaptGraph[i]);}
 			break;
 		case GEAR_CHANGE_STEP_ARRAY:
-			for (uint8_t i = 0; i < TPS_GRID_SIZE; i++) {uart_buffer_add_uint16(GearChangeStepArray[i]);}
+			for (uint8_t i = 0; i < TPS_GRID_SIZE; i++) {uart_buffer_add_uint16(TABLES.GearChangeStepArray[i]);}
 			break;
 		case GEAR2_ADV_GRAPH:
-			for (uint8_t i = 0; i < DELTA_RPM_GRID_SIZE; i++) {uart_buffer_add_int16(Gear2AdvGraph[i]);}
+			for (uint8_t i = 0; i < DELTA_RPM_GRID_SIZE; i++) {uart_buffer_add_int16(TABLES.Gear2AdvGraph[i]);}
 			break;
 		case GEAR2_ADV_ADAPT_GRAPH:
-			for (uint8_t i = 0; i < DELTA_RPM_GRID_SIZE; i++) {uart_buffer_add_int16(Gear2AdvAdaptGraph[i]);}
+			for (uint8_t i = 0; i < DELTA_RPM_GRID_SIZE; i++) {uart_buffer_add_int16(ADAPT.Gear2AdvAdaptGraph[i]);}
 			break;
 		case GEAR2_ADV_TEMP_CORR_GRAPH:
-			for (uint8_t i = 0; i < TEMP_GRID_SIZE; i++) {uart_buffer_add_int16(Gear2AdvTempCorrGraph[i]);}
+			for (uint8_t i = 0; i < TEMP_GRID_SIZE; i++) {uart_buffer_add_int16(TABLES.Gear2AdvTempCorrGraph[i]);}
 			break;
 		case GEAR2_ADV_TEMP_ADAPT_GRAPH:
-			for (uint8_t i = 0; i < TEMP_GRID_SIZE; i++) {uart_buffer_add_int16(Gear2AdvTempAdaptGraph[i]);}
+			for (uint8_t i = 0; i < TEMP_GRID_SIZE; i++) {uart_buffer_add_int16(ADAPT.Gear2AdvTempAdaptGraph[i]);}
 			break;
 		case SLU_GEAR3_GRAPH:
-			for (uint8_t i = 0; i < TPS_GRID_SIZE; i++) {uart_buffer_add_uint16(SLUGear3Graph[i]);}
+			for (uint8_t i = 0; i < TPS_GRID_SIZE; i++) {uart_buffer_add_uint16(TABLES.SLUGear3Graph[i]);}
 			break;
 		case SLU_GEAR3_DELAY_GRAPH:
-			for (uint8_t i = 0; i < TPS_GRID_SIZE; i++) {uart_buffer_add_uint16(SLUGear3DelayGraph[i]);}
+			for (uint8_t i = 0; i < TPS_GRID_SIZE; i++) {uart_buffer_add_uint16(TABLES.SLUGear3DelayGraph[i]);}
 			break;
 		case SLU_G3_DELAY_TEMP_CORR_GRAPH:
-			for (uint8_t i = 0; i < TEMP_GRID_SIZE; i++) {uart_buffer_add_int16(SLUG3DelayTempCorrGraph[i]);}
+			for (uint8_t i = 0; i < TEMP_GRID_SIZE; i++) {uart_buffer_add_int16(TABLES.SLUG3DelayTempCorrGraph[i]);}
 			break;
 		case SLU_GEAR3_TPS_ADAPT_GRAPH:
-			for (uint8_t i = 0; i < TPS_GRID_SIZE; i++) {uart_buffer_add_int16(SLUGear3TPSAdaptGraph[i]);}
+			for (uint8_t i = 0; i < TPS_GRID_SIZE; i++) {uart_buffer_add_int16(ADAPT.SLUGear3TPSAdaptGraph[i]);}
 			break;
 		case SLU_GEAR3_TEMP_ADAPT_GRAPH:
-			for (uint8_t i = 0; i < TEMP_GRID_SIZE; i++) {uart_buffer_add_int16(SLUGear3TempAdaptGraph[i]);}
+			for (uint8_t i = 0; i < TEMP_GRID_SIZE; i++) {uart_buffer_add_int16(ADAPT.SLUGear3TempAdaptGraph[i]);}
 			break;
 		case SLN_GEAR3_GRAPH:
-			for (uint8_t i = 0; i < TPS_GRID_SIZE; i++) {uart_buffer_add_uint16(SLNGear3Graph[i]);}
+			for (uint8_t i = 0; i < TPS_GRID_SIZE; i++) {uart_buffer_add_uint16(TABLES.SLNGear3Graph[i]);}
 			break;
 		case SLN_GEAR3_OFFSET_GRAPH:
-			for (uint8_t i = 0; i < TPS_GRID_SIZE; i++) {uart_buffer_add_int16(SLNGear3OffsetGraph[i]);}
+			for (uint8_t i = 0; i < TPS_GRID_SIZE; i++) {uart_buffer_add_int16(TABLES.SLNGear3OffsetGraph[i]);}
 			break;
 		case TPS_ADC_GRAPH:
-			for (uint8_t i = 0; i < TPS_GRID_SIZE; i++) {uart_buffer_add_int16(TPSGraph[i]);}
+			for (uint8_t i = 0; i < TPS_GRID_SIZE; i++) {uart_buffer_add_int16(ADCTBL.TPSGraph[i]);}
 			break;
 		case OIL_ADC_GRAPH:
-			for (uint8_t i = 0; i < TEMP_GRID_SIZE; i++) {uart_buffer_add_int16(OilTempGraph[i]);}
+			for (uint8_t i = 0; i < TEMP_GRID_SIZE; i++) {uart_buffer_add_int16(ADCTBL.OilTempGraph[i]);}
 			break;
 		case GEAR_SPEED_GRAPHS:
 			for (uint8_t i = 0; i < TPS_GRID_SIZE; i++) {
-				uart_buffer_add_uint8(Gear_2_1[i]);
-				uart_buffer_add_uint8(Gear_1_2[i]);
-				uart_buffer_add_uint8(Gear_3_2[i]);
-				uart_buffer_add_uint8(Gear_2_3[i]);
-				uart_buffer_add_uint8(Gear_4_3[i]);
-				uart_buffer_add_uint8(Gear_3_4[i]);
-				uart_buffer_add_uint8(Gear_5_4[i]);
-				uart_buffer_add_uint8(Gear_4_5[i]);
+				uart_buffer_add_uint8(SPEED.Gear_2_1[i]);
+				uart_buffer_add_uint8(SPEED.Gear_1_2[i]);
+				uart_buffer_add_uint8(SPEED.Gear_3_2[i]);
+				uart_buffer_add_uint8(SPEED.Gear_2_3[i]);
+				uart_buffer_add_uint8(SPEED.Gear_4_3[i]);
+				uart_buffer_add_uint8(SPEED.Gear_3_4[i]);
+				uart_buffer_add_uint8(SPEED.Gear_5_4[i]);
+				uart_buffer_add_uint8(SPEED.Gear_4_5[i]);
 			}
 			break;
 
@@ -242,11 +253,61 @@ void uart_send_table(uint8_t N) {
 	uart_send_array();
 }
 
+static void uart_send_ports_state() {
+	if (!TxReady) {return;}
+
+	TxBuffPos = 0;
+	UseMarkers = 1;
+
+	SendBuffer[TxBuffPos++] = FOBEGIN;
+	SendBuffer[TxBuffPos++] = PORTS_STATE_PACKET;
+
+	// Последовательно отправляем PINx и DDRx для всех портов ATmega2560.
+	SendBuffer[TxBuffPos++] = PINA;
+	SendBuffer[TxBuffPos++] = DDRA;
+
+	SendBuffer[TxBuffPos++] = PINB;
+	SendBuffer[TxBuffPos++] = DDRB;
+
+	SendBuffer[TxBuffPos++] = PINC;
+	SendBuffer[TxBuffPos++] = DDRC;
+
+	SendBuffer[TxBuffPos++] = PIND;
+	SendBuffer[TxBuffPos++] = DDRD;
+
+	SendBuffer[TxBuffPos++] = PINE;
+	SendBuffer[TxBuffPos++] = DDRE;
+
+	SendBuffer[TxBuffPos++] = PINF;
+	SendBuffer[TxBuffPos++] = DDRF;
+
+	SendBuffer[TxBuffPos++] = PING;
+	SendBuffer[TxBuffPos++] = DDRG;
+
+	SendBuffer[TxBuffPos++] = PINH;
+	SendBuffer[TxBuffPos++] = DDRH;
+
+	SendBuffer[TxBuffPos++] = PINJ;
+	SendBuffer[TxBuffPos++] = DDRJ;
+
+	SendBuffer[TxBuffPos++] = PINK;
+	SendBuffer[TxBuffPos++] = DDRK;
+
+	SendBuffer[TxBuffPos++] = PINL;
+	SendBuffer[TxBuffPos++] = DDRL;
+
+	// Дополнительный байт состояния селектора.
+	SendBuffer[TxBuffPos++] = get_selector_byte();
+
+	SendBuffer[TxBuffPos++] = FIOEND;
+	uart_send_array();
+}
+
 void uart_command_processing() {
 	if (!TxReady) {return;}		// Не трогать буфер пока идет передача.
 
 	if (RxCommandStatus != 2) {return;}
-	
+
 	if (RxBuffPos < 2) {
 		RxCommandStatus = 0;
 		return;
@@ -264,6 +325,9 @@ void uart_command_processing() {
 			break;
 		case NEW_CONFIG_DATA:
 			uart_write_cfg_data();
+			break;
+		case GET_PORTS_STATE:
+			SendPortsStateCount = SEND_PORT_STATE_COUNT;
 			break;
 		case READ_EEPROM_MAIN_COMMAND:
 			if (RxBuffPos == 3 && ReceiveBuffer[2] == READ_EEPROM_MAIN_COMMAND) {
@@ -354,8 +418,8 @@ void uart_command_processing() {
 		case APPLY_G2_TPS_ADAPT_COMMAND:
 			if (RxBuffPos == 3 && ReceiveBuffer[2] == APPLY_G2_TPS_ADAPT_COMMAND) {
 				for (uint8_t i = 0; i < TPS_GRID_SIZE; i++) {
-					SLUGear2Graph[i] += SLUGear2TPSAdaptGraph[i];
-					SLUGear2TPSAdaptGraph[i] = 0;
+					TABLES.SLUGear2Graph[i] += ADAPT.SLUGear2TPSAdaptGraph[i];
+					ADAPT.SLUGear2TPSAdaptGraph[i] = 0;
 				}
 				uart_send_table(ReceiveBuffer[1]);
 			}
@@ -363,8 +427,8 @@ void uart_command_processing() {
 		case APPLY_G2_TEMP_ADAPT_COMMAND:
 			if (RxBuffPos == 3 && ReceiveBuffer[2] == APPLY_G2_TEMP_ADAPT_COMMAND) {
 				for (uint8_t i = 0; i < TEMP_GRID_SIZE; i++) {
-					SLUGear2TempCorrGraph[i] += SLUGear2TempAdaptGraph[i];
-					SLUGear2TempAdaptGraph[i] = 0;
+					TABLES.SLUGear2TempCorrGraph[i] += ADAPT.SLUGear2TempAdaptGraph[i];
+					ADAPT.SLUGear2TempAdaptGraph[i] = 0;
 				}
 				uart_send_table(ReceiveBuffer[1]);
 			}
@@ -372,8 +436,8 @@ void uart_command_processing() {
 		case APPLY_G2_ADV_ADAPT_COMMAND:
 			if (RxBuffPos == 3 && ReceiveBuffer[2] == APPLY_G2_ADV_ADAPT_COMMAND) {
 				for (uint8_t i = 0; i < DELTA_RPM_GRID_SIZE; i++) {
-					Gear2AdvGraph[i] += Gear2AdvAdaptGraph[i];
-					Gear2AdvAdaptGraph[i] = 0;
+					TABLES.Gear2AdvGraph[i] += ADAPT.Gear2AdvAdaptGraph[i];
+					ADAPT.Gear2AdvAdaptGraph[i] = 0;
 				}
 				uart_send_table(ReceiveBuffer[1]);
 			}
@@ -381,8 +445,8 @@ void uart_command_processing() {
 		case APPLY_G2_ADV_TEMP_ADAPT_COMMAND:
 			if (RxBuffPos == 3 && ReceiveBuffer[2] == APPLY_G2_ADV_TEMP_ADAPT_COMMAND) {
 				for (uint8_t i = 0; i < TEMP_GRID_SIZE; i++) {
-					Gear2AdvTempCorrGraph[i] += Gear2AdvTempAdaptGraph[i];
-					Gear2AdvTempAdaptGraph[i] = 0;
+					TABLES.Gear2AdvTempCorrGraph[i] += ADAPT.Gear2AdvTempAdaptGraph[i];
+					ADAPT.Gear2AdvTempAdaptGraph[i] = 0;
 				}
 				uart_send_table(ReceiveBuffer[1]);
 			}
@@ -390,8 +454,8 @@ void uart_command_processing() {
 		case APPLY_G3_TPS_ADAPT_COMMAND:
 			if (RxBuffPos == 3 && ReceiveBuffer[2] == APPLY_G3_TPS_ADAPT_COMMAND) {
 				for (uint8_t i = 0; i < TPS_GRID_SIZE; i++) {
-					SLUGear3DelayGraph[i] += SLUGear3TPSAdaptGraph[i];
-					SLUGear3TPSAdaptGraph[i] = 0;
+					TABLES.SLUGear3DelayGraph[i] += ADAPT.SLUGear3TPSAdaptGraph[i];
+					ADAPT.SLUGear3TPSAdaptGraph[i] = 0;
 				}
 				uart_send_table(ReceiveBuffer[1]);
 			}
@@ -399,8 +463,8 @@ void uart_command_processing() {
 		case APPLY_G3_TEMP_ADAPT_COMMAND:
 			if (RxBuffPos == 3 && ReceiveBuffer[2] == APPLY_G3_TEMP_ADAPT_COMMAND) {
 				for (uint8_t i = 0; i < TEMP_GRID_SIZE; i++) {
-					SLUG3DelayTempCorrGraph[i] += SLUGear3TempAdaptGraph[i];
-					SLUGear3TempAdaptGraph[i] = 0;
+					TABLES.SLUG3DelayTempCorrGraph[i] += ADAPT.SLUGear3TempAdaptGraph[i];
+					ADAPT.SLUGear3TempAdaptGraph[i] = 0;
 				}
 				uart_send_table(ReceiveBuffer[1]);
 			}
@@ -431,101 +495,101 @@ static void uart_write_table(uint8_t N) {
 	switch (N) {
 		case SLT_GRAPH:
 			if (RxBuffPos != TPS_GRID_SIZE * 2 + 2) {return;}
-			for (uint8_t i = 0; i < TPS_GRID_SIZE; i++) {SLTGraph[i] = uart_build_uint16(2 + i * 2);}
+			for (uint8_t i = 0; i < TPS_GRID_SIZE; i++) {TABLES.SLTGraph[i] = uart_build_uint16(2 + i * 2);}
 			break;
 		case SLT_TEMP_CORR_GRAPH:
 			if (RxBuffPos != TEMP_GRID_SIZE * 2 + 2) {return;}
-			for (uint8_t i = 0; i < TEMP_GRID_SIZE; i++) {SLTTempCorrGraph[i] = uart_build_int16(2 + i * 2);}
+			for (uint8_t i = 0; i < TEMP_GRID_SIZE; i++) {TABLES.SLTTempCorrGraph[i] = uart_build_int16(2 + i * 2);}
 			break;
 		case SLN_GRAPH:
 			if (RxBuffPos != TPS_GRID_SIZE * 2 + 2) {return;}
-			for (uint8_t i = 0; i < TPS_GRID_SIZE; i++) {SLNGraph[i] = uart_build_uint16(2 + i * 2);}
+			for (uint8_t i = 0; i < TPS_GRID_SIZE; i++) {TABLES.SLNGraph[i] = uart_build_uint16(2 + i * 2);}
 			break;
 		case SLN_TEMP_CORR_GRAPH:
 			if (RxBuffPos != TEMP_GRID_SIZE * 2 + 2) {return;}
-			for (uint8_t i = 0; i < TEMP_GRID_SIZE; i++) {SLNTempCorrGraph[i] = uart_build_int16(2 + i * 2);}
+			for (uint8_t i = 0; i < TEMP_GRID_SIZE; i++) {TABLES.SLNTempCorrGraph[i] = uart_build_int16(2 + i * 2);}
 			break;
 		case SLU_GEAR2_GRAPH:
 			if (RxBuffPos != TPS_GRID_SIZE * 2 + 2) {return;}
-			for (uint8_t i = 0; i < TPS_GRID_SIZE; i++) {SLUGear2Graph[i] = uart_build_uint16(2 + i * 2);}
+			for (uint8_t i = 0; i < TPS_GRID_SIZE; i++) {TABLES.SLUGear2Graph[i] = uart_build_uint16(2 + i * 2);}
 			break;
 		case SLU_GEAR2_TEMP_CORR_GRAPH:
 			if (RxBuffPos != TEMP_GRID_SIZE * 2 + 2) {return;}
-			for (uint8_t i = 0; i < TEMP_GRID_SIZE; i++) {SLUGear2TempCorrGraph[i] = uart_build_int16(2 + i * 2);}
+			for (uint8_t i = 0; i < TEMP_GRID_SIZE; i++) {TABLES.SLUGear2TempCorrGraph[i] = uart_build_int16(2 + i * 2);}
 			break;
 		case SLU_GEAR2_TPS_ADAPT_GRAPH:
 			if (RxBuffPos != TPS_GRID_SIZE * 2 + 2) {return;}
-			for (uint8_t i = 0; i < TPS_GRID_SIZE; i++) {SLUGear2TPSAdaptGraph[i] = uart_build_int16(2 + i * 2);}
+			for (uint8_t i = 0; i < TPS_GRID_SIZE; i++) {ADAPT.SLUGear2TPSAdaptGraph[i] = uart_build_int16(2 + i * 2);}
 			break;
 		case SLU_GEAR2_TEMP_ADAPT_GRAPH:
 			if (RxBuffPos != TEMP_GRID_SIZE * 2 + 2) {return;}
-			for (uint8_t i = 0; i < TEMP_GRID_SIZE; i++) {SLUGear2TempAdaptGraph[i] = uart_build_int16(2 + i * 2);}
+			for (uint8_t i = 0; i < TEMP_GRID_SIZE; i++) {ADAPT.SLUGear2TempAdaptGraph[i] = uart_build_int16(2 + i * 2);}
 			break;
 		case GEAR_CHANGE_STEP_ARRAY:
 			if (RxBuffPos != TPS_GRID_SIZE * 2 + 2) {return;}
-			for (uint8_t i = 0; i < TPS_GRID_SIZE; i++) {GearChangeStepArray[i] = uart_build_int16(2 + i * 2);}
+			for (uint8_t i = 0; i < TPS_GRID_SIZE; i++) {TABLES.GearChangeStepArray[i] = uart_build_int16(2 + i * 2);}
 			break;
 		case GEAR2_ADV_GRAPH:
 			if (RxBuffPos != DELTA_RPM_GRID_SIZE * 2 + 2) {return;}
-			for (uint8_t i = 0; i < DELTA_RPM_GRID_SIZE; i++) {Gear2AdvGraph[i] = uart_build_int16(2 + i * 2);}
+			for (uint8_t i = 0; i < DELTA_RPM_GRID_SIZE; i++) {TABLES.Gear2AdvGraph[i] = uart_build_int16(2 + i * 2);}
 			break;
 		case GEAR2_ADV_ADAPT_GRAPH:
 			if (RxBuffPos != DELTA_RPM_GRID_SIZE * 2 + 2) {return;}
-			for (uint8_t i = 0; i < DELTA_RPM_GRID_SIZE; i++) {Gear2AdvAdaptGraph[i] = uart_build_int16(2 + i * 2);}
+			for (uint8_t i = 0; i < DELTA_RPM_GRID_SIZE; i++) {ADAPT.Gear2AdvAdaptGraph[i] = uart_build_int16(2 + i * 2);}
 			break;
 		case GEAR2_ADV_TEMP_CORR_GRAPH:
 			if (RxBuffPos != TEMP_GRID_SIZE * 2 + 2) {return;}
-			for (uint8_t i = 0; i < TEMP_GRID_SIZE; i++) {Gear2AdvTempCorrGraph[i] = uart_build_int16(2 + i * 2);}
+			for (uint8_t i = 0; i < TEMP_GRID_SIZE; i++) {TABLES.Gear2AdvTempCorrGraph[i] = uart_build_int16(2 + i * 2);}
 			break;
 		case GEAR2_ADV_TEMP_ADAPT_GRAPH:
 			if (RxBuffPos != TEMP_GRID_SIZE * 2 + 2) {return;}
-			for (uint8_t i = 0; i < TEMP_GRID_SIZE; i++) {Gear2AdvTempAdaptGraph[i] = uart_build_int16(2 + i * 2);}
+			for (uint8_t i = 0; i < TEMP_GRID_SIZE; i++) {ADAPT.Gear2AdvTempAdaptGraph[i] = uart_build_int16(2 + i * 2);}
 			break;
 		case SLU_GEAR3_GRAPH:
 			if (RxBuffPos != TPS_GRID_SIZE * 2 + 2) {return;}
-			for (uint8_t i = 0; i < TPS_GRID_SIZE; i++) {SLUGear3Graph[i] = uart_build_uint16(2 + i * 2);}
+			for (uint8_t i = 0; i < TPS_GRID_SIZE; i++) {TABLES.SLUGear3Graph[i] = uart_build_uint16(2 + i * 2);}
 			break;
 		case SLU_GEAR3_DELAY_GRAPH:
 			if (RxBuffPos != TPS_GRID_SIZE * 2 + 2) {return;}
-			for (uint8_t i = 0; i < TPS_GRID_SIZE; i++) {SLUGear3DelayGraph[i] = uart_build_uint16(2 + i * 2);}
+			for (uint8_t i = 0; i < TPS_GRID_SIZE; i++) {TABLES.SLUGear3DelayGraph[i] = uart_build_uint16(2 + i * 2);}
 			break;
 		case SLU_G3_DELAY_TEMP_CORR_GRAPH:
 			if (RxBuffPos != TEMP_GRID_SIZE * 2 + 2) {return;}
-			for (uint8_t i = 0; i < TEMP_GRID_SIZE; i++) {SLUG3DelayTempCorrGraph[i] = uart_build_int16(2 + i * 2);}
+			for (uint8_t i = 0; i < TEMP_GRID_SIZE; i++) {TABLES.SLUG3DelayTempCorrGraph[i] = uart_build_int16(2 + i * 2);}
 			break;
 		case SLU_GEAR3_TPS_ADAPT_GRAPH:
-			for (uint8_t i = 0; i < TPS_GRID_SIZE; i++) {SLUGear3TPSAdaptGraph[i] = uart_build_int16(2 + i * 2);}
+			for (uint8_t i = 0; i < TPS_GRID_SIZE; i++) {ADAPT.SLUGear3TPSAdaptGraph[i] = uart_build_int16(2 + i * 2);}
 			break;
 		case SLU_GEAR3_TEMP_ADAPT_GRAPH:
-			for (uint8_t i = 0; i < TEMP_GRID_SIZE; i++) {SLUGear3TempAdaptGraph[i] = uart_build_int16(2 + i * 2);}
+			for (uint8_t i = 0; i < TEMP_GRID_SIZE; i++) {ADAPT.SLUGear3TempAdaptGraph[i] = uart_build_int16(2 + i * 2);}
 			break;
 		case SLN_GEAR3_GRAPH:
 			if (RxBuffPos != TPS_GRID_SIZE * 2 + 2) {return;}
-			for (uint8_t i = 0; i < TPS_GRID_SIZE; i++) {SLNGear3Graph[i] = uart_build_uint16(2 + i * 2);}
+			for (uint8_t i = 0; i < TPS_GRID_SIZE; i++) {TABLES.SLNGear3Graph[i] = uart_build_uint16(2 + i * 2);}
 			break;
 		case SLN_GEAR3_OFFSET_GRAPH:
 			if (RxBuffPos != TPS_GRID_SIZE * 2 + 2) {return;}
-			for (uint8_t i = 0; i < TPS_GRID_SIZE; i++) {SLNGear3OffsetGraph[i] = uart_build_int16(2 + i * 2);}
+			for (uint8_t i = 0; i < TPS_GRID_SIZE; i++) {TABLES.SLNGear3OffsetGraph[i] = uart_build_int16(2 + i * 2);}
 			break;
 		case TPS_ADC_GRAPH:
 			if (RxBuffPos != TPS_GRID_SIZE * 2 + 2) {return;}
-			for (uint8_t i = 0; i < TPS_GRID_SIZE; i++) {TPSGraph[i] = uart_build_int16(2 + i * 2);}
+			for (uint8_t i = 0; i < TPS_GRID_SIZE; i++) {ADCTBL.TPSGraph[i] = uart_build_int16(2 + i * 2);}
 			break;
 		case OIL_ADC_GRAPH:
 			if (RxBuffPos != TEMP_GRID_SIZE * 2 + 2) {return;}
-			for (uint8_t i = 0; i < TEMP_GRID_SIZE; i++) {OilTempGraph[i] = uart_build_int16(2 + i * 2);}
+			for (uint8_t i = 0; i < TEMP_GRID_SIZE; i++) {ADCTBL.OilTempGraph[i] = uart_build_int16(2 + i * 2);}
 			break;
 		case GEAR_SPEED_GRAPHS:
 			if (RxBuffPos != TPS_GRID_SIZE * 8 + 2) {return;}
 			for (uint8_t i = 0; i < TPS_GRID_SIZE; i++) {
-				Gear_2_1[i] = ReceiveBuffer[2 + i * 8 + 0];
-				Gear_1_2[i] = ReceiveBuffer[2 + i * 8 + 1];
-				Gear_3_2[i] = ReceiveBuffer[2 + i * 8 + 2];
-				Gear_2_3[i] = ReceiveBuffer[2 + i * 8 + 3];
-				Gear_4_3[i] = ReceiveBuffer[2 + i * 8 + 4];
-				Gear_3_4[i] = ReceiveBuffer[2 + i * 8 + 5];
-				Gear_5_4[i] = ReceiveBuffer[2 + i * 8 + 6];
-				Gear_4_5[i] = ReceiveBuffer[2 + i * 8 + 7];
+				SPEED.Gear_2_1[i] = ReceiveBuffer[2 + i * 8 + 0];
+				SPEED.Gear_1_2[i] = ReceiveBuffer[2 + i * 8 + 1];
+				SPEED.Gear_3_2[i] = ReceiveBuffer[2 + i * 8 + 2];
+				SPEED.Gear_2_3[i] = ReceiveBuffer[2 + i * 8 + 3];
+				SPEED.Gear_4_3[i] = ReceiveBuffer[2 + i * 8 + 4];
+				SPEED.Gear_3_4[i] = ReceiveBuffer[2 + i * 8 + 5];
+				SPEED.Gear_5_4[i] = ReceiveBuffer[2 + i * 8 + 6];
+				SPEED.Gear_4_5[i] = ReceiveBuffer[2 + i * 8 + 7];
 			}
 			break;
 

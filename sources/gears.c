@@ -657,7 +657,7 @@ static void gear_down() {
 }
 
 static void set_gear_change_delays() {
-	GearChangeStep = get_interpolated_value_uint16_t(TCU.InstTPS, TPSGrid, GearChangeStepArray, TPS_GRID_SIZE);
+	GearChangeStep = get_interpolated_value_uint16_t(TCU.InstTPS, GRIDS.TPSGrid, TABLES.GearChangeStepArray, TPS_GRID_SIZE);
 }
 
 // Ожидание с основным циклом.
@@ -672,22 +672,22 @@ uint8_t get_gear_max_speed(int8_t Gear) {
 	uint8_t* Array;
 	switch (Gear) {
 		case 1:
-			Array = Gear_1_2;
+			Array = SPEED.Gear_1_2;
 			break;
 		case 2:
-			Array = Gear_2_3;
+			Array = SPEED.Gear_2_3;
 			break;
 		case 3:
-			Array = Gear_3_4;
+			Array = SPEED.Gear_3_4;
 			break;
 		case 4:
-			Array = Gear_4_5;
+			Array = SPEED.Gear_4_5;
 			break;
 		default:
 			return 0;
 	}
 
-	uint16_t Speed = get_interpolated_value_uint8_t(TCU.TPS, TPSGrid, Array, TPS_GRID_SIZE);
+	uint16_t Speed = get_interpolated_value_uint8_t(TCU.TPS, GRIDS.TPSGrid, Array, TPS_GRID_SIZE);
 	return Speed;
 }
 
@@ -697,22 +697,22 @@ uint8_t get_gear_min_speed(int8_t Gear) {
 	uint8_t* Array;
 	switch (Gear) {
 		case 2:
-			Array = Gear_2_1;
+			Array = SPEED.Gear_2_1;
 			break;
 		case 3:
-			Array = Gear_3_2;
+			Array = SPEED.Gear_3_2;
 			break;
 		case 4:
-			Array = Gear_4_3;
+			Array = SPEED.Gear_4_3;
 			break;
 		case 5:
-			Array = Gear_5_4;
+			Array = SPEED.Gear_5_4;
 			break;
 		default:
 			return 0;
 	}
 
-	uint16_t Speed = get_interpolated_value_uint8_t(TCU.TPS, TPSGrid, Array, TPS_GRID_SIZE);
+	uint16_t Speed = get_interpolated_value_uint8_t(TCU.TPS, GRIDS.TPSGrid, Array, TPS_GRID_SIZE);
 	return Speed;
 }
 

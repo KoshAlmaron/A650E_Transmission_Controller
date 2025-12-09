@@ -11,6 +11,7 @@
 	uint16_t get_slt_pressure();
 	int16_t get_slt_temp_corr(int16_t Value);
 	uint16_t get_sln_pressure();
+	int16_t get_sln_temp_corr(int16_t Value);
 	
 	uint16_t get_slu_pressure_gear2();
 	int16_t get_slu_gear2_temp_corr(int16_t Value);
@@ -71,15 +72,82 @@
 		uint16_t RawTPS;			// Сырые значения АЦП ДПДЗ.
 		uint16_t RawOIL;			// Сырые значения АЦП температуры масла.
 	} TCU_t;
-
-	extern struct TCU_t TCU; 	// Делаем структуру внешней.
-
-	extern uint8_t SpeedTestFlag;	// Флаг включения тестирования скорости.
+	extern struct TCU_t TCU; 	// Делаем структуру с параметрами внешней.
 
 	// Размеры массивов.
 	#define TPS_GRID_SIZE 21 
 	#define TEMP_GRID_SIZE 31
 	#define DELTA_RPM_GRID_SIZE 21
+
+	//================================ Сетки осей =============================
+	typedef struct GRIDS_t {
+		int16_t TPSGrid[TPS_GRID_SIZE];				// Сетка оси ДПДЗ.
+		int16_t TempGrid[TEMP_GRID_SIZE];			// Сетка оси температуры. 
+		int16_t DeltaRPMGrid[DELTA_RPM_GRID_SIZE];	// Сетка оси ускоренияы.
+	} GRIDS_t;
+	extern struct GRIDS_t GRIDS; 	// Сетки стандартных осей.
+
+	//=================================== Датчики =============================
+	typedef struct ADCTBL_t {
+		int16_t TPSGraph[TPS_GRID_SIZE];		// ДПДЗ (показания АЦП).
+		int16_t OilTempGraph[TEMP_GRID_SIZE];	// Температура масла (показания АЦП).
+	} ADCTBL_t;
+	extern struct ADCTBL_t ADCTBL; // Таблицы АЦП.
+
+	//================================== Адаптация ============================
+	typedef struct ADAPT_t {
+		int16_t SLUGear2TPSAdaptGraph[TPS_GRID_SIZE];	// Адаптация по ДПДЗ включения второй передачи.
+		int16_t SLUGear2TempAdaptGraph[TEMP_GRID_SIZE];	// Адаптация по температуре включения второй передачи.
+
+		int16_t Gear2AdvAdaptGraph[TPS_GRID_SIZE];		// Адаптация оборотов реактивации второй передачи.
+		int16_t Gear2AdvTempAdaptGraph[TEMP_GRID_SIZE];	// Адаптация оборотов по температуре.
+
+		int16_t SLUGear3TPSAdaptGraph[TPS_GRID_SIZE];	// Адаптация по ДПДЗ включения третьей передачи.
+		int16_t SLUGear3TempAdaptGraph[TEMP_GRID_SIZE];	// Адаптация по температуре включения третьей передачи.
+	} ADAPT_t;
+	extern struct ADAPT_t ADAPT; // Таблицы адаптаций.
+
+	//============================== Основные таблицы =========================
+	typedef struct TABLES_t {
+		uint16_t SLTGraph[TPS_GRID_SIZE];			// Линейное давление SLT от ДПДЗ.
+		int16_t SLTTempCorrGraph[TEMP_GRID_SIZE];	// Коррекция в % давления SLT от температуры.
+		
+		uint16_t SLNGraph[TPS_GRID_SIZE];			// Давление SLN от ДПДЗ (Величина сброса давления).
+		int16_t SLNTempCorrGraph[TEMP_GRID_SIZE];	// Коррекция в % давления SLN от температуры.
+
+		uint16_t SLUGear2Graph[TPS_GRID_SIZE];			// Давление SLU включения второй передачи (SLU B3) от ДПДЗ.
+		int16_t SLUGear2TempCorrGraph[TEMP_GRID_SIZE];	// Корекция в % давления в тормозе второй передачи B3 от температуры.
+		int16_t Gear2AdvGraph[DELTA_RPM_GRID_SIZE];		// Опережение по оборотам реактивации второй передачи.
+		int16_t Gear2AdvTempCorrGraph[TEMP_GRID_SIZE];	// Коррекция по температуре.
+
+		uint16_t SLUGear3Graph[TPS_GRID_SIZE];				// Давление SLU включения третьей передачи (SLU B2) от ДПДЗ.
+		uint16_t SLUGear3DelayGraph[TPS_GRID_SIZE];			// Время удержания SLU от ДПДЗ при включении третьей передачи.
+		int16_t SLUG3DelayTempCorrGraph[TEMP_GRID_SIZE];	// Корекция времени удержания SLU при включении третьей передачи от температуры (мс).
+		uint16_t SLNGear3Graph[TPS_GRID_SIZE];				// Давление SLN при включении третьей передачи.
+		int16_t SLNGear3OffsetGraph[TPS_GRID_SIZE];			// Смещение времени включения SLN при включении третьей передачи.
+
+		uint16_t GearChangeStepArray[TPS_GRID_SIZE];	// Длина одного шага времени на переключение от ДПДЗ.
+	} TABLES_t;
+	extern struct TABLES_t TABLES; // Основные таблицы.
+
+	//================ Скорости для переключения передач от ДПДЗ ==============
+	typedef struct SPEED_t {
+		uint8_t Gear_2_1[TPS_GRID_SIZE];
+		uint8_t Gear_1_2[TPS_GRID_SIZE];
+
+		uint8_t Gear_3_2[TPS_GRID_SIZE];
+		uint8_t Gear_2_3[TPS_GRID_SIZE];
+
+		uint8_t Gear_4_3[TPS_GRID_SIZE];
+		uint8_t Gear_3_4[TPS_GRID_SIZE];
+
+		uint8_t Gear_5_4[TPS_GRID_SIZE];
+		uint8_t Gear_4_5[TPS_GRID_SIZE];
+
+	} SPEED_t;
+	extern struct SPEED_t SPEED; // Скорости для переключения передач.
+
+	extern uint8_t SpeedTestFlag;	// Флаг включения тестирования скорости.
 
 	#define SLT_GRAPH							0
 	#define SLT_TEMP_CORR_GRAPH					1
@@ -104,53 +172,5 @@
 	#define TPS_ADC_GRAPH						20
 	#define OIL_ADC_GRAPH						21
 	#define GEAR_SPEED_GRAPHS					22
-
-	// Сетки стандартных осей.
-	extern int16_t TempGrid[];
-	extern int16_t TPSGrid[];
-
-	// АЦП.
-	extern int16_t TPSGraph[];
-	extern int16_t OilTempGraph[];
-
-	// Таблицы.
-	extern uint16_t SLTGraph[];
-	extern int16_t SLTTempCorrGraph[];
-
-	extern uint16_t SLNGraph[];
-	extern int16_t SLNTempCorrGraph[];
-
-	extern uint16_t SLUGear2Graph[];
-	extern int16_t SLUGear2TempCorrGraph[];
-
-	extern int16_t SLUGear2TPSAdaptGraph[];
-	extern int16_t SLUGear2TempAdaptGraph[];
-
-	extern int16_t Gear2AdvGraph[];
-	extern int16_t Gear2AdvTempCorrGraph[];
-
-	extern int16_t Gear2AdvAdaptGraph[];
-	extern int16_t Gear2AdvTempAdaptGraph[];
-
-	extern uint16_t SLUGear3Graph[];
-	extern uint16_t SLUGear3DelayGraph[];
-	extern int16_t SLUG3DelayTempCorrGraph[];
-
-	extern int16_t SLUGear3TPSAdaptGraph[];
-	extern int16_t SLUGear3TempAdaptGraph[];
-
-	extern uint16_t SLNGear3Graph[];
-	extern int16_t SLNGear3OffsetGraph[];
-
-	extern uint16_t GearChangeStepArray[];
-
-	extern uint8_t Gear_2_1[];
-	extern uint8_t Gear_1_2[];
-	extern uint8_t Gear_3_2[];
-	extern uint8_t Gear_2_3[];
-	extern uint8_t Gear_4_3[];
-	extern uint8_t Gear_3_4[];
-	extern uint8_t Gear_5_4[];
-	extern uint8_t Gear_4_5[];
 
 #endif

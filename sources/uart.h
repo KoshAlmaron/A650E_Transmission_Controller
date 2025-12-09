@@ -13,6 +13,10 @@
 	void uart_send_array();
 	uint8_t uart_tx_ready();
 
+	// После получения команды GET_PORTS_STATE, будет отправлено такое количество пакетов
+	// с портами, после чего отправка переключится на стандартный пакет.
+	#define SEND_PORT_STATE_COUNT 20
+
 	// Спецсимволы в пакете данных
 	#define FOBEGIN	0x40	// '@'  Начало исходящего пакета
 	#define FIOEND	0x0D	// '\r' Конец пакета
@@ -31,6 +35,9 @@
 	#define GET_CONFIG_COMMAND	0xc4	// Запрос структуры с конфигурацией.
 	#define TCU_CONFIG_ANSWER	0xc5	// Ответ со структурой.
 	#define NEW_CONFIG_DATA		0xc6	// Новые значения для структуры конфигурации.
+
+	#define GET_PORTS_STATE		0xc7	// Запрос статуса портов.
+	#define PORTS_STATE_PACKET	0xc8	// Ответ со статусами портов.
 
 	#define READ_EEPROM_MAIN_COMMAND	0xe0	// Считать EEPROM - Таблицы.
 	#define READ_EEPROM_ADC_COMMAND		0xe1	// Считать EEPROM - АЦП.

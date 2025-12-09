@@ -11,9 +11,6 @@
 // Счетчик для установки ошибки.
 uint8_t ErrorTimer = 0;
 
-// Прототипы локальных функций.
-static uint8_t get_selector_byte();
-
 // Настройка выводов для селектора.
 void selector_init() {
 	// Все пины селектора как вход с подтяжкой.
@@ -48,7 +45,7 @@ void selector_init() {
 	SET_PIN_LOW(ENGINE_WORK_PIN);
 }
 
-static uint8_t get_selector_byte() {
+uint8_t get_selector_byte() {
 	uint8_t Val = 0;
 
 	if (!PIN_READ(SELECTOR_P_PIN)) {BITSET(Val, 0);}

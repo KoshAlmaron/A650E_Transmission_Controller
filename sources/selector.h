@@ -4,6 +4,7 @@
 	#define _SELECTOR_H_
 
 	void selector_init();
+	uint8_t get_selector_byte();
 	void selector_position();
 	void engine_n_break_state();
 
