@@ -157,6 +157,12 @@ void loop_main(uint8_t Wait) {
 			uart_command_processing();
 			uart_send_tcu_data();
 			TCU.CycleTime = 0;
+
+			if (TCU.AdaptationTPS > 0) {TCU.AdaptationTPS--;}
+			else if (TCU.AdaptationTPS < 0) {TCU.AdaptationTPS++;}
+
+			if (TCU.AdaptationTemp > 0) {TCU.AdaptationTemp--;}
+			else if (TCU.AdaptationTemp < 0) {TCU.AdaptationTemp++;}
 		}
 	}
 }
