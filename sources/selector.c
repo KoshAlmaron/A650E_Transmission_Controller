@@ -125,13 +125,13 @@ void engine_n_break_state() {
 		Counter = 0;
 		TCU.EngineWork = EW;
 	}
-	else {			// При отрицательном сигнале.
-		if (TCU.EngineWork) {			// И установленном флаге.
-			Counter++;					// Счетчик увеличивается на единицу.
+	else {			// При отрицательном сигнале,
+		if (TCU.EngineWork) {			// и установленном флаге,
+			Counter++;					// счетчик увеличивается на единицу.
 			if (Counter == 3) {			// По достижении порога сбрасывается флаг работы двигателя.
 				TCU.EngineWork = EW;
-				Counter = 0;				// Сбрасывается счетчик (на всякий случай).
-				update_eeprom_adaptation();	// И сохраняются таблицы в EEPROM.
+				Counter = 0;				// Сбрасывается счетчик (на всякий случай),
+				update_eeprom_adaptation();	// и сохраняются таблицы в EEPROM.
 			}
 		}
 	}

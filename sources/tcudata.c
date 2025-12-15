@@ -159,12 +159,8 @@ uint16_t get_slt_pressure() {
 // если передать функции базовое значение.
 int16_t get_slt_temp_corr(int16_t Value) {
 	int32_t OilTempCorr = get_interpolated_value_int16_t(TCU.OilTemp, GRIDS.TempGrid, TABLES.SLTTempCorrGraph, TEMP_GRID_SIZE);
-
-	if (!Value) {return OilTempCorr;}	// Возвращаем коррекцию в %.
-	else {	// Возвращаем скорректированное значение.
-		OilTempCorr = (Value * OilTempCorr) / 1024;	// Коррекция в значениях ШИМ.
-		return OilTempCorr;
-	}
+	OilTempCorr = (Value * OilTempCorr) / 1024;	// Коррекция в значениях ШИМ.
+	return OilTempCorr;
 }
 
 uint16_t get_sln_pressure() {
@@ -177,12 +173,8 @@ uint16_t get_sln_pressure() {
 
 int16_t get_sln_temp_corr(int16_t Value) {
 	int32_t OilTempCorr = get_interpolated_value_int16_t(TCU.OilTemp, GRIDS.TempGrid, TABLES.SLNTempCorrGraph, TEMP_GRID_SIZE);
-	
-	if (!Value) {return OilTempCorr;}	// Возвращаем коррекцию в %.
-	else {	// Возвращаем скорректированное значение.
-		OilTempCorr = (Value * OilTempCorr) / 1024;	// Коррекция в значениях ШИМ.
-		return OilTempCorr;
-	}
+	OilTempCorr = (Value * OilTempCorr) / 1024;	// Коррекция в значениях ШИМ.
+	return OilTempCorr;
 }
 
 uint16_t get_sln_pressure_gear3() {
@@ -208,16 +200,11 @@ uint16_t get_slu_pressure_gear2() {
 // если передать функции базовое значение.
 int16_t get_slu_gear2_temp_corr(int16_t Value) {
 	int32_t OilTempCorr = get_interpolated_value_int16_t(TCU.OilTemp, GRIDS.TempGrid, TABLES.SLUGear2TempCorrGraph, TEMP_GRID_SIZE);
-
 	if (CFG.G2EnableAdaptTemp) {
 		OilTempCorr += get_interpolated_value_int16_t(TCU.OilTemp, GRIDS.TempGrid, ADAPT.SLUGear2TempAdaptGraph, TEMP_GRID_SIZE);
 	}
-
-	if (!Value) {return OilTempCorr;}	// Возвращаем коррекцию в %.
-	else {	// Возвращаем скорректированное значение.
-		OilTempCorr = (Value * OilTempCorr) / 1024;    // Коррекция в значениях ШИМ.
-		return OilTempCorr;
-	}
+	OilTempCorr = (Value * OilTempCorr) / 1024;    // Коррекция в значениях ШИМ.
+	return OilTempCorr;
 }
 
 // Опережение по оборотам реактивации второй передачи.

@@ -58,10 +58,15 @@ int main() {
 		solenoid_init();	// Настройка выходов селеноидов, а также лампы заднего хода.
 		debug_mode_init();	// Настройка перефирии для режима отладки.
 
+		wdt_reset();			// Сброс сторожевого таймера.
 		read_eeprom_tables();	// Чтение основных таблиц из EEPROM.
+		wdt_reset();
 		read_eeprom_adc();		// Чтение таблиц АЦП из EEPROM.
+		wdt_reset();
 		read_eeprom_speed();	// Чтение таблиц скоростей  переключений из EEPROM.
+		wdt_reset();
 		read_eeprom_config();	// Чтение параметров из EEPROM.
+		wdt_reset();
 	sei();				// Включаем глобальные прерывания.
 
 	wdt_enable(WDTO_250MS);	// Сторожевой собак на 250 мс.

@@ -29,7 +29,7 @@ CFG_t CFG = {
 	.G2AdaptTempMaxTPS = 35,
 
 	.G2EnableAdaptReact = 1,
-	.G2AdaptReactMinDRPM = 40,
+	.G2AdaptReactMinDRPM = 20,
 	.G2AdaptReactTempMin = 60,
 	.G2AdaptReactTempMax = 72,
 	.G2EnableAdaptRctTemp = 1,

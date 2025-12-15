@@ -44,6 +44,8 @@ volatile uint8_t TxMarkerByte = 0;	// Признак, что предыдущи�
 
 char CharArray[8] = {0};
 
+uint8_t CRC[] = {0x0, 0x0};				// Контрольная сумма.
+
 uint8_t SendPortsStateCount = 0;		// Флаг-счетчик отправки пакета с портами вместо стандартного.
 
 static void uart_buffer_add_uint8(uint8_t Value);
@@ -123,7 +125,6 @@ void uart_send_tcu_data() {
 		SendBuffer[TxBuffPos++] = *(TCUAddr + i);
 	}
 
-	SendBuffer[TxBuffPos++] = FIOEND;		// Байт конца пакета.
 	uart_send_array();
 }
 
@@ -140,7 +141,6 @@ void uart_send_cfg_data() {
 		SendBuffer[TxBuffPos++] = *(CFGAddr + i);
 	}
 
-	SendBuffer[TxBuffPos++] = FIOEND;		// Байт конца пакета.
 	uart_send_array();
 }
 
@@ -249,7 +249,6 @@ void uart_send_table(uint8_t N) {
 			UseMarkers = 0;
 			return;
 	}
-	SendBuffer[TxBuffPos++] = FIOEND;		// Байт конца пакета.
 	uart_send_array();
 }
 
@@ -299,7 +298,6 @@ static void uart_send_ports_state() {
 	// Дополнительный байт состояния селектора.
 	SendBuffer[TxBuffPos++] = get_selector_byte();
 
-	SendBuffer[TxBuffPos++] = FIOEND;
 	uart_send_array();
 }
 
@@ -308,10 +306,26 @@ void uart_command_processing() {
 
 	if (RxCommandStatus != 2) {return;}
 
-	if (RxBuffPos < 2) {
+	if (RxBuffPos < 4) {
 		RxCommandStatus = 0;
 		return;
 	}
+
+	// Проверка CRC.
+	CRC[0] = 0;
+	CRC[1] = 0;
+	for (uint8_t i = 0; i < RxBuffPos - 2; i++) {
+		CRC[0] += ReceiveBuffer[i];
+		CRC[1] += CRC[0];
+	}
+	CRC[0] += RxBuffPos - 2;
+	CRC[1] += CRC[0];
+
+	if (CRC[0] != ReceiveBuffer[RxBuffPos - 2] || CRC[1] != ReceiveBuffer[RxBuffPos - 1]) {
+		RxCommandStatus = 0;
+		return;
+	}
+	RxBuffPos -= 2;
 
 	switch (ReceiveBuffer[0]) {
 		case GET_TABLE_COMMAND:
@@ -393,25 +407,25 @@ void uart_command_processing() {
 			break;
 		case TABLES_INIT_MAIN_COMMAND:
 			if (RxBuffPos == 3 && ReceiveBuffer[2] == TABLES_INIT_MAIN_COMMAND) {
-				eeprom_update_byte((uint8_t*) OVERWRITE_FIRST_BYTE_NUMBER + 0, OVERWRITE_BYTE);	// Устанавливаем метку.
+				eeprom_update_byte((uint8_t*) (OVERWRITE_FIRST_BYTE_NUMBER + 0), OVERWRITE_BYTE);	// Устанавливаем метку.
 				resetFunc();	// Перезапускаем код ЭБУ (переход к нулевому адресу).
 			}
 			break;
 		case TABLES_INIT_ADC_COMMAND:
 			if (RxBuffPos == 3 && ReceiveBuffer[2] == TABLES_INIT_ADC_COMMAND) {
-				eeprom_update_byte((uint8_t*) OVERWRITE_FIRST_BYTE_NUMBER + 1, OVERWRITE_BYTE);	// Устанавливаем метку.
+				eeprom_update_byte((uint8_t*) (OVERWRITE_FIRST_BYTE_NUMBER + 1), OVERWRITE_BYTE);	// Устанавливаем метку.
 				resetFunc();	// Перезапускаем код ЭБУ (переход к нулевому адресу).
 			}
 			break;
 		case TABLES_INIT_SPEED_COMMAND:
 			if (RxBuffPos == 3 && ReceiveBuffer[2] == TABLES_INIT_SPEED_COMMAND) {
-				eeprom_update_byte((uint8_t*) OVERWRITE_FIRST_BYTE_NUMBER + 2, OVERWRITE_BYTE);	// Устанавливаем метку.
+				eeprom_update_byte((uint8_t*) (OVERWRITE_FIRST_BYTE_NUMBER + 2), OVERWRITE_BYTE);	// Устанавливаем метку.
 				resetFunc();	// Перезапускаем код ЭБУ (переход к нулевому адресу).
 			}
 			break;
 		case TABLES_INIT_CONFIG_COMMAND:
 			if (RxBuffPos == 3 && ReceiveBuffer[2] == TABLES_INIT_CONFIG_COMMAND) {
-				eeprom_update_byte((uint8_t*) OVERWRITE_FIRST_BYTE_NUMBER + 3, OVERWRITE_BYTE);	// Устанавливаем метку.
+				eeprom_update_byte((uint8_t*) (OVERWRITE_FIRST_BYTE_NUMBER + 3), OVERWRITE_BYTE);	// Устанавливаем метку.
 				resetFunc();	// Перезапускаем код ЭБУ (переход к нулевому адресу).
 			}
 			break;
@@ -475,6 +489,23 @@ void uart_command_processing() {
 
 // Отправить массив в UART.
 void uart_send_array() {
+	// Добавляем два байта контрольной суммы.
+	CRC[0] = 0;
+	CRC[1] = 0;
+
+	for (uint8_t i = 1; i < TxBuffPos; i++) {
+		CRC[0] += SendBuffer[i];
+		CRC[1] += CRC[0];
+	}
+	// Добавляем длину пакета к расчёту CRC.
+	CRC[0] += TxBuffPos - 1;	// -1 - байт начала пакета.
+	CRC[1] += CRC[0];
+
+	SendBuffer[TxBuffPos++] = CRC[0];
+	SendBuffer[TxBuffPos++] = CRC[1];
+
+	SendBuffer[TxBuffPos++] = FIOEND;
+
 	TxMsgSize = TxBuffPos;		// Количество байт на отправку.
 	TxReady = 0;				// UART занят.
 	TxBuffPos = 0;				// Сбрасываем позицию в массиве.
@@ -718,8 +749,7 @@ ISR (USART0_RX_vect) {
 		 		}
 		 		RxMarkerByte = 0;
 		 	}
-			ReceiveBuffer[RxBuffPos] = OneByte;
-			RxBuffPos++;
+			ReceiveBuffer[RxBuffPos++] = OneByte;
 			break;
 	}
 }

@@ -43,7 +43,6 @@ static void loop_wait(uint16_t Delay);
 
 static uint8_t rpm_after_ok(uint8_t Shift);
 
-static void slu_boost();
 static void gear_change_wait(uint16_t Delay, uint8_t Gear);
 
 //static void set_slt(uint8_t Value);
@@ -70,10 +69,11 @@ void set_gear_n() {
 void set_gear_1() {
 	TCU.GearChange = 1;
 
-	set_slu(CFG.MinPressureSLU);	// Выключение SLU на случай переключения со второй передачи.
 	set_sln(get_sln_pressure());
 	set_solenoids(1);				// Установка шифтовых соленоидов.
 	if (TCU.ATMode == 7) {SET_PIN_HIGH(SOLENOID_S3_PIN);}	// Отличие для режима L2. 
+
+	set_slu(get_slu_pressure_gear2());
 
 	TCU.Gear = 1;
 	TCU.GearChange = 0;
@@ -105,7 +105,6 @@ void disable_gear_r() {
 //=========================== Переключения вверх ==============================
 static void gear_change_1_2() {
 	TCU.GearChange = 1;
-	slu_boost();						// Первоначальная накачка давления SLU.
 
 	set_solenoids(2);					// Установка шифтовых соленоидов.
 	SET_PIN_HIGH(SOLENOID_S3_PIN);		// Включаем систему "Clutch to Clutch".
@@ -122,7 +121,6 @@ static void gear_change_1_2() {
 	uint8_t PDR = 0;		// Состояние процесса запроса снижения мощности.
 	uint8_t PDRStep = 0;	// Для фиксации времени работы PDR.
 	TCU.LastStep = GEAR_2_MAX_STEP;	// Номер последнего шага переключения.
-	uint8_t SLUDelay = 0;	// Пауза повышения давления после начала переключния.
 	int8_t Adaptation = 0;	// Флаг применения адаптации.
 	TCU.LastPDRTime = 0;
 	if (TCU.InstTPS > CFG.PowerDownMaxTPS) {PDR = -1;}
@@ -145,12 +143,11 @@ static void gear_change_1_2() {
 				return;
 			}
 
-			NextSLU = get_slu_pressure_gear2() + TCU.GearStep * 2 - SLUDelay;
+			NextSLU = get_slu_pressure_gear2() + TCU.GearStep * 2;
 			set_slu(NextSLU);
 
 			if (!PDR && rpm_delta(1) < -50) {			// Переключение началось.
 				PDR = 1;
-				SLUDelay = 4;
 				PDRStep = TCU.GearStep;
 				SET_PIN_HIGH(REQUEST_POWER_DOWN_PIN);	// Запрашиваем снижение мощности.
 			}
@@ -448,6 +445,8 @@ void slu_gear2_control() {
 	// 1 - плавное включение,
 	// 8 - рабочий режим.
 
+	if (TCU.Gear == 1) {set_slu(get_slu_pressure_gear2());}
+
 	if (TCU.Gear != 2) {
 		TCU.GearStep = 0;
 		TCU.Gear2State = 0;
@@ -542,16 +541,6 @@ void slu_gear2_control() {
 			set_slu(WorkSLU);
 			break;
 	}
-}
-
-// Первоначальная накачка давления SLU для включения второй передачи.
-static void slu_boost() {
-	// Ограничение по ДПДЗ.
-	if (TCU.InstTPS > 35) {return;}
-
-	set_slu(500);
-	loop_wait(GearChangeStep * 2);
-	set_slu(get_slu_pressure_gear2());
 }
 
 // Настройка выходов шифтовых селеноидов, а также лампы заднего хода.

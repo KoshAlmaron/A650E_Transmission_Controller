@@ -46,7 +46,7 @@
 	#define WRITE_EEPROM_CONFIG_COMMAND	0xed	// Записать EEPROM - Настройки.
 
 	#define SPEED_TEST_COMMAND			0xd0	// Переключить режим тестирования спидометра.
-	#define GEAR_LIMIT_COMMAND			0xd1	// Установить ограничения передачь.
+	#define GEAR_LIMIT_COMMAND			0xd1	// Установить ограничения передач.
 
 	#define TABLES_INIT_MAIN_COMMAND	0xda	// Записать в ОЗУ значения из прошивки - Таблицы.
 	#define TABLES_INIT_ADC_COMMAND		0xdb	// Записать в ОЗУ значения из прошивки - АЦП.
