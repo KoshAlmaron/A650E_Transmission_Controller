@@ -48,6 +48,14 @@ uint8_t CRC[] = {0x0, 0x0};				// Контрольная сумма.
 
 uint8_t SendPortsStateCount = 0;		// Флаг-счетчик отправки пакета с портами вместо стандартного.
 
+// Автоматическое переключение между UART0 и UART1.
+static volatile uint8_t CurrUART = 0;	// Номер активного UART.
+static volatile uint8_t NextUART = 0;	// Номер следующего UART.
+
+static void uart_udre_vect();
+static void uart_tx_vect();
+static void uart_rx_vect();
+
 static void uart_buffer_add_uint8(uint8_t Value);
 
 static void uart_buffer_add_uint16(uint16_t Value);
@@ -100,6 +108,14 @@ void uart_init(uint8_t mode) {
 			UCSR0B |= (1 << TXCIE0);	// Прерывание по завершеию передачи.
 			break;
 	}
+
+	// Копируем настройки UART0 в UART1.
+	UCSR1A = UCSR0A;
+	UCSR1B = UCSR0B;
+	UCSR1C = UCSR0C;
+
+	UBRR1H = UBRR0H;
+	UBRR1L = UBRR0L;
 }
 
 void uart_send_tcu_data() {
@@ -116,16 +132,11 @@ void uart_send_tcu_data() {
 	SendBuffer[TxBuffPos++] = FOBEGIN;			// Байт начала пакета.
 	SendBuffer[TxBuffPos++] = TCU_DATA_PACKET;	// Тип данных.
 
-	//TCU.GearChangeSLU = 0;
-
 	// Начальный адрес структуры TCU.
 	uint8_t* TCUAddr = (uint8_t*) &TCU;
 	// Запихиваем структуру побайтово в массив на отправку.
-	for (uint8_t i = 0; i < sizeof(TCU); i++) {
-		SendBuffer[TxBuffPos++] = *(TCUAddr + i);
-	}
-
-	uart_send_array();
+	for (uint8_t i = 0; i < sizeof(TCU); i++) {SendBuffer[TxBuffPos++] = *(TCUAddr + i);}
+	uart_send_array();	// Отправляем в UART.
 }
 
 void uart_send_cfg_data() {
@@ -137,11 +148,8 @@ void uart_send_cfg_data() {
 	// Начальный адрес структуры TCU.
 	uint8_t* CFGAddr = (uint8_t*) &CFG;
 	// Запихиваем структуру побайтово в массив на отправку.
-	for (uint8_t i = 0; i < sizeof(CFG); i++) {
-		SendBuffer[TxBuffPos++] = *(CFGAddr + i);
-	}
-
-	uart_send_array();
+	for (uint8_t i = 0; i < sizeof(CFG); i++) {SendBuffer[TxBuffPos++] = *(CFGAddr + i);}
+	uart_send_array();	// Отправляем в UART.
 }
 
 static void uart_write_cfg_data() {
@@ -150,11 +158,8 @@ static void uart_write_cfg_data() {
 	// Начальный адрес структуры TCU.
 	uint8_t* CFGAddr = (uint8_t*) &CFG;
 	// Запихиваем буфер обратно в структуру побайтово.
-	for (uint8_t i = 0; i < sizeof(CFG); i++) {
-		*(CFGAddr + i) = ReceiveBuffer[i + 2];
-	}
-
-	uart_send_cfg_data();
+	for (uint8_t i = 0; i < sizeof(CFG); i++) {*(CFGAddr + i) = ReceiveBuffer[i + 2];}
+	uart_send_cfg_data();	// Отправляем в UART.
 }
 
 void uart_send_table(uint8_t N) {
@@ -249,7 +254,7 @@ void uart_send_table(uint8_t N) {
 			UseMarkers = 0;
 			return;
 	}
-	uart_send_array();
+	uart_send_array();	// Отправляем в UART.
 }
 
 static void uart_send_ports_state() {
@@ -297,8 +302,7 @@ static void uart_send_ports_state() {
 
 	// Дополнительный байт состояния селектора.
 	SendBuffer[TxBuffPos++] = get_selector_byte();
-
-	uart_send_array();
+	uart_send_array();	// Отправляем в UART.
 }
 
 void uart_command_processing() {
@@ -489,6 +493,8 @@ void uart_command_processing() {
 
 // Отправить массив в UART.
 void uart_send_array() {
+	CurrUART = NextUART;	// Переключаемся на другой UART.
+
 	// Добавляем два байта контрольной суммы.
 	CRC[0] = 0;
 	CRC[1] = 0;
@@ -509,13 +515,18 @@ void uart_send_array() {
 	TxMsgSize = TxBuffPos;		// Количество байт на отправку.
 	TxReady = 0;				// UART занят.
 	TxBuffPos = 0;				// Сбрасываем позицию в массиве.
-	UCSR0B |= (1 << UDRIE0);	// Включаем прерывание по опустошению буфера.
+
+	// Включаем прерывание по опустошению буфера.
+	if (CurrUART) {UCSR1B |= (1 << UDRIE1);}		// UART1.
+	else {UCSR0B |= (1 << UDRIE0);}					// UART0.
 }
 
 // Возвращает готовность интерфейса к новому заданию.
 uint8_t uart_tx_ready() {
+	uint8_t RD = 0;
 	cli();
-		uint8_t RD = UCSR0A & (1 << UDRE0);
+		if (CurrUART) {RD = UCSR1A & (1 << UDRE1);}		// UART1.
+		else {RD = UCSR0A & (1 << UDRE0);}				// UART0.
 	sei();
 
 	if (RD && TxReady) {return 1;}	// Буфер свободен и не идет пакетная отправка.
@@ -664,8 +675,7 @@ static uint16_t uart_build_uint16(uint8_t i) {
 	return Value;
 }
 
-// Прерывание по опустошению буфера.
-ISR (USART0_UDRE_vect) {
+static void uart_udre_vect() {
 	uint8_t SendByte = SendBuffer[TxBuffPos];
 	
 	if (UseMarkers) {		// Используются маркеры.
@@ -697,22 +707,33 @@ ISR (USART0_UDRE_vect) {
 	}
 	else {TxBuffPos++;}
 
-	UDR0 = SendByte;	// Загружаем очередной байт.
+	// Загружаем очередной байт в активный UART.
+	if (CurrUART) {UDR1 = SendByte;}		// UART1.
+	else {UDR0 = SendByte;}					// UART0.
+
 	if (TxBuffPos >= TxMsgSize) {		// Все данные загружены в буфер отправки.
-		UCSR0B &=~ (1 << UDRIE0);	// Запрещаем прерывание.
+		// Запрещаем прерывание.
+		UCSR1B &=~ (1 << UDRIE1);
+		UCSR0B &=~ (1 << UDRIE0);
 	}
 }
 
-// Прерывание по окончании передачи.
-ISR (USART0_TX_vect) {
+static void uart_tx_vect() {
 	TxReady = 1;
 	UseMarkers = 0;
 }
 
-// Прерывание по окончании приема.
-ISR (USART0_RX_vect) {
-	uint8_t OneByte = UDR0;		// Получаем байт.
-	if (RxCommandStatus > 1) {return;}
+static void uart_rx_vect() {
+	uint8_t OneByte = 0;
+
+	// Если в данный момент не идёт приём, переключаемся на другой UART.
+	if (RxCommandStatus != 1) {CurrUART = NextUART;}
+
+	// Получаем байт.
+	if (CurrUART) {OneByte = UDR1;}		// UART1.
+	else {OneByte = UDR0;}				// UART0.
+
+	if (RxCommandStatus > 1) {return;}	// Если предыдущая комманда не обработана.
 
 	switch (OneByte) {
 		case FOBEGIN:	// Принят начальный байт.
@@ -752,4 +773,22 @@ ISR (USART0_RX_vect) {
 			ReceiveBuffer[RxBuffPos++] = OneByte;
 			break;
 	}
+}
+
+// Прерывание по опустошению буфера.
+ISR (USART0_UDRE_vect) {uart_udre_vect();}	// UART0.
+ISR (USART1_UDRE_vect) {uart_udre_vect();}	// UART1.
+
+// Прерывание по окончании передачи.
+ISR (USART0_TX_vect) {uart_tx_vect();}	// UART0.
+ISR (USART1_TX_vect) {uart_tx_vect();}	// UART1.
+
+// Прерывание по окончании приема.
+ISR (USART0_RX_vect) {	// UART0.
+	NextUART = 0;
+	uart_rx_vect();
+}
+ISR (USART1_RX_vect) {	// UART1.
+	NextUART = 1;
+	uart_rx_vect();
 }
