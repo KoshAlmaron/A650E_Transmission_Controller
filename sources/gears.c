@@ -590,6 +590,7 @@ void gear_control() {
 			if (rpm_after_ok(-1)) {gear_down();}
 			return;
 		}
+		return;
 	}
 	else {
 		TCU.GearManualMode = 0;	// Сброс таймера в других режимах.
