@@ -50,8 +50,9 @@ TCU_t TCU = {
 	.DebugMode = 0,
 	.RawTPS = 0,
 	.RawOIL = 0,
-	.AdaptationTPS = 0,
-	.AdaptationTemp = 0
+	.AdaptationFlagTPS = 0,
+	.AdaptationFlagTemp = 0,
+	.GearManualMode = 0
 };
 
 uint8_t SpeedTestFlag = 0;	// Флаг включения тестирования скорости.
@@ -332,6 +333,9 @@ static int16_t get_cell_adapt_step(uint8_t N, int16_t Value, int16_t LeftCell, i
 
 // Сохранение адаптации давления включения второй передачи.
 void save_gear2_slu_adaptation(int8_t Value, uint8_t TPS) {
+	// Отключение адаптации при ручном управлении.
+	if (TCU.GearManualMode) {return;}
+
 	uint8_t Index = 0;
 	int8_t AdaptStep = 0;
 	int8_t GridStep = 0;
@@ -349,7 +353,7 @@ void save_gear2_slu_adaptation(int8_t Value, uint8_t TPS) {
 			ADAPT.SLUGear2TPSAdaptGraph[Index] = CONSTRAIN(ADAPT.SLUGear2TPSAdaptGraph[Index], -32, 32);
 			ADAPT.SLUGear2TPSAdaptGraph[Index + 1] = CONSTRAIN(ADAPT.SLUGear2TPSAdaptGraph[Index + 1], -32, 32);
 
-			TCU.AdaptationTPS = Value * ADAPT_FLAG_STATE_COUNT;
+			TCU.AdaptationFlagTPS = Value * ADAPT_FLAG_STATE_COUNT;
 		}
 	}
 	else {		// Адаптация по температуре масла.
@@ -365,13 +369,16 @@ void save_gear2_slu_adaptation(int8_t Value, uint8_t TPS) {
 			ADAPT.SLUGear2TempAdaptGraph[Index] = CONSTRAIN(ADAPT.SLUGear2TempAdaptGraph[Index], -120, 120);
 			ADAPT.SLUGear2TempAdaptGraph[Index + 1] = CONSTRAIN(ADAPT.SLUGear2TempAdaptGraph[Index + 1], -120, 120);
 
-			TCU.AdaptationTemp = Value * ADAPT_FLAG_STATE_COUNT;
+			TCU.AdaptationFlagTemp = Value * ADAPT_FLAG_STATE_COUNT;
 		}
 	}
 }
 
 // Сохранение адаптации опережения реактивации второй передачи.
 void save_gear2_adv_adaptation(int8_t Value, int16_t InitDrumRPMDelta) {
+	// Отключение адаптации при ручном управлении.
+	if (TCU.GearManualMode) {return;}
+
 	if (InitDrumRPMDelta < CFG.G2AdaptReactMinDRPM)	{return;}
 
 	// Дельта оборотов может выходить за пределы сетки.
@@ -393,7 +400,7 @@ void save_gear2_adv_adaptation(int8_t Value, int16_t InitDrumRPMDelta) {
 			ADAPT.Gear2AdvAdaptGraph[Index] = CONSTRAIN(ADAPT.Gear2AdvAdaptGraph[Index], -300, 300);
 			ADAPT.Gear2AdvAdaptGraph[Index + 1] = CONSTRAIN(ADAPT.Gear2AdvAdaptGraph[Index + 1], -300, 300);
 
-			TCU.AdaptationTPS = Value * ADAPT_FLAG_STATE_COUNT;
+			TCU.AdaptationFlagTPS = Value * ADAPT_FLAG_STATE_COUNT;
 		}
 	}
 	else {		// Адаптация по температуре масла.
@@ -408,13 +415,16 @@ void save_gear2_adv_adaptation(int8_t Value, int16_t InitDrumRPMDelta) {
 			ADAPT.Gear2AdvTempAdaptGraph[Index] = CONSTRAIN(ADAPT.Gear2AdvTempAdaptGraph[Index], -300, 300);
 			ADAPT.Gear2AdvTempAdaptGraph[Index + 1] = CONSTRAIN(ADAPT.Gear2AdvTempAdaptGraph[Index + 1], -300, 300);
 
-			TCU.AdaptationTemp = Value * ADAPT_FLAG_STATE_COUNT;
+			TCU.AdaptationFlagTemp = Value * ADAPT_FLAG_STATE_COUNT;
 		}
 	}
 }
 
 // Сохранение адаптации времени удержания SLU третьей передачи.
 void save_gear3_slu_adaptation(int8_t Value, uint8_t TPS) {
+	// Отключение адаптации при ручном управлении.
+	if (TCU.GearManualMode) {return;}
+
 	uint8_t Index = 0;
 	int8_t AdaptStep = 12 * CFG.AdaptationStepRatio;
 	int8_t GridStep = 0;
@@ -433,7 +443,7 @@ void save_gear3_slu_adaptation(int8_t Value, uint8_t TPS) {
 			ADAPT.SLUGear3TPSAdaptGraph[Index] = CONSTRAIN(ADAPT.SLUGear3TPSAdaptGraph[Index], -200, 200);
 			ADAPT.SLUGear3TPSAdaptGraph[Index + 1] = CONSTRAIN(ADAPT.SLUGear3TPSAdaptGraph[Index + 1], -200, 200);
 
-			TCU.AdaptationTPS = Value * ADAPT_FLAG_STATE_COUNT;
+			TCU.AdaptationFlagTPS = Value * ADAPT_FLAG_STATE_COUNT;
 		}
 	}
 	else {		// Адаптация по температуре масла.
@@ -449,7 +459,7 @@ void save_gear3_slu_adaptation(int8_t Value, uint8_t TPS) {
 			ADAPT.SLUGear3TempAdaptGraph[Index] = CONSTRAIN(ADAPT.SLUGear3TempAdaptGraph[Index], -200, 200);
 			ADAPT.SLUGear3TempAdaptGraph[Index + 1] = CONSTRAIN(ADAPT.SLUGear3TempAdaptGraph[Index + 1], -200, 120);
 
-			TCU.AdaptationTemp = Value * ADAPT_FLAG_STATE_COUNT;
+			TCU.AdaptationFlagTemp = Value * ADAPT_FLAG_STATE_COUNT;
 		}
 	}
 }

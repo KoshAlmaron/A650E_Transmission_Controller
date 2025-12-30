@@ -25,10 +25,10 @@ void slt_control() {
 }
 
 void at_mode_control() {
-	// Если ничего не поменялось, валим.
-	if (TCU.ATMode == TCU.Selector) {return;}
-	// Если селектор не инициализировался, валим. 
-	if (TCU.Selector == 0) {return;}
+	if (TCU.ATMode == TCU.Selector) {return;}	// Если ничего не поменялось, валим.
+	else {TCU.GearManualMode = 0;}	// Если сменился режим, то сбрасываем таймер ручного режима.
+
+	if (TCU.Selector == 0) {return;}	// Если селектор не инициализировался, валим.
 
 	// При ошибке селектора, устанавливаем соленойды в режим третьей передачи.
 	// При этом можно будет двигаться вперед и назад.
@@ -38,6 +38,7 @@ void at_mode_control() {
 		SET_PIN_HIGH(SOLENOID_S2_PIN);
 		SET_PIN_LOW(SOLENOID_S3_PIN);
 		SET_PIN_LOW(SOLENOID_S4_PIN);
+		TCU.GearManualMode = 0;
 		return;
 	}
 

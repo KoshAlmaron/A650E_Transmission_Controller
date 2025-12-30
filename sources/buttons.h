@@ -3,12 +3,14 @@
 #ifndef _BUTTONS_H_
 	#define _BUTTONS_H_
 
-	#define BTN_UP 		0
-	#define BTN_DOWN	1
-	
+	#define TIP_GEAR_UP 	0
+	#define TIP_GEAR_DOWN	1
+
 	void buttons_init();
-	void buttons_clear();
 	void buttons_update();
-	uint8_t buttons_get_state(uint8_t N);
+	void buttons_clear();
+
+	uint8_t is_button_press_short(uint8_t N);
+	uint8_t is_button_press_long(uint8_t N);
 
 #endif

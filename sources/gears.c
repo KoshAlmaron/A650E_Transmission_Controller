@@ -9,6 +9,7 @@
 #include "tcudata.h"		// Расчет и хранение всех необходимых параметров.
 #include "configuration.h"	// Настройки.
 #include "spdsens.h"		// Датчики скорости валов.
+#include "buttons.h"		// Кнопки.
 
 extern uint16_t WaitTimer;			// Таймер ожидания из main.
 uint16_t GearChangeStep = 100;		// Шаг времени на переключение передачи.
@@ -251,7 +252,7 @@ static void gear_change_2_3() {
 		}
 		else {set_sln(get_sln_pressure_gear3());}				// Устанавливаем давление SLN.
 
-		if (Adaptation != 1 && Delta2 > 40) {
+		if (Adaptation != 1 && Delta2 > 30) {
 			// Проскальзывание второй передачи.
 			// Выключение SLU произошло слишком рано.
 			Adaptation = 1;
@@ -575,6 +576,24 @@ void gear_control() {
 	if (TCU.Gear < 1 || TCU.Gear > 5) {return;}
 
 	set_gear_change_delays();	// Длительность 1 шага переключения от ДПДЗ.
+
+	// Ручное управление только в режиме D.
+	if (TCU.ATMode == 4) {
+		// При любом нажатии сбрасывается таймер ожидания.
+		if (is_button_press_short(TIP_GEAR_UP)) {	// Короткое нажатие вверх.
+			TCU.GearManualMode = GEAR_MANUAL_MODE_TIMER;
+			if (rpm_after_ok(1)) {gear_up();}
+			return;
+		}
+		if (is_button_press_short(TIP_GEAR_DOWN)) {	// Короткое нажатие вниз.
+			TCU.GearManualMode = GEAR_MANUAL_MODE_TIMER;
+			if (rpm_after_ok(-1)) {gear_down();}
+			return;
+		}
+	}
+	else {
+		TCU.GearManualMode = 0;	// Сброс таймера в других режимах.
+	}
 
 	TCU.GearUpSpeed = get_gear_max_speed(TCU.Gear);		// Верхняя граница переключения.
 	TCU.GearDownSpeed = get_gear_min_speed(TCU.Gear);	// Нижняя граница переключения.

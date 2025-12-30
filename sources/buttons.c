@@ -10,10 +10,10 @@
 	Состояние кнопок:
 		0 - не нажата,
 		1..99 - ожидание после нажатия,
-		100 - событие обработано,
-		101..149 - откат после срабатывания,
+		100..149 - откат после срабатывания,
 		201 - короткое нажатие,
-		202 - длинное нажатие.
+		202 - длинное нажатие,
+		203 - событие обработано.
 */
 static uint8_t ButtonState[2] = {};
 
@@ -28,29 +28,31 @@ void buttons_init() {
 	SET_PIN_HIGH(TIP_GEAR_DOWN_PIN);
 }
 
-void buttons_clear() {
-	if (PIN_READ(TIP_GEAR_UP_PIN) && ButtonState[BTN_UP] > 200) {ButtonState[BTN_UP] = 100;}
-	if (PIN_READ(TIP_GEAR_DOWN_PIN) && ButtonState[BTN_DOWN] > 200) {ButtonState[BTN_DOWN] = 100;}
-}
-
 // Вызов каждые 25 мс.
 void buttons_update() {
-	button_read(BTN_UP, PIN_READ(TIP_GEAR_UP_PIN));
-	button_read(BTN_DOWN, PIN_READ(TIP_GEAR_DOWN_PIN));
+	button_read(TIP_GEAR_UP, PIN_READ(TIP_GEAR_UP_PIN));
+	button_read(TIP_GEAR_DOWN, PIN_READ(TIP_GEAR_DOWN_PIN));
 }
 
-uint8_t buttons_get_state(uint8_t N) {
-	uint8_t Result = 0;
-	switch (ButtonState[N]) {
-		case 201:	// Короткое нажатие.
-			Result = 1;
-			break;
-		case 202:	// Длинное нажатие.	
-			Result = 2;
-			break;
+void buttons_clear() {
+	if (PIN_READ(TIP_GEAR_UP_PIN) && ButtonState[TIP_GEAR_UP] > 200) {ButtonState[TIP_GEAR_UP] = 100;}
+	if (PIN_READ(TIP_GEAR_DOWN_PIN) && ButtonState[TIP_GEAR_DOWN] > 200) {ButtonState[TIP_GEAR_DOWN] = 100;}
+}
+
+uint8_t is_button_press_short(uint8_t N) {
+	if (ButtonState[N] == 201) {
+		ButtonState[N] = 203;
+		return 1;
 	}
-	ButtonState[N] = 100;
-	return Result;
+	else {return 0;}
+}
+
+uint8_t is_button_press_long(uint8_t N) {
+	if (ButtonState[N] == 202) {
+		ButtonState[N] = 203;
+		return 1;
+	}
+	else {return 0;}
 }
 
 static void button_read(uint8_t N, uint8_t State) {
@@ -61,13 +63,14 @@ static void button_read(uint8_t N, uint8_t State) {
 		}
 		else {
 			if (ButtonState[N] >= 2) {ButtonState[N] = 201;}	// Короткое нажатие.
+			else {ButtonState[N] = 0;}
 		}
 		return;
 	}
 
 	if (ButtonState[N] < 150 && State) {
 		ButtonState[N]++;
-		if (ButtonState[N] >= 105) {
+		if (ButtonState[N] >= 110) {
 			ButtonState[N] = 0;		// Сброс состояния кнопки.
 		}
 		return;		

@@ -56,6 +56,7 @@ int main() {
 		adc_init();			// Настройка АЦП
 		selector_init();	// Настройка выводов для селектора.
 		solenoid_init();	// Настройка выходов селеноидов, а также лампы заднего хода.
+		buttons_init();		// Настройка выводов для типтроника.
 		debug_mode_init();	// Настройка перефирии для режима отладки.
 
 		wdt_reset();			// Сброс сторожевого таймера.
@@ -163,11 +164,11 @@ void loop_main(uint8_t Wait) {
 			uart_send_tcu_data();
 			TCU.CycleTime = 0;
 
-			if (TCU.AdaptationTPS > 0) {TCU.AdaptationTPS--;}
-			else if (TCU.AdaptationTPS < 0) {TCU.AdaptationTPS++;}
+			if (TCU.AdaptationFlagTPS > 0) {TCU.AdaptationFlagTPS--;}
+			else if (TCU.AdaptationFlagTPS < 0) {TCU.AdaptationFlagTPS++;}
 
-			if (TCU.AdaptationTemp > 0) {TCU.AdaptationTemp--;}
-			else if (TCU.AdaptationTemp < 0) {TCU.AdaptationTemp++;}
+			if (TCU.AdaptationFlagTemp > 0) {TCU.AdaptationFlagTemp--;}
+			else if (TCU.AdaptationFlagTemp < 0) {TCU.AdaptationFlagTemp++;}
 		}
 	}
 }
@@ -206,9 +207,9 @@ static void loop_add() {
 		return;
 	}
 
-	if (ButtonsTimer >= 25) {		// Обработка кнопок.
+	if (ButtonsTimer >= 25) {
 		ButtonsTimer = 0;
-		buttons_update();
+		buttons_update();	// Обновлдение состояния кнопок.
 	}
 
 	if (AtModeTimer >= 67) {
@@ -218,8 +219,12 @@ static void loop_add() {
 
 	if (GearsTimer >= 95) {
 		GearsTimer = 0;
+
+		if (TCU.GearManualMode) {TCU.GearManualMode--;}
+
 		gear_control();
 		slip_detect();
+		buttons_clear();	// Сброс необработанных состояний.
 	}
 
 	if (SLUPressureTimer >= 25) {

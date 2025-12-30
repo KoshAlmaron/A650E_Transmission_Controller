@@ -3,6 +3,9 @@
 #ifndef _CONFIGURATION_H_
 	#define _CONFIGURATION_H_
 
+	// Время работы ручного режима АКПП (Типтроник), 1 шаг = 100 мс.
+	#define GEAR_MANUAL_MODE_TIMER 60 * 10
+
 	// После получения команды GET_PORTS_STATE, будет отправлено такое количество пакетов
 	// с портами, после чего отправка переключится на стандартный пакет.
 	#define SEND_PORT_STATE_COUNT 20
