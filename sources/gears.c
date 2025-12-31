@@ -122,6 +122,7 @@ static void gear_change_1_2() {
 	uint8_t PDR = 0;		// Состояние процесса запроса снижения мощности.
 	uint8_t PDRStep = 0;	// Для фиксации времени работы PDR.
 	TCU.LastStep = GEAR_2_MAX_STEP;	// Номер последнего шага переключения.
+	uint8_t SLUDelay = 0;	// Пауза повышения давления после начала переключения.
 	int8_t Adaptation = 0;	// Флаг применения адаптации.
 	TCU.LastPDRTime = 0;
 	if (TCU.InstTPS > CFG.PowerDownMaxTPS) {PDR = -1;}
@@ -144,11 +145,12 @@ static void gear_change_1_2() {
 				return;
 			}
 
-			NextSLU = get_slu_pressure_gear2() + TCU.GearStep * 2;
+			NextSLU = get_slu_pressure_gear2() + TCU.GearStep * 2 - SLUDelay;
 			set_slu(NextSLU);
 
 			if (!PDR && rpm_delta(1) < -50) {			// Переключение началось.
 				PDR = 1;
+				SLUDelay = 3;
 				PDRStep = TCU.GearStep;
 				SET_PIN_HIGH(REQUEST_POWER_DOWN_PIN);	// Запрашиваем снижение мощности.
 			}
