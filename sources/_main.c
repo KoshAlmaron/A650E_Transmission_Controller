@@ -10,6 +10,7 @@
 #include "configuration.h"	// Настройки.
 
 #include "uart.h"			// UART.
+#include "i2c.h"			// I2C.
 #include "timers.h"			// Таймеры.
 #include "adc.h"			// АЦП.
 #include "spdsens.h"		// Датчики скорости валов.
@@ -21,6 +22,7 @@
 #include "debug.h"			// Модуль отладки.
 #include "lcd.h"			// LCD экран.
 #include "buttons.h"		// Кнопки.
+#include "bmp180.h"			// Модуль измерения давления.
 
 // Основной счетчик времени,
 // увеличивается по прерыванию на единицу каждую 1 мс.
@@ -40,6 +42,7 @@ static uint16_t GlockTimer = 0;
 static uint16_t SLTPressureTimer = 0;
 static uint16_t SLUPressureTimer = 0;
 static uint16_t ButtonsTimer = 0;
+static uint16_t BaroTimer = 0;
 
 uint16_t WaitTimer = 0;		// Таймер ожидания.
 uint16_t DebugTimer = 0;	// Таймер блока отладки.
@@ -52,6 +55,7 @@ int main() {
 	wdt_enable(WDTO_500MS);	// Сторожевой собак на 500 мс на время инициализации.
 	cli();					// Отключаем глобальные прерывания на время инициализации.
 		uart_init(3);		// Настройка uart на прием и передачу.
+		i2c_init();
 		timers_init();		// Настройка таймеров.
 		adc_init();			// Настройка АЦП
 		selector_init();	// Настройка выводов для селектора.
@@ -71,7 +75,6 @@ int main() {
 	sei();				// Включаем глобальные прерывания.
 
 	wdt_enable(WDTO_250MS);	// Сторожевой собак на 250 мс.
-
 	while(1) {
 		loop_main(0);			// Основной цикл, выполняется всегда.
 		loop_add();				// Вспомогательный цикл.
@@ -110,6 +113,7 @@ void loop_main(uint8_t Wait) {
 			AtModeTimer += TimerAdd;
 			GearsTimer += TimerAdd;
 			SLUPressureTimer += TimerAdd;
+			BaroTimer += TimerAdd;
 		}
 	}
 
@@ -181,6 +185,12 @@ static void loop_add() {
 		debug_loop();
 	}
 
+	// Барометр.
+	if (BaroTimer >= 20) {
+		BaroTimer = 0;
+		bmp_proccess();
+	}
+
 	if (TCU.DebugMode == 2) {return;}	// Ручное управление соленоидами.
 
 	// При неработающем двигателе выключаем все соленоиды
@@ -209,7 +219,7 @@ static void loop_add() {
 
 	if (ButtonsTimer >= 25) {
 		ButtonsTimer = 0;
-		buttons_update();	// Обновлдение состояния кнопок.
+		buttons_update();	// Обновление состояния кнопок.
 	}
 
 	if (AtModeTimer >= 67) {
@@ -219,8 +229,6 @@ static void loop_add() {
 
 	if (GearsTimer >= 95) {
 		GearsTimer = 0;
-
-		if (TCU.GearManualMode) {TCU.GearManualMode--;}
 
 		gear_control();
 		slip_detect();

@@ -26,7 +26,7 @@ void slt_control() {
 
 void at_mode_control() {
 	if (TCU.ATMode == TCU.Selector) {return;}	// Если ничего не поменялось, валим.
-	else {TCU.GearManualMode = 0;}	// Если сменился режим, то сбрасываем таймер ручного режима.
+	else {TCU.ManualModeTimer = 0;}	// Если сменился режим, то сбрасываем таймер ручного режима.
 
 	if (TCU.Selector == 0) {return;}	// Если селектор не инициализировался, валим.
 
@@ -38,7 +38,7 @@ void at_mode_control() {
 		SET_PIN_HIGH(SOLENOID_S2_PIN);
 		SET_PIN_LOW(SOLENOID_S3_PIN);
 		SET_PIN_LOW(SOLENOID_S4_PIN);
-		TCU.GearManualMode = 0;
+		TCU.ManualModeTimer = 0;
 		return;
 	}
 
@@ -137,8 +137,8 @@ void glock_control(uint8_t Timer) {
 	if (!TCU.Break 
 			&& TCU.Gear >= 4
 			//&& !TCU.GearChange
-			&& TCU.TPS > CFG.IdleTPSLimit
-			&& TCU.TPS <= CFG.GlockMaxTPS
+			&& TCU.InstTPS > CFG.IdleTPSLimit
+			&& TCU.InstTPS <= CFG.GlockMaxTPS
 			&& ((TCU.OilTemp >= 31 && !TCU.Glock) || (TCU.OilTemp >= 30 && TCU.Glock))
 			&& TCU.CarSpeed >= 40) {
 				if(!TCU.Glock) {GTimer += Timer;}
@@ -146,7 +146,7 @@ void glock_control(uint8_t Timer) {
 	else {	// Отключение блокировки при нарушении условий.
 		if (TCU.Glock) {
 			// При отпускании педали газа сразу отключаем блокировку ГТ.
-			if (TCU.TPS <= CFG.IdleTPSLimit) {
+			if (TCU.InstTPS <= CFG.IdleTPSLimit) {
 				TCU.SLU = CFG.MinPressureSLU;
 				cli();
 					OCR1C = TCU.SLU;

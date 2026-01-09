@@ -10,6 +10,7 @@
 #include "configuration.h"		// Настройки.
 #include "mathemat.h"			// Математические функции.
 #include "pinout.h"				// Список назначенных выводов.
+#include "bmp180.h"				// Модуль измерения давления.
 
 // Инициализация структуры с переменными.
 TCU_t TCU = {
@@ -21,6 +22,8 @@ TCU_t TCU = {
 	.OilTemp = 0,
 	.TPS = 0,
 	.InstTPS = 0,
+	.Load = 0,
+	.Barometer = 0,
 	.SLT = 0,
 	.SLN = 0,
 	.SLU = 0,
@@ -52,7 +55,7 @@ TCU_t TCU = {
 	.RawOIL = 0,
 	.AdaptationFlagTPS = 0,
 	.AdaptationFlagTemp = 0,
-	.GearManualMode = 0
+	.ManualModeTimer = 0
 };
 
 uint8_t SpeedTestFlag = 0;	// Флаг включения тестирования скорости.
@@ -131,6 +134,11 @@ void calc_tps() {
 	TCU.RawTPS = TempValue;
 	TCU.InstTPS = get_interpolated_value_int16_t(TempValue, ADCTBL.TPSGraph, GRIDS.TPSGrid, TPS_GRID_SIZE);
 
+	TCU.Load = TCU.InstTPS;
+	if (CFG.BaroCorrEnable && BMP.Error == 0) {
+		TCU.Load = (TCU.Load * (TCU.Barometer / 10)) / CFG.DefaultBaroPressure;
+	}
+
 	if (TCU.InstTPS >= TCU.TPS) {
 		TCU.TPS = TCU.InstTPS;
 	}
@@ -150,7 +158,7 @@ uint16_t get_slt_pressure() {
 	// Потому здесь все линейно, больше значение -> больше давление.
 
 	// Вычисляем значение в зависимости от ДПДЗ.
-	uint16_t SLT = get_interpolated_value_uint16_t(TCU.InstTPS, GRIDS.TPSGrid, TABLES.SLTGraph, TPS_GRID_SIZE);
+	uint16_t SLT = get_interpolated_value_uint16_t(TCU.Load, GRIDS.TPSGrid, TABLES.SLTGraph, TPS_GRID_SIZE);
 	// Применяем коррекцию по температуре.
 	SLT = CONSTRAIN(SLT + get_slt_temp_corr(SLT), 80, 980);
 	return SLT;
@@ -166,7 +174,7 @@ int16_t get_slt_temp_corr(int16_t Value) {
 
 uint16_t get_sln_pressure() {
 	// Вычисляем значение в зависимости от ДПДЗ.
-	uint16_t SLN = get_interpolated_value_uint16_t(TCU.InstTPS, GRIDS.TPSGrid, TABLES.SLNGraph, TPS_GRID_SIZE);
+	uint16_t SLN = get_interpolated_value_uint16_t(TCU.Load, GRIDS.TPSGrid, TABLES.SLNGraph, TPS_GRID_SIZE);
 	// Применяем коррекцию по температуре.
 	SLN = CONSTRAIN(SLN + get_sln_temp_corr(SLN), 20, 980);
 	return SLN;
@@ -180,16 +188,16 @@ int16_t get_sln_temp_corr(int16_t Value) {
 
 uint16_t get_sln_pressure_gear3() {
 	// Вычисляем значение в зависимости от ДПДЗ.
-	uint16_t SLN = get_interpolated_value_uint16_t(TCU.InstTPS, GRIDS.TPSGrid, TABLES.SLNGear3Graph, TPS_GRID_SIZE);
+	uint16_t SLN = get_interpolated_value_uint16_t(TCU.Load, GRIDS.TPSGrid, TABLES.SLNGear3Graph, TPS_GRID_SIZE);
 	return SLN;
 }
 
 // Давление включения и работы второй передачи SLU B3.
 uint16_t get_slu_pressure_gear2() {
-	uint16_t SLU = get_interpolated_value_uint16_t(TCU.InstTPS, GRIDS.TPSGrid, TABLES.SLUGear2Graph, TPS_GRID_SIZE);
+	uint16_t SLU = get_interpolated_value_uint16_t(TCU.Load, GRIDS.TPSGrid, TABLES.SLUGear2Graph, TPS_GRID_SIZE);
 	
 	if (CFG.G2EnableAdaptTPS) {
-		SLU += get_interpolated_value_int16_t(TCU.InstTPS, GRIDS.TPSGrid, ADAPT.SLUGear2TPSAdaptGraph, TPS_GRID_SIZE);
+		SLU += get_interpolated_value_int16_t(TCU.Load, GRIDS.TPSGrid, ADAPT.SLUGear2TPSAdaptGraph, TPS_GRID_SIZE);
 	}
 
 	// Применяем коррекцию по температуре.
@@ -230,7 +238,7 @@ int16_t get_gear2_rpm_adv() {
 
 // Давление включения третьей передачи SLU B2.
 uint16_t get_slu_pressure_gear3() {
-	uint16_t SLU = get_interpolated_value_uint16_t(TCU.InstTPS, GRIDS.TPSGrid, TABLES.SLUGear3Graph, TPS_GRID_SIZE);
+	uint16_t SLU = get_interpolated_value_uint16_t(TCU.Load, GRIDS.TPSGrid, TABLES.SLUGear3Graph, TPS_GRID_SIZE);
 	// Применяем коррекцию по температуре.
 	SLU = CONSTRAIN(SLU + get_slu_gear2_temp_corr(SLU), 100, 980);
 	return SLU;
@@ -238,10 +246,10 @@ uint16_t get_slu_pressure_gear3() {
 
 // Задержка отключения SLU при включении третьей передачи.
 uint16_t get_gear3_slu_delay() {
-	int16_t Delay = get_interpolated_value_uint16_t(TCU.InstTPS, GRIDS.TPSGrid, TABLES.SLUGear3DelayGraph, TPS_GRID_SIZE);
+	int16_t Delay = get_interpolated_value_uint16_t(TCU.Load, GRIDS.TPSGrid, TABLES.SLUGear3DelayGraph, TPS_GRID_SIZE);
 
 	if (CFG.G3EnableAdaptTPS) {
-		Delay += get_interpolated_value_int16_t(TCU.InstTPS, GRIDS.TPSGrid, ADAPT.SLUGear3TPSAdaptGraph, TPS_GRID_SIZE);
+		Delay += get_interpolated_value_int16_t(TCU.Load, GRIDS.TPSGrid, ADAPT.SLUGear3TPSAdaptGraph, TPS_GRID_SIZE);
 	}
 
 	// Коррекция задержки от температуры.
@@ -257,7 +265,7 @@ uint16_t get_gear3_slu_delay() {
 
 // Смещение времени включения SLN при включении третьей передачи.
 int16_t get_gear3_sln_offset() {
-	int16_t Offset = get_interpolated_value_int16_t(TCU.InstTPS, GRIDS.TPSGrid, TABLES.SLNGear3OffsetGraph, TPS_GRID_SIZE);
+	int16_t Offset = get_interpolated_value_int16_t(TCU.Load, GRIDS.TPSGrid, TABLES.SLNGear3OffsetGraph, TPS_GRID_SIZE);
 	return Offset;
 }
 
@@ -334,7 +342,7 @@ static int16_t get_cell_adapt_step(uint8_t N, int16_t Value, int16_t LeftCell, i
 // Сохранение адаптации давления включения второй передачи.
 void save_gear2_slu_adaptation(int8_t Value, uint8_t TPS) {
 	// Отключение адаптации при ручном управлении.
-	if (TCU.GearManualMode) {return;}
+	if (TCU.ManualModeTimer) {return;}
 
 	uint8_t Index = 0;
 	int8_t AdaptStep = 0;
@@ -377,7 +385,7 @@ void save_gear2_slu_adaptation(int8_t Value, uint8_t TPS) {
 // Сохранение адаптации опережения реактивации второй передачи.
 void save_gear2_adv_adaptation(int8_t Value, int16_t InitDrumRPMDelta) {
 	// Отключение адаптации при ручном управлении.
-	if (TCU.GearManualMode) {return;}
+	if (TCU.ManualModeTimer) {return;}
 
 	if (InitDrumRPMDelta < CFG.G2AdaptReactMinDRPM)	{return;}
 
@@ -423,7 +431,7 @@ void save_gear2_adv_adaptation(int8_t Value, int16_t InitDrumRPMDelta) {
 // Сохранение адаптации времени удержания SLU третьей передачи.
 void save_gear3_slu_adaptation(int8_t Value, uint8_t TPS) {
 	// Отключение адаптации при ручном управлении.
-	if (TCU.GearManualMode) {return;}
+	if (TCU.ManualModeTimer) {return;}
 
 	uint8_t Index = 0;
 	int8_t AdaptStep = 12 * CFG.AdaptationStepRatio;

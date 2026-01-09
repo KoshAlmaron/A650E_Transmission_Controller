@@ -4,9 +4,18 @@
 	#define _I2C_H_
 
 	void i2c_init();
-	void i2c_send_array(uint8_t* Array, uint16_t ArrSize);
+
+	void i2c_receive_data(uint8_t *Array, uint16_t TxSize, uint16_t RxSize);
+
+	uint8_t i2c_get_rx_size();
+	uint8_t i2c_get_rx_byte(uint8_t N);
+
+	void i2c_send_data(uint8_t* Array, uint16_t ArrSize);
+
 	uint8_t i2c_ready();
 	uint8_t i2c_get_status();
+
+	void i2c_stop();
 
 
 	/*** Статусные коды TWI модуля. ***/

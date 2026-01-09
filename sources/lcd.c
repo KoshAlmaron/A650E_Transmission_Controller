@@ -103,7 +103,7 @@ static void lcd_set_cursor(uint8_t Row, uint8_t Col) {
 static void lcd_port_update() {
 	SendArray[1] = LCDPort;
 	while (!(i2c_ready()));
-	i2c_send_array(SendArray, 2);
+	i2c_send_data(SendArray, 2);
 
 	_delay_us(50);						// Задержка на чтение команды.
 } 

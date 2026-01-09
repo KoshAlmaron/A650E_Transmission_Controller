@@ -44,4 +44,10 @@ CFG_t CFG = {
 
 	.SpeedImpulsPerKM = 6000,
 	.SpeedCalcCoef = 114,
+
+	.BaroCorrEnable = 0,
+	.DefaultBaroPressure = 102,
+
+	.TiptronicEnable = 0,
+	.TiptronicTimer = 60 * 10
 };

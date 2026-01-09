@@ -113,7 +113,7 @@ static void gear_change_1_2() {
 	uint16_t NextSLU = get_slu_pressure_gear2();
 	set_slu(NextSLU);
 
-	TCU.GearChangeTPS = TCU.InstTPS;
+	TCU.GearChangeTPS = TCU.Load;
 	TCU.GearChangeSLU = TCU.SLU;
 
 	set_sln(CFG.MinPressureSLN);
@@ -125,9 +125,9 @@ static void gear_change_1_2() {
 	uint8_t SLUDelay = 0;	// Пауза повышения давления после начала переключения.
 	int8_t Adaptation = 0;	// Флаг применения адаптации.
 	TCU.LastPDRTime = 0;
-	if (TCU.InstTPS > CFG.PowerDownMaxTPS) {PDR = -1;}
+	if (TCU.Load > CFG.PowerDownMaxTPS) {PDR = -1;}
 	
-	uint8_t InitTPS = TCU.InstTPS;	// Значение ДПДЗ в начеле цикла.
+	uint8_t InitLoad = TCU.Load;	// Значение ДПДЗ c бароккорекцией в начале цикла.
 	while (TCU.GearStep < GEAR_2_MAX_STEP) {
 		set_gear_change_delays();		// Установка длительности 1 шага переключения от ДПДЗ.
 		WaitTimer = GearChangeStep;		// Устанавливаем время ожидания.
@@ -168,14 +168,14 @@ static void gear_change_1_2() {
 				// Передача включилась слишком рано,
 				// снижаем давление на 1 единицу.
 				Adaptation = -1;
-				save_gear2_slu_adaptation(-1, (InitTPS + TCU.InstTPS) / 2);
+				save_gear2_slu_adaptation(-1, (InitLoad + TCU.Load) / 2);
 			}
 		}
 		if (TCU.GearStep > 16 && rpm_delta(2) > 35 && !Adaptation) {
 			// Передача включилась слишком поздно,
 			// повышаем давление на 1 единицу.
 			Adaptation = 1;
-			save_gear2_slu_adaptation(1, (InitTPS + TCU.InstTPS) / 2);
+			save_gear2_slu_adaptation(1, (InitLoad + TCU.Load) / 2);
 		}
 	}
 
@@ -190,13 +190,13 @@ static void gear_change_1_2() {
 
 static void gear_change_2_3() {
 	// Не включать третью при недовключенной второй передаче.
-	if (TCU.Gear2State != 8) {return;}
+	if (TCU.Gear2State != 8 && TCU.InstTPS > CFG.IdleTPSLimit) {return;}
 	TCU.GearChange = 1;
 	
 	set_solenoids(3);		// Установка шифтовых соленоидов.
 
 	set_slu(get_slu_pressure_gear3());
-	TCU.GearChangeTPS = TCU.InstTPS;
+	TCU.GearChangeTPS = TCU.Load;
 	TCU.GearChangeSLU = TCU.SLU;
 
 	set_sln(CFG.IdlePressureSLN);
@@ -210,7 +210,7 @@ static void gear_change_2_3() {
 	uint16_t PDRTime = 0;	// Длительность применения снижения мощности.
 
 	// Ждем начало включения B2.
-	uint8_t InitTPS = TCU.InstTPS;	// Значение ДПДЗ в начеле цикла.
+	uint8_t InitLoad = TCU.Load;	// Значение ДПДЗ с барокоррекцией в начале цикла.
 	while (WaitTimer) {
 		loop_main(1);
 
@@ -225,7 +225,7 @@ static void gear_change_2_3() {
 	}
 	set_slu(CFG.MinPressureSLU);		// Убираем давление SLU.
 
-	if (TCU.InstTPS > CFG.PowerDownMaxTPS) {PDR = -1;}
+	if (TCU.Load > CFG.PowerDownMaxTPS) {PDR = -1;}
 
 	WaitTimer = 1500;						// Время ожидания завершения переключения.
 	uint16_t GearTestTimer = WaitTimer;		// Таймер для проверки начала переключения.
@@ -271,7 +271,7 @@ static void gear_change_2_3() {
 	if (TCU.ATMode == 6) {SET_PIN_HIGH(SOLENOID_S3_PIN);}
 
 	// Применение адаптации.
-	if (Adaptation) {save_gear3_slu_adaptation(Adaptation, (InitTPS + TCU.InstTPS) / 2);}
+	if (Adaptation) {save_gear3_slu_adaptation(Adaptation, (InitLoad + TCU.Load) / 2);}
 
 	TCU.Gear = 3;
 	TCU.Gear2State = 0;
@@ -285,7 +285,7 @@ static void gear_change_3_4() {
 
 	set_sln(get_sln_pressure());
 
-	TCU.GearChangeTPS = TCU.InstTPS;
+	TCU.GearChangeTPS = TCU.Load;
 	TCU.GearChangeSLT = TCU.SLT;
 	TCU.GearChangeSLN = TCU.SLN;
 	
@@ -416,7 +416,7 @@ static void gear_change_2_1() {
 static void gear_change_wait(uint16_t Delay, uint8_t Gear) {
 	uint8_t PDR = 0;
 	uint16_t PDRTime = 0;	// Для фиксации времени работы PDR.
-	if (TCU.InstTPS > CFG.PowerDownMaxTPS) {PDR = -1;}
+	if (TCU.Load > CFG.PowerDownMaxTPS) {PDR = -1;}
 	TCU.LastPDRTime = 0;
 	WaitTimer = Delay;		// Устанавливаем время ожидания.
 
@@ -573,31 +573,13 @@ void update_gear_speed() {
 
 // Контроль переключения передач.
 void gear_control() {
+	if (TCU.ManualModeTimer) {TCU.ManualModeTimer--;}
+
 	// Только режимы D - L.
 	if (TCU.ATMode < 4 || TCU.ATMode > 8) {return;}
 	if (TCU.Gear < 1 || TCU.Gear > 5) {return;}
 
 	set_gear_change_delays();	// Длительность 1 шага переключения от ДПДЗ.
-
-	// Ручное управление только в режиме D.
-	if (TCU.ATMode == 4) {
-		// При любом нажатии сбрасывается таймер ожидания.
-		if (is_button_press_short(TIP_GEAR_UP)) {	// Короткое нажатие вверх.
-			TCU.GearManualMode = GEAR_MANUAL_MODE_TIMER;
-			if (rpm_after_ok(1)) {gear_up();}
-			return;
-		}
-		if (is_button_press_short(TIP_GEAR_DOWN)) {	// Короткое нажатие вниз.
-			TCU.GearManualMode = GEAR_MANUAL_MODE_TIMER;
-			if (rpm_after_ok(-1)) {gear_down();}
-			return;
-		}
-		return;
-	}
-	else {
-		TCU.GearManualMode = 0;	// Сброс таймера в других режимах.
-	}
-
 	TCU.GearUpSpeed = get_gear_max_speed(TCU.Gear);		// Верхняя граница переключения.
 	TCU.GearDownSpeed = get_gear_min_speed(TCU.Gear);	// Нижняя граница переключения.
 
@@ -611,6 +593,26 @@ void gear_control() {
 		// Проверка оборотов просле переключения.
 		if (rpm_after_ok(1)) {gear_up();}
 		return;
+	}
+
+	// Ручное управление.
+	if (CFG.TiptronicEnable) {
+		// При любом нажатии сбрасывается таймер ожидания.
+		if (is_button_press_short(TIP_GEAR_UP)) {	// Короткое нажатие вверх.
+			TCU.ManualModeTimer = CFG.TiptronicTimer;
+			if (TCU.Gear < MaxGear[TCU.ATMode] && rpm_after_ok(1)) {gear_up();}
+			return;
+		}
+		if (is_button_press_short(TIP_GEAR_DOWN)) {	// Короткое нажатие вниз.
+			TCU.ManualModeTimer = CFG.TiptronicTimer;
+			if (TCU.Gear > MinGear[TCU.ATMode] && rpm_after_ok(-1)) {gear_down();}
+			return;
+		}
+
+		if (TCU.ManualModeTimer) {return;}
+	}
+	else {
+		TCU.ManualModeTimer = 0;	// Сброс таймера в других режимах.
 	}
 
 	// Скорость выше порога.
@@ -668,7 +670,7 @@ static void gear_down() {
 }
 
 static void set_gear_change_delays() {
-	GearChangeStep = get_interpolated_value_uint16_t(TCU.InstTPS, GRIDS.TPSGrid, TABLES.GearChangeStepArray, TPS_GRID_SIZE);
+	GearChangeStep = get_interpolated_value_uint16_t(TCU.Load, GRIDS.TPSGrid, TABLES.GearChangeStepArray, TPS_GRID_SIZE);
 }
 
 // Ожидание с основным циклом.

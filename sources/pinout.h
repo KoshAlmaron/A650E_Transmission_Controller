@@ -17,8 +17,8 @@
 	#define SELECTOR_4_PIN C, 6
 	#define SELECTOR_L_PIN C, 7
 
-	#define TIP_GEAR_UP_PIN G, 1
-	#define TIP_GEAR_DOWN_PIN G, 0
+	#define TIP_GEAR_UP_PIN L, 7
+	#define TIP_GEAR_DOWN_PIN L, 6
 
 	#define BREAK_PEDAL_PIN G, 5
 	#define REAR_LAMP_PIN B, 4
@@ -82,12 +82,12 @@
 	35 PC2					|+	Положение селектора АКПП "N".
 	36 PC1					|+	Положение селектора АКПП "R".
 	37 PC0					|+	Положение селектора АКПП "P".
-	38 PD7					|	
+	38 PD7					|
 	39 PG2					|
-	40 PG1					|	Типтроник передача вверх.
-	41 PG0					|	Типтроник передача вниз.
-	42 PL7					|	
-	43 PL6					|	
+	40 PG1					|
+	41 PG0					|
+	42 PL7					|	Типтроник передача вверх.
+	43 PL6					|	Типтроник передача вниз.
    ~44 PL5	(OC5C)			|
    ~45 PL4	(OC5B)			|
    ~46 PL3	(OC5A)			|

@@ -3,9 +3,6 @@
 #ifndef _CONFIGURATION_H_
 	#define _CONFIGURATION_H_
 
-	// Время работы ручного режима АКПП (Типтроник), 1 шаг = 100 мс.
-	#define GEAR_MANUAL_MODE_TIMER 60 * 10
-
 	// После получения команды GET_PORTS_STATE, будет отправлено такое количество пакетов
 	// с портами, после чего отправка переключится на стандартный пакет.
 	#define SEND_PORT_STATE_COUNT 20
@@ -69,6 +66,11 @@
 		uint16_t SpeedImpulsPerKM;		// Количество импульсов на 1 км для выхода сигнала спидометра.
 		uint16_t SpeedCalcCoef;			// Коэффициент для расчета скорости авто.
 
+		uint8_t BaroCorrEnable;			// Барокоррекция.
+		uint8_t DefaultBaroPressure;	// Базовое атмосферное давление.
+
+		uint8_t TiptronicEnable;		// Ручное управление АКПП (Типтроник).
+		uint16_t TiptronicTimer;		// Время работы ручного режима АКПП (Типтроник), 1 шаг = 100 мс.
 	}  CFG_t;
 
 	extern struct CFG_t CFG; 	// Делаем структуру внешней.
