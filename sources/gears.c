@@ -413,33 +413,82 @@ static void gear_change_2_1() {
 
 //========================== Вспомогательные функции ==========================
 
-static void gear_change_wait(uint16_t Delay, uint8_t Gear) {
-	uint8_t PDR = 0;
-	uint16_t PDRTime = 0;	// Для фиксации времени работы PDR.
-	if (TCU.Load > CFG.PowerDownMaxTPS) {PDR = -1;}
-	TCU.LastPDRTime = 0;
-	WaitTimer = Delay;		// Устанавливаем время ожидания.
+// Контроль переключения передач.
+void gear_control() {
+	if (TCU.ManualModeTimer) {TCU.ManualModeTimer--;}
 
-	while (WaitTimer && rpm_delta(Gear) > 35) {
-		set_sln(get_sln_pressure());
-		if (rpm_delta(Gear - 1) < -70) {	// Переключение началось.
-			if (TCU.Glock) {				// Отключаем блокировку ГТ.
-				set_slu(CFG.MinPressureSLU);
-				TCU.Glock = 64;				// Сброс счётчика блокировки
-			}
-			if (!PDR) {						// Запрашиваем снижение мощности.
-				PDR = 1;
-				PDRTime = WaitTimer;
-				SET_PIN_HIGH(REQUEST_POWER_DOWN_PIN);
-			}
-		}
-		loop_main(1);
+	// Только режимы D - L.
+	if (TCU.ATMode < 4 || TCU.ATMode > 8) {return;}
+	if (TCU.Gear < 1 || TCU.Gear > 5) {return;}
+
+	set_gear_change_delays();	// Длительность 1 шага переключения от ДПДЗ.
+	TCU.GearUpSpeed = get_gear_max_speed(TCU.Gear);		// Верхняя граница переключения.
+	TCU.GearDownSpeed = get_gear_min_speed(TCU.Gear);	// Нижняя граница переключения.
+
+	// Переключения при изменение режима АКПП.
+	if (TCU.Gear > MaxGear[TCU.ATMode]) {	
+		// Проверка оборотов просле переключения.
+		if (rpm_after_ok(-1)) {gear_down();}
+		return;
+	} 
+	if (TCU.Gear < MinGear[TCU.ATMode]) {
+		// Проверка оборотов просле переключения.
+		if (rpm_after_ok(1)) {gear_up();}
+		return;
 	}
 
-	SET_PIN_LOW(REQUEST_POWER_DOWN_PIN);
-	if (PDR == 1) {TCU.LastPDRTime = PDRTime - WaitTimer;}
-	set_sln(CFG.IdlePressureSLN);
+	// Ручное управление.
+	if (CFG.TiptronicEnable) {
+		// При коротком нажатии сбрасывается таймер ожидания.
+		if (is_button_press_short(TIP_GEAR_UP)) {	// Короткое нажатие вверх.
+			TCU.ManualModeTimer = CFG.TiptronicTimer;
+			if (TCU.Gear < MaxGear[TCU.ATMode] && rpm_after_ok(1)) {gear_up();}
+			return;
+		}
+		if (is_button_press_short(TIP_GEAR_DOWN)) {	// Короткое нажатие вниз.
+			TCU.ManualModeTimer = CFG.TiptronicTimer;
+			if (TCU.Gear > MinGear[TCU.ATMode] && rpm_after_ok(-1)) {gear_down();}
+			return;
+		}
+
+		if (is_button_press_long(TIP_GEAR_UP)) {	// Длинное нажатие вверх - сброс таймера.
+			TCU.ManualModeTimer = 0;
+			return;
+		}
+
+		// При удержании кнопки вверх сбросится таймер,
+		// и будет удержание текущей передачи до отпускания кнопки.
+		if (is_button_hold_down(TIP_GEAR_UP)) {return;}
+
+		if (is_button_press_long(TIP_GEAR_DOWN)) {	// Длинное нажатие вниз - переключение вниз.
+			if (TCU.Gear > MinGear[TCU.ATMode] && rpm_after_ok(-1)) {gear_down();}
+			return;
+		}
+
+		// При удержании кнопки вниз произойдёт переключение вниз,
+		// и удержание передачи до отпускания кнопки.
+		if (is_button_hold_down(TIP_GEAR_DOWN)) {return;}
+
+		if (TCU.ManualModeTimer) {return;}
+	}
+	else {
+		TCU.ManualModeTimer = 0;	// Сброс таймера в других режимах.
+	}
+
+	// Скорость выше порога.
+	if (TCU.CarSpeed > TCU.GearUpSpeed) {
+		if (TCU.InstTPS > CFG.IdleTPSLimit) {	// Не повышать передачу при сбросе газа.
+			if (rpm_after_ok(1)) {gear_up();}
+		}
+		return;
+	}
+	// Скорость ниже порога.
+	if (TCU.CarSpeed < TCU.GearDownSpeed) {
+		if (rpm_after_ok(-1)) {gear_down();}
+		return;
+	}
 }
+
 
 void slu_gear2_control() {
 	// Дельта оборотов, при котором началось переключение.
@@ -565,68 +614,38 @@ void solenoid_init() {
 	SET_PIN_LOW(REQUEST_POWER_DOWN_PIN);	
 }
 
+static void gear_change_wait(uint16_t Delay, uint8_t Gear) {
+	uint8_t PDR = 0;
+	uint16_t PDRTime = 0;	// Для фиксации времени работы PDR.
+	if (TCU.Load > CFG.PowerDownMaxTPS) {PDR = -1;}
+	TCU.LastPDRTime = 0;
+	WaitTimer = Delay;		// Устанавливаем время ожидания.
+
+	while (WaitTimer && rpm_delta(Gear) > 35) {
+		set_sln(get_sln_pressure());
+		if (rpm_delta(Gear - 1) < -70) {	// Переключение началось.
+			if (TCU.Glock) {				// Отключаем блокировку ГТ.
+				set_slu(CFG.MinPressureSLU);
+				TCU.Glock = 64;				// Сброс счётчика блокировки
+			}
+			if (!PDR) {						// Запрашиваем снижение мощности.
+				PDR = 1;
+				PDRTime = WaitTimer;
+				SET_PIN_HIGH(REQUEST_POWER_DOWN_PIN);
+			}
+		}
+		loop_main(1);
+	}
+
+	SET_PIN_LOW(REQUEST_POWER_DOWN_PIN);
+	if (PDR == 1) {TCU.LastPDRTime = PDRTime - WaitTimer;}
+	set_sln(CFG.IdlePressureSLN);
+}
+
 // Обновление порогов переключения передач.
 void update_gear_speed() {
 	TCU.GearUpSpeed = get_gear_max_speed(TCU.Gear);		// Верхняя граница переключения.
 	TCU.GearDownSpeed = get_gear_min_speed(TCU.Gear);	// Нижняя граница переключения.
-}
-
-// Контроль переключения передач.
-void gear_control() {
-	if (TCU.ManualModeTimer) {TCU.ManualModeTimer--;}
-
-	// Только режимы D - L.
-	if (TCU.ATMode < 4 || TCU.ATMode > 8) {return;}
-	if (TCU.Gear < 1 || TCU.Gear > 5) {return;}
-
-	set_gear_change_delays();	// Длительность 1 шага переключения от ДПДЗ.
-	TCU.GearUpSpeed = get_gear_max_speed(TCU.Gear);		// Верхняя граница переключения.
-	TCU.GearDownSpeed = get_gear_min_speed(TCU.Gear);	// Нижняя граница переключения.
-
-	// Переключения при изменение режима АКПП.
-	if (TCU.Gear > MaxGear[TCU.ATMode]) {	
-		// Проверка оборотов просле переключения.
-		if (rpm_after_ok(-1)) {gear_down();}
-		return;
-	} 
-	if (TCU.Gear < MinGear[TCU.ATMode]) {
-		// Проверка оборотов просле переключения.
-		if (rpm_after_ok(1)) {gear_up();}
-		return;
-	}
-
-	// Ручное управление.
-	if (CFG.TiptronicEnable) {
-		// При любом нажатии сбрасывается таймер ожидания.
-		if (is_button_press_short(TIP_GEAR_UP)) {	// Короткое нажатие вверх.
-			TCU.ManualModeTimer = CFG.TiptronicTimer;
-			if (TCU.Gear < MaxGear[TCU.ATMode] && rpm_after_ok(1)) {gear_up();}
-			return;
-		}
-		if (is_button_press_short(TIP_GEAR_DOWN)) {	// Короткое нажатие вниз.
-			TCU.ManualModeTimer = CFG.TiptronicTimer;
-			if (TCU.Gear > MinGear[TCU.ATMode] && rpm_after_ok(-1)) {gear_down();}
-			return;
-		}
-
-		if (TCU.ManualModeTimer) {return;}
-	}
-	else {
-		TCU.ManualModeTimer = 0;	// Сброс таймера в других режимах.
-	}
-
-	// Скорость выше порога.
-	if (TCU.CarSpeed > TCU.GearUpSpeed) {
-		if (TCU.InstTPS > CFG.IdleTPSLimit) {	// Не повышать передачу при сбросе газа.
-			if (rpm_after_ok(1)) {gear_up();}
-		}
-		return;
-	}
-	// Скорость ниже порога.
-	if (TCU.CarSpeed < TCU.GearDownSpeed) {
-		if (rpm_after_ok(-1)) {gear_down();}
-		return;
-	}
 }
 
 // Переключение вверх.

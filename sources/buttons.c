@@ -55,6 +55,12 @@ uint8_t is_button_press_long(uint8_t N) {
 	else {return 0;}
 }
 
+uint8_t is_button_hold_down(uint8_t N) {
+	if (N == TIP_GEAR_UP && !PIN_READ(TIP_GEAR_UP_PIN)) {return 1;}
+	else if (N == TIP_GEAR_DOWN && !PIN_READ(TIP_GEAR_DOWN_PIN)) {return 1;}
+	else {return 0;}
+}
+
 static void button_read(uint8_t N, uint8_t State) {
 	if (ButtonState[N] < 100) {
 		if (!State) {

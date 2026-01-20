@@ -13,4 +13,6 @@
 	uint8_t is_button_press_short(uint8_t N);
 	uint8_t is_button_press_long(uint8_t N);
 
+	uint8_t is_button_hold_down(uint8_t N);
+
 #endif
