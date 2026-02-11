@@ -425,15 +425,13 @@ void gear_control() {
 	TCU.GearUpSpeed = get_gear_max_speed(TCU.Gear);		// Верхняя граница переключения.
 	TCU.GearDownSpeed = get_gear_min_speed(TCU.Gear);	// Нижняя граница переключения.
 
-	// Переключения при изменение режима АКПП.
-	if (TCU.Gear > MaxGear[TCU.ATMode]) {	
-		// Проверка оборотов просле переключения.
-		if (rpm_after_ok(-1)) {gear_down();}
+	// Переключения при изменение режима АКПП без проверки оборотов.
+	if (TCU.Gear > MaxGear[TCU.ATMode]) {
+		gear_down();
 		return;
-	} 
+	}
 	if (TCU.Gear < MinGear[TCU.ATMode]) {
-		// Проверка оборотов просле переключения.
-		if (rpm_after_ok(1)) {gear_up();}
+		gear_up();
 		return;
 	}
 

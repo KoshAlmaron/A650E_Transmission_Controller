@@ -24,6 +24,14 @@
 #include "buttons.h"		// Кнопки.
 #include "bmp180.h"			// Модуль измерения давления.
 
+#define VERSION_YEAR 2026
+#define VERSION_MONTH 2
+#define VERSION_DAY 11
+#define VERSION_ADD 0
+
+// Версия прошивки.
+uint16_t FirmwareVersion = ((VERSION_YEAR - 2026) << 11) | (VERSION_MONTH << 7) | (VERSION_DAY << 2) | VERSION_ADD;
+
 // Основной счетчик времени,
 // увеличивается по прерыванию на единицу каждую 1 мс.
 volatile uint8_t MainTimer = 0;

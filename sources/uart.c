@@ -67,8 +67,10 @@ static int16_t uart_build_int16(uint8_t i);
 static uint16_t uart_build_uint16(uint8_t i);
 
 static void uart_write_cfg_data();
-
 static void uart_send_ports_state();
+static void uart_send_version();
+
+extern uint16_t FirmwareVersion;
 
 // Функция программного сброса
 void(* resetFunc) (void) = 0;
@@ -305,6 +307,15 @@ static void uart_send_ports_state() {
 	uart_send_array();	// Отправляем в UART.
 }
 
+static void uart_send_version() {
+	TxBuffPos = 0;	// Сброс позиции.
+	UseMarkers = 1;	// Используем байты маркеры.
+	SendBuffer[TxBuffPos++] = FOBEGIN;				// Байт начала пакета.
+	SendBuffer[TxBuffPos++] = TCU_VERSION_ANSWER;	// Тип данных - версия прошивки.
+	uart_buffer_add_uint16(FirmwareVersion);		// Версия прошивки.
+	uart_send_array();	// Отправляем в UART.
+}
+
 void uart_command_processing() {
 	if (!TxReady) {return;}		// Не трогать буфер пока идет передача.
 
@@ -332,6 +343,9 @@ void uart_command_processing() {
 	RxBuffPos -= 2;
 
 	switch (ReceiveBuffer[0]) {
+		case GET_VERSION_COMMAND:
+			uart_send_version();
+			break;
 		case GET_TABLE_COMMAND:
 			uart_send_table(ReceiveBuffer[1]);
 			break;
