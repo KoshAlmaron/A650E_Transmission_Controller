@@ -27,6 +27,8 @@
 	#define GET_VERSION_COMMAND	0xb0	// Запрос версии прошивки.
 	#define TCU_VERSION_ANSWER	0xb1	// Ответ с версей прошивки.
 
+	#define NEW_REV_COUNTER		0xb2	// Новое значение пробега в оборотах.
+
 	#define GET_TABLE_COMMAND	0xc1	// Запрос таблицы.
 	#define TCU_TABLE_ANSWER	0xc2	// Ответ с таблицей.
 	#define NEW_TABLE_DATA		0xc3	// Новые значения для таблицы.

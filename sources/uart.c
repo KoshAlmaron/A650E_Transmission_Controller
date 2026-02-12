@@ -65,12 +65,11 @@ static void uart_write_table(uint8_t N);
 
 static int16_t uart_build_int16(uint8_t i);
 static uint16_t uart_build_uint16(uint8_t i);
+static uint32_t uart_build_uint32(uint8_t i);
 
 static void uart_write_cfg_data();
 static void uart_send_ports_state();
 static void uart_send_version();
-
-extern uint16_t FirmwareVersion;
 
 // Функция программного сброса
 void(* resetFunc) (void) = 0;
@@ -128,6 +127,9 @@ void uart_send_tcu_data() {
 		uart_send_ports_state();
 		return;
 	}
+
+	// Пересчет оборотов в метры для отправки.
+	TCU.MeterCounter = get_meters_count();
 
 	TxBuffPos = 0;	// Сброс позиции.
 	UseMarkers = 1;	// Используем байты маркеры.
@@ -312,7 +314,7 @@ static void uart_send_version() {
 	UseMarkers = 1;	// Используем байты маркеры.
 	SendBuffer[TxBuffPos++] = FOBEGIN;				// Байт начала пакета.
 	SendBuffer[TxBuffPos++] = TCU_VERSION_ANSWER;	// Тип данных - версия прошивки.
-	uart_buffer_add_uint16(FirmwareVersion);		// Версия прошивки.
+	uart_buffer_add_uint16(APP.FirmwareVersion);		// Версия прошивки.
 	uart_send_array();	// Отправляем в UART.
 }
 
@@ -345,6 +347,12 @@ void uart_command_processing() {
 	switch (ReceiveBuffer[0]) {
 		case GET_VERSION_COMMAND:
 			uart_send_version();
+			break;
+		case NEW_REV_COUNTER:
+			if (RxBuffPos == 6) {
+				APP.RevCounter = (uint32_t) uart_build_uint32(2) / CFG.SpeedCalcCoef * 491LU;
+				update_eeprom_add_variables();
+			}
 			break;
 		case GET_TABLE_COMMAND:
 			uart_send_table(ReceiveBuffer[1]);
@@ -686,6 +694,17 @@ static uint16_t uart_build_uint16(uint8_t i) {
 	uint8_t *pValue = (uint8_t*)&Value;
 	*pValue = ReceiveBuffer[i + 1];
 	*(pValue + 1) = ReceiveBuffer[i];
+	return Value;
+}
+
+// Сборка unsigned int 32 из четырех байт
+static uint32_t uart_build_uint32(uint8_t i) {
+	uint32_t Value = 0;
+	uint8_t *pValue = (uint8_t*)&Value;
+	*pValue = ReceiveBuffer[i + 3];
+	*(pValue + 1) = ReceiveBuffer[i + 2];
+	*(pValue + 2) = ReceiveBuffer[i + 1];
+	*(pValue + 3) = ReceiveBuffer[i];
 	return Value;
 }
 

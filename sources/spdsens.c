@@ -2,6 +2,7 @@
 #include <stdint.h>				// Коротние название int.
 
 #include "spdsens.h"			// Свой заголовок.
+#include "tcudata.h"			// Расчет и хранение всех необходимых параметров.
 #include "configuration.h"		// Настройки.
 
 // Минимальное сырое значения для фильтрации ошибочных значений.
@@ -127,6 +128,14 @@ ISR (TIMER4_CAPT_vect) {
 		DrumArray[DrumPos] = ICR4;
 		DrumPos++;
 		if (DrumPos >= SENSOR_BUFFER_SIZE) {DrumPos = 0;}
+	}
+
+	// Подсчет пробега в оборотах выходного вала.
+	static uint8_t MCounter = 0;
+	MCounter++;
+	if (MCounter >= OUTPUT_SHAFT_TEETH_COUNT) {
+		APP.RevCounter++;
+		MCounter = 0;
 	}
 }
 // Прерывание по переполнению таймера 4.

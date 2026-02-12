@@ -43,7 +43,7 @@ CFG_t CFG = {
 	.G3AdaptTempMaxTPS = 35,
 
 	.SpeedImpulsPerKM = 6000,
-	.SpeedCalcCoef = 114,
+	.SpeedCalcCoef = 227,
 
 	.BaroCorrEnable = 0,
 	.DefaultBaroPressure = 102,

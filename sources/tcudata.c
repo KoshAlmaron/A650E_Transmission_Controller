@@ -19,6 +19,7 @@ TCU_t TCU = {
 	.DrumRPMDelta = 0,
 	.OutputRPM = 0,
 	.CarSpeed = 0,
+	.MeterCounter = 0,
 	.OilTemp = 0,
 	.TPS = 0,
 	.InstTPS = 0,
@@ -58,6 +59,11 @@ TCU_t TCU = {
 	.ManualModeTimer = 0
 };
 
+APP_t APP = {
+	.FirmwareVersion = 0,
+	.RevCounter = 0
+};
+
 uint8_t SpeedTestFlag = 0;	// Флаг включения тестирования скорости.
 
 // Прототипы локальных функций.
@@ -95,11 +101,11 @@ static uint16_t get_car_speed() {
 	// Главная пара - 3.909,
 	// Длина окружности колеса - 1.807 м,
 	// Коэффициент для оборотов = 1 / 3.909 * 1.807 * 60 / 1000 = 0.027735994,
-	// Умножаем на 4096 (смещение 12 бит) = 113.6066309,
+	// Умножаем на 8192 (смещение 13 бит) = 227.2132617,
 	// Округляем до целого и получается 114.
 
 	if (SpeedTestFlag) {return 100;}
-	else {return ((uint32_t) TCU.OutputRPM * CFG.SpeedCalcCoef) >> 12;}
+	else {return ((uint32_t) TCU.OutputRPM * CFG.SpeedCalcCoef) >> 13;}
 }
 
 // Расчет значения регистра сравнения для таймера спидометра.
@@ -150,6 +156,11 @@ void calc_tps() {
 			TCU.TPS -= 1;
 		}
 	}
+}
+
+// Возвращает пробег в метрах из оборотов.
+uint32_t get_meters_count() {
+	return (uint32_t) APP.RevCounter / 491LU * CFG.SpeedCalcCoef;
 }
 
 uint16_t get_slt_pressure() {

@@ -26,11 +26,8 @@
 
 #define VERSION_YEAR 2026
 #define VERSION_MONTH 2
-#define VERSION_DAY 11
+#define VERSION_DAY 12
 #define VERSION_ADD 0
-
-// Версия прошивки.
-uint16_t FirmwareVersion = ((VERSION_YEAR - 2026) << 11) | (VERSION_MONTH << 7) | (VERSION_DAY << 2) | VERSION_ADD;
 
 // Основной счетчик времени,
 // увеличивается по прерыванию на единицу каждую 1 мс.
@@ -82,6 +79,8 @@ int main() {
 		wdt_reset();
 	sei();				// Включаем глобальные прерывания.
 
+	// Версия прошивки.
+	APP.FirmwareVersion = ((VERSION_YEAR - 2026) << 11) | (VERSION_MONTH << 7) | (VERSION_DAY << 2) | VERSION_ADD;
 	wdt_enable(WDTO_250MS);	// Сторожевой собак на 250 мс.
 	while(1) {
 		loop_main(0);			// Основной цикл, выполняется всегда.

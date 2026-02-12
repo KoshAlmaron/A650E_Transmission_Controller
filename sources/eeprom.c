@@ -33,6 +33,8 @@
 
 static void read_eeprom_adaptation();
 
+static void read_eeprom_add_variables();
+
 // ========================== Таблицы с адаптацией ============================
 static void read_eeprom_adaptation() {
 	eeprom_read_block((void*)&ADAPT, (const void*) TABLES_START_BYTE_ADAPT, sizeof(ADAPT));
@@ -61,7 +63,8 @@ void read_eeprom_tables() {
 		return;
 	}
 	eeprom_read_block((void*)&TABLES, (const void*) TABLES_START_BYTE_MAIN, sizeof(TABLES));
-	read_eeprom_adaptation();
+	read_eeprom_adaptation();	// Чтение таблиц адаптации.
+	read_eeprom_add_variables();		// Чтение дополнительных таблиц.
 }
 
 // Запись EEPROM.
@@ -144,4 +147,12 @@ void update_eeprom_config() {
 	wdt_enable(WDTO_250MS);
 }
 
+// ====================== Вспомогательные переменные ==========================
 
+static void read_eeprom_add_variables() {
+	APP.RevCounter = eeprom_read_dword((uint32_t*) OTHER_START_BYTE + 0);
+}
+
+void update_eeprom_add_variables() {
+	eeprom_update_dword((uint32_t*) OTHER_START_BYTE + 0, APP.RevCounter);
+}

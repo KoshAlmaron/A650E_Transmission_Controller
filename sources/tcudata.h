@@ -7,6 +7,7 @@
 	uint16_t get_speed_timer_value();
 	int16_t get_oil_temp();
 	void calc_tps();
+	uint32_t get_meters_count();
 
 	uint16_t get_slt_pressure();
 	int16_t get_slt_temp_corr(int16_t Value);
@@ -32,13 +33,14 @@
 	void save_gear2_adv_adaptation(int8_t Value, int16_t InitDrumRPMDelta);
 	void save_gear3_slu_adaptation(int8_t Value, uint8_t TPS);
 
-	// Структура для хранения переменных.
+	// Структура для хранения рабочих переменных.
 	typedef struct TCU_t {
 		uint16_t EngineRPM;			// Обороты двигателя.
 		uint16_t DrumRPM;			// Обороты корзины овердрайва.
 		int16_t DrumRPMDelta;		// Скорость изменения оборотов корзины овердрайва.		
 		uint16_t OutputRPM;			// Обороты выходного вала.
 		uint8_t CarSpeed;			// Скорость автомобиля.
+		uint32_t MeterCounter;		// Пробег в метрах.
 		int16_t OilTemp;			// Температура масла.
 		uint16_t TPS;				// ДПДЗ усредненый для расчетов.
 		uint16_t InstTPS;			// ДПДЗ мгновенный.
@@ -77,8 +79,14 @@
 		int8_t AdaptationFlagTemp;	// Флаг срабатывания адаптации по температуре.
 		uint16_t ManualModeTimer;	// Режим ручного переключения передач (Типтроник).
 	} TCU_t;
-
 	extern struct TCU_t TCU; 	// Делаем структуру с параметрами внешней.
+
+	// Структура для хранения вспомогательных переменных.
+	typedef struct APP_t {
+		uint16_t FirmwareVersion;	// Версия прошивки.
+		uint32_t RevCounter;		// Счетчик оборотов выходного вала.
+	} APP_t;
+	extern struct APP_t APP;
 
 	// Размеры массивов.
 	#define TPS_GRID_SIZE 21 

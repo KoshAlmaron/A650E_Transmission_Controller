@@ -20,4 +20,6 @@
 	void read_eeprom_config();
 	void update_eeprom_config();
 
+	void update_eeprom_add_variables();
+
 #endif
