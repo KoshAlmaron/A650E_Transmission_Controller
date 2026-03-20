@@ -190,9 +190,24 @@ static void gear_change_1_2() {
 
 static void gear_change_2_3() {
 	// Не включать третью при недовключенной второй передаче.
-	if (TCU.Gear2State != 8 && TCU.InstTPS > CFG.IdleTPSLimit) {return;}
+	if (TCU.Gear2State != 8 && TCU.InstTPS > CFG.IdleTPSLimit && !TCU.ManualModeTimer) {return;}
 	TCU.GearChange = 1;
-	
+
+	// Ручное включение третьей передачи при выключенной второй.
+	if (TCU.Gear2State == 0) {
+		set_slu(CFG.MinPressureSLU);
+		set_sln(get_sln_pressure_gear3());
+		loop_wait(GearChangeStep * 5);
+
+		set_solenoids(3);
+		loop_wait(GearChangeStep * 2);
+		set_sln(CFG.IdlePressureSLN);
+
+		TCU.Gear = 3;
+		TCU.GearChange = 0;
+		return;
+	}
+
 	set_solenoids(3);		// Установка шифтовых соленоидов.
 
 	set_slu(get_slu_pressure_gear3());
@@ -289,7 +304,8 @@ static void gear_change_3_4() {
 	TCU.GearChangeSLT = TCU.SLT;
 	TCU.GearChangeSLN = TCU.SLN;
 	
-	gear_change_wait(GearChangeStep * 20, 4);
+	if (TCU.ManualModeTimer) {gear_change_wait(GearChangeStep * 5, 4);}
+	else {gear_change_wait(GearChangeStep * 20, 4);}
 
 	TCU.Gear = 4;
 	TCU.GearChange = 0;	
@@ -300,9 +316,10 @@ static void gear_change_4_5() {
 	TCU.GearChange = 1;
 
 	set_solenoids(5);		// Установка шифтовых соленоидов.
-
 	set_sln(get_sln_pressure());
-	gear_change_wait(GearChangeStep * 20, 5);
+
+	if (TCU.ManualModeTimer) {gear_change_wait(GearChangeStep * 5, 5);}
+	else {gear_change_wait(GearChangeStep * 20, 5);}
 
 	TCU.Gear = 5;
 	TCU.GearChange = 0;	
@@ -323,9 +340,9 @@ static void gear_change_5_4() {
 
 	set_solenoids(4);		// Установка шифтовых соленоидов.
 
-	loop_wait(GearChangeStep * 14);
+	loop_wait(GearChangeStep * 10);
 	set_sln(CFG.IdlePressureSLN);
-	SET_PIN_LOW(REQUEST_POWER_DOWN_PIN);
+	//SET_PIN_LOW(REQUEST_POWER_DOWN_PIN);
 
 	TCU.Gear = 4;
 	TCU.GearChange = 0;		
@@ -345,7 +362,7 @@ static void gear_change_4_3() {
 		TCU.Glock = 64;			// Сброс счётчика блокировки
 	}
 
-	loop_wait(GearChangeStep * 10);
+	loop_wait(GearChangeStep * 8);
 	set_sln(CFG.IdlePressureSLN);
 
 	TCU.Gear = 3;
@@ -403,7 +420,7 @@ static void gear_change_2_1() {
 
 	set_slu(CFG.MinPressureSLU);
 	set_sln(get_sln_pressure());
-	loop_wait(GearChangeStep * 10);
+	loop_wait(GearChangeStep * 8);
 	set_sln(CFG.IdlePressureSLN);
 
 	TCU.Gear = 1;
@@ -440,7 +457,7 @@ void gear_control() {
 		// При коротком нажатии сбрасывается таймер ожидания.
 		if (is_button_press_short(TIP_GEAR_UP)) {	// Короткое нажатие вверх.
 			TCU.ManualModeTimer = CFG.TiptronicTimer;
-			if (TCU.Gear < MaxGear[TCU.ATMode] && rpm_after_ok(1)) {gear_up();}
+			if (TCU.Gear < MaxGear[TCU.ATMode]) {gear_up();}
 			return;
 		}
 		if (is_button_press_short(TIP_GEAR_DOWN)) {	// Короткое нажатие вниз.
@@ -486,7 +503,6 @@ void gear_control() {
 		return;
 	}
 }
-
 
 void slu_gear2_control() {
 	// Дельта оборотов, при котором началось переключение.

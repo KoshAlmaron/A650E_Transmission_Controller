@@ -65,7 +65,7 @@ static void button_read(uint8_t N, uint8_t State) {
 	if (ButtonState[N] < 100) {
 		if (!State) {
 			ButtonState[N]++;
-			if (ButtonState[N] >= 60) {ButtonState[N] = 202;}	// Длиное нажатие.
+			if (ButtonState[N] >= 12) {ButtonState[N] = 202;}	// Длиное нажатие.
 		}
 		else {
 			if (ButtonState[N] >= 2) {ButtonState[N] = 201;}	// Короткое нажатие.
