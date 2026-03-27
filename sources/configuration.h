@@ -64,7 +64,8 @@
 		uint8_t G3AdaptTempMaxTPS;		// Максимальное положение ДПДЗ для работы адаптации по температуре.
 
 		uint16_t SpeedImpulsPerKM;		// Количество импульсов на 1 км для выхода сигнала спидометра.
-		uint16_t SpeedCalcCoef;			// Коэффициент для расчета скорости авто.
+		uint16_t SpeedCalcCoef;			// Коэффициент для расчета скорости авто (x8192). 
+		uint16_t MeterCalcCoef;			// Коэффициент для расчета пробега по оборотам (x256).
 
 		uint8_t BaroCorrEnable;			// Барокоррекция.
 		uint8_t DefaultBaroPressure;	// Базовое атмосферное давление.

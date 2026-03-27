@@ -160,7 +160,7 @@ void calc_tps() {
 
 // Возвращает пробег в метрах из оборотов.
 uint32_t get_meters_count() {
-	return (uint32_t) APP.RevCounter / 491LU * CFG.SpeedCalcCoef;
+	return ((uint32_t) (APP.RevCounter >> 8) * CFG.MeterCalcCoef);
 }
 
 uint16_t get_slt_pressure() {

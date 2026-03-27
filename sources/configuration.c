@@ -44,6 +44,7 @@ CFG_t CFG = {
 
 	.SpeedImpulsPerKM = 6000,
 	.SpeedCalcCoef = 227,
+	.MeterCalcCoef = 118,
 
 	.BaroCorrEnable = 0,
 	.DefaultBaroPressure = 102,

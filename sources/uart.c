@@ -350,7 +350,7 @@ void uart_command_processing() {
 			break;
 		case NEW_REV_COUNTER:
 			if (RxBuffPos == 6) {
-				APP.RevCounter = (uint32_t) uart_build_uint32(2) / CFG.SpeedCalcCoef * 491LU;
+				APP.RevCounter = ((uint32_t) uart_build_uint32(2) / CFG.MeterCalcCoef) << 8;
 				update_eeprom_add_variables();
 			}
 			break;
