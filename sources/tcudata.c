@@ -354,6 +354,8 @@ static int16_t get_cell_adapt_step(uint8_t N, int16_t Value, int16_t LeftCell, i
 void save_gear2_slu_adaptation(int8_t Value, uint8_t TPS) {
 	// Отключение адаптации при ручном управлении.
 	if (TCU.ManualModeTimer) {return;}
+	// Отключение адаптации в режиме "2".
+	if (TCU.Selector == 7) {return;}
 
 	uint8_t Index = 0;
 	int8_t AdaptStep = 0;
@@ -397,7 +399,6 @@ void save_gear2_slu_adaptation(int8_t Value, uint8_t TPS) {
 void save_gear2_adv_adaptation(int8_t Value, int16_t InitDrumRPMDelta) {
 	// Отключение адаптации при ручном управлении.
 	if (TCU.ManualModeTimer) {return;}
-
 	if (InitDrumRPMDelta < CFG.G2AdaptReactMinDRPM)	{return;}
 
 	// Дельта оборотов может выходить за пределы сетки.

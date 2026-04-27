@@ -25,7 +25,7 @@
 #include "bmp180.h"			// Модуль измерения давления.
 
 #define VERSION_YEAR 2026
-#define VERSION_MONTH 3
+#define VERSION_MONTH 4
 #define VERSION_DAY 27
 #define VERSION_ADD 0
 

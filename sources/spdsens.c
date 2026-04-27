@@ -129,14 +129,6 @@ ISR (TIMER4_CAPT_vect) {
 		DrumPos++;
 		if (DrumPos >= SENSOR_BUFFER_SIZE) {DrumPos = 0;}
 	}
-
-	// Подсчет пробега в оборотах выходного вала.
-	static uint8_t MCounter = 0;
-	MCounter++;
-	if (MCounter >= OUTPUT_SHAFT_TEETH_COUNT) {
-		APP.RevCounter++;
-		MCounter = 0;
-	}
 }
 // Прерывание по переполнению таймера 4.
 ISR (TIMER4_OVF_vect) {
@@ -154,6 +146,14 @@ ISR (TIMER5_CAPT_vect) {
 		OutputArray[OutputPos] = ICR5;
 		OutputPos++;
 		if (OutputPos >= SENSOR_BUFFER_SIZE) {OutputPos = 0;}
+	}
+
+	// Подсчет пробега в оборотах выходного вала.
+	static uint8_t MCounter = 0;
+	MCounter++;
+	if (MCounter >= OUTPUT_SHAFT_TEETH_COUNT) {
+		APP.RevCounter++;
+		MCounter = 0;
 	}
 }
 // Прерывание по переполнению таймера 5.

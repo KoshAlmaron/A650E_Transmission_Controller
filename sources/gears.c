@@ -337,10 +337,10 @@ static void gear_change_5_4() {
 		TCU.Glock = 64;			// Сброс счётчика блокировки
 	}
 	set_sln(get_sln_pressure());
-
+	loop_wait(GearChangeStep * 2);
 	set_solenoids(4);		// Установка шифтовых соленоидов.
 
-	loop_wait(GearChangeStep * 10);
+	loop_wait(GearChangeStep * 8);
 	set_sln(CFG.IdlePressureSLN);
 	//SET_PIN_LOW(REQUEST_POWER_DOWN_PIN);
 
@@ -350,17 +350,17 @@ static void gear_change_5_4() {
 
 static void gear_change_4_3() {
 	TCU.GearChange = -1;
-	
-	set_solenoids(3);		// Установка шифтовых соленоидов.
-	// Отличие для режима 3. 
-	if (TCU.ATMode == 6) {SET_PIN_HIGH(SOLENOID_S3_PIN);}
-
-	set_sln(get_sln_pressure());
 
 	if (TCU.Glock) {			// Отключаем блокировку ГТ.
 		set_slu(CFG.MinPressureSLU);
 		TCU.Glock = 64;			// Сброс счётчика блокировки
 	}
+	set_sln(get_sln_pressure());
+	loop_wait(GearChangeStep * 2);
+	
+	set_solenoids(3);		// Установка шифтовых соленоидов.
+	// Отличие для режима 3. 
+	if (TCU.ATMode == 6) {SET_PIN_HIGH(SOLENOID_S3_PIN);}
 
 	loop_wait(GearChangeStep * 8);
 	set_sln(CFG.IdlePressureSLN);
@@ -573,6 +573,7 @@ void slu_gear2_control() {
 				while (WaitTimer) {
 					loop_main(1);
 					DeltaRPM = rpm_delta(2);
+					TCU.GearDownSpeed = get_gear_min_speed(TCU.Gear);
 
 					// Отключение передачи при сбросе газа.
 					if (TCU.InstTPS <= CFG.IdleTPSLimit && TCU.ATMode != 6 && TCU.ATMode != 7) {
@@ -580,6 +581,13 @@ void slu_gear2_control() {
 						set_slu(CFG.MinPressureSLU);
 						loop_wait(200);
 						TCU.Gear2State = 0;
+						return;
+					}
+
+					// Скорость ниже порога.
+					if (TCU.CarSpeed < TCU.GearDownSpeed) {
+						TCU.Gear2State = 0;
+						gear_change_2_1();
 						return;
 					}
 
