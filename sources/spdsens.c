@@ -11,7 +11,7 @@
 // #define MIN_RAW_VALUE_OUT 152
 
 // Шаг 0.5мкс (1/8).
-#define MIN_RAW_VALUE_OD 1380
+#define MIN_RAW_VALUE_OD 1040
 #define MIN_RAW_VALUE_OUT 1380
 
 // Размер буфера и размер битового сдвига для деления.

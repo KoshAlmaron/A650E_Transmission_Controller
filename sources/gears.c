@@ -432,7 +432,7 @@ static void gear_change_2_1() {
 
 // Контроль переключения передач.
 void gear_control() {
-	if (TCU.ManualModeTimer) {TCU.ManualModeTimer--;}
+	if (TCU.ManualModeTimer && CFG.TiptronicTimer) {TCU.ManualModeTimer--;}
 
 	// Только режимы D - L.
 	if (TCU.ATMode < 4 || TCU.ATMode > 8) {return;}
@@ -456,12 +456,12 @@ void gear_control() {
 	if (CFG.TiptronicEnable) {
 		// При коротком нажатии сбрасывается таймер ожидания.
 		if (is_button_press_short(TIP_GEAR_UP)) {	// Короткое нажатие вверх.
-			TCU.ManualModeTimer = CFG.TiptronicTimer;
+			TCU.ManualModeTimer = CFG.TiptronicTimer + 1;
 			if (TCU.Gear < MaxGear[TCU.ATMode]) {gear_up();}
 			return;
 		}
 		if (is_button_press_short(TIP_GEAR_DOWN)) {	// Короткое нажатие вниз.
-			TCU.ManualModeTimer = CFG.TiptronicTimer;
+			TCU.ManualModeTimer = CFG.TiptronicTimer + 1;
 			if (TCU.Gear > MinGear[TCU.ATMode] && rpm_after_ok(-1)) {gear_down();}
 			return;
 		}
@@ -470,7 +470,6 @@ void gear_control() {
 			TCU.ManualModeTimer = 0;
 			return;
 		}
-
 		// При удержании кнопки вверх сбросится таймер,
 		// и будет удержание текущей передачи до отпускания кнопки.
 		if (is_button_hold_down(TIP_GEAR_UP)) {return;}
@@ -479,7 +478,6 @@ void gear_control() {
 			if (TCU.Gear > MinGear[TCU.ATMode] && rpm_after_ok(-1)) {gear_down();}
 			return;
 		}
-
 		// При удержании кнопки вниз произойдёт переключение вниз,
 		// и удержание передачи до отпускания кнопки.
 		if (is_button_hold_down(TIP_GEAR_DOWN)) {return;}
