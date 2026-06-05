@@ -1,4 +1,4 @@
-# Блок управления АКПП Toyota A650E (Aisin 35-50LS
+# Блок управления АКПП Toyota A650E (Aisin 35-50LS)
 
 # Название проекта
 PROJECT = A650E_Transmission_Controller
@@ -10,7 +10,7 @@ BAUD = 115200
 PORT = COM5
 
 # Комманды и опции компиляции
-BIN = C:/avr-gcc/bin/
+BIN = c:/avr-gcc/bin/
 COMPILE = $(BIN)avr-gcc -Wall -Os -mmcu=$(DEVICE) -DF_CPU=$(F_CPU)
 OBJCOPY = $(BIN)avr-objcopy
 OBJDUMP = $(BIN)avr-objdump

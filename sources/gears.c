@@ -164,7 +164,7 @@ static void gear_change_1_2() {
 
 			if (TCU.LastStep == GEAR_2_MAX_STEP) {TCU.LastStep = TCU.GearStep;}
 
-			if (TCU.GearStep < 13 && !Adaptation) {
+			if (TCU.GearStep < 14 && !Adaptation) {
 				// Передача включилась слишком рано,
 				// снижаем давление на 1 единицу.
 				Adaptation = -1;
@@ -296,16 +296,16 @@ static void gear_change_2_3() {
 static void gear_change_3_4() {
 	TCU.GearChange = 1;
 
-	set_solenoids(4);		// Установка шифтовых соленоидов.
-
 	set_sln(get_sln_pressure());
+	loop_wait(GearChangeStep * 3);
+	set_solenoids(4);		// Установка шифтовых соленоидов.
 
 	TCU.GearChangeTPS = TCU.Load;
 	TCU.GearChangeSLT = TCU.SLT;
 	TCU.GearChangeSLN = TCU.SLN;
 	
-	if (TCU.ManualModeTimer) {gear_change_wait(GearChangeStep * 5, 4);}
-	else {gear_change_wait(GearChangeStep * 20, 4);}
+	if (TCU.ManualModeTimer) {gear_change_wait(GearChangeStep * 4, 4);}
+	else {gear_change_wait(GearChangeStep * 15, 4);}
 
 	TCU.Gear = 4;
 	TCU.GearChange = 0;	
@@ -315,11 +315,12 @@ static void gear_change_4_5() {
 	if (TCU.OilTemp < 30) {return;}
 	TCU.GearChange = 1;
 
-	set_solenoids(5);		// Установка шифтовых соленоидов.
 	set_sln(get_sln_pressure());
+	loop_wait(GearChangeStep * 3);
+	set_solenoids(5);		// Установка шифтовых соленоидов.
 
-	if (TCU.ManualModeTimer) {gear_change_wait(GearChangeStep * 5, 5);}
-	else {gear_change_wait(GearChangeStep * 20, 5);}
+	if (TCU.ManualModeTimer) {gear_change_wait(GearChangeStep * 4, 5);}
+	else {gear_change_wait(GearChangeStep * 15, 5);}
 
 	TCU.Gear = 5;
 	TCU.GearChange = 0;	
@@ -337,7 +338,7 @@ static void gear_change_5_4() {
 		TCU.Glock = 64;			// Сброс счётчика блокировки
 	}
 	set_sln(get_sln_pressure());
-	loop_wait(GearChangeStep * 2);
+	loop_wait(GearChangeStep * 3);
 	set_solenoids(4);		// Установка шифтовых соленоидов.
 
 	loop_wait(GearChangeStep * 8);

@@ -118,9 +118,13 @@ uint16_t get_speed_timer_value() {
 	// Рассчитываем итоговый коэффициент для вычисления (28125).
 
 	#define SPEED_FREQ_COEF 125000LU * 3600LU
-	if (TCU.CarSpeed == 0) {return 0;}
+	uint8_t Speed = TCU.CarSpeed;
+	if (Speed < 2) {
+		if (TCU.Gear != 0) {Speed = 2;}
+		else {return 0;}
+	}
 
-	return ((uint32_t) SPEED_FREQ_COEF / ((uint32_t) CFG.SpeedImpulsPerKM * TCU.CarSpeed));
+	return ((uint32_t) SPEED_FREQ_COEF / ((uint32_t) CFG.SpeedImpulsPerKM * Speed));
 }
 
 // Расчет температуры масла.

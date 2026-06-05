@@ -1,4 +1,4 @@
-// Kosh
+// PacAT
 // Настройки.
 
 #ifndef _CONFIGURATION_H_
@@ -8,7 +8,11 @@
 	// с портами, после чего отправка переключится на стандартный пакет.
 	#define SEND_PORT_STATE_COUNT 20
 
-	// Время отображения флага адаптации в шагах, 1 шаг 50мс (Период отправки данных в UART).
+	// Период отправки телеметрии TCU в VolgoCAN (CAN-like) по UART2, мс.
+	// Влияет ТОЛЬКО на частоту вызова can_send_tcu_data() в _main.c.
+	#define CAN_DATA_TX_PERIOD_MS 150	//patch
+
+	// Время отображения флага адаптации в шагах, 1 шаг = период отправки телеметрии по основному UART.
 	#define ADAPT_FLAG_STATE_COUNT 40
 
 	// Инверсия ШИМ соленоидов для разных вариантов железа.
@@ -19,15 +23,22 @@
 
 	// Инверсия входов, по умолчанию активный уровень 5В с внешней поддтяжкой к земле.
 	// При инверсии включается встроенная подтяжка к +5В 20кОм.
-	//#define INVERSE_BREAK_PEDAL
+	#define INVERSE_BREAK_PEDAL
 
 	// Наличие режима D4, используется для выбора режима ограничения передач (set_gear_limit).
-	#define SELECTOR_HAS_D4_MODE
+	//#define SELECTOR_HAS_D4_MODE
 
 	// Использовать обороты для определения работы двигателя.
-	//#define USE_ENGINE_RPM
+	#define USE_ENGINE_RPM
 	#define ENGINE_ON_RPM_THRESHOLD 500		// Порог определения запуска двигателя.
-	#define ENGINE_OFF_RPM_THRESHOLD 0		// Порог определения останова двигателя.
+	#define ENGINE_OFF_RPM_THRESHOLD 0	// Порог определения останова двигателя.
+	
+	//Нештатный код/patch
+	//второй выход скорости (на круиз)
+	#define SPEED2_OUT_ENABLED
+	#define SPEED2_DIV_TOTAL_PULSES     8	//(делитель по частоте, больше - ниже частота)
+	#define SPEED2_DIV_HIGH_PULSES      4	// Сколько импульсов из них в уровне HIGH (скважность)
+	//Нештатный код/patch
 
 	// Структура для хранения настроек.
 	typedef struct CFG_t {

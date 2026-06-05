@@ -226,10 +226,9 @@ void rear_lamp() {
 }
 
 void speedometer_control() {
-	if (TCU.CarSpeed > 0) {
+	uint16_t NewValue = get_speed_timer_value();
+	if (NewValue > 0) {
 		TCCR3A |= (1 << COM3A0);			// Toggle OC3A.
-
-		uint16_t NewValue = get_speed_timer_value();
 		// Чтобы не было пропуска при уменьшении значения.
 		cli();
 			if (TCNT3 < NewValue) {OCR3A = NewValue;}

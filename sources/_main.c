@@ -23,10 +23,11 @@
 #include "lcd.h"			// LCD экран.
 #include "buttons.h"		// Кнопки.
 #include "bmp180.h"			// Модуль измерения давления.
+#include "tacho.h"			// Тахометр двигателя (для флага EW).
 
 #define VERSION_YEAR 2026
-#define VERSION_MONTH 5
-#define VERSION_DAY 19
+#define VERSION_MONTH 6
+#define VERSION_DAY 5
 #define VERSION_ADD 0
 
 // Основной счетчик времени,
@@ -66,6 +67,7 @@ int main() {
 		selector_init();	// Настройка выводов для селектора.
 		solenoid_init();	// Настройка выходов селеноидов, а также лампы заднего хода.
 		buttons_init();		// Настройка выводов для типтроника.
+		tacho_init();		// Обороты двигателя по сигналу тахометра.
 		debug_mode_init();	// Настройка перефирии для режима отладки.
 
 		wdt_reset();			// Сброс сторожевого таймера.
@@ -114,6 +116,8 @@ void loop_main(uint8_t Wait) {
 
 		if (WaitTimer > TimerAdd) {WaitTimer -= TimerAdd;}
 		else {WaitTimer = 0;}
+
+		tacho_timer(TimerAdd);
 
 		// Отключение счетчиков дополнительного цикла.
 		if (!Wait) {
