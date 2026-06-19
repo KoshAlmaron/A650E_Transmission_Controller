@@ -204,6 +204,16 @@ int16_t get_sln_temp_corr(int16_t Value) {
 uint16_t get_sln_pressure_gear3() {
 	// Вычисляем значение в зависимости от ДПДЗ.
 	uint16_t SLN = get_interpolated_value_uint16_t(TCU.Load, GRIDS.TPSGrid, TABLES.SLNGear3Graph, TPS_GRID_SIZE);
+	// Применяем коррекцию по температуре.
+	SLN = CONSTRAIN(SLN + get_sln_temp_corr(SLN), 20, 980);
+	return SLN;
+}
+
+uint16_t get_sln_pressure_gear5() {
+	// Вычисляем значение в зависимости от ДПДЗ.
+	uint16_t SLN = get_interpolated_value_uint16_t(TCU.Load, GRIDS.TPSGrid, TABLES.SLNGear5Graph, TPS_GRID_SIZE);
+	// Применяем коррекцию по температуре.
+	SLN = CONSTRAIN(SLN + get_sln_temp_corr(SLN), 20, 980);
 	return SLN;
 }
 

@@ -22,6 +22,8 @@
 	uint16_t get_gear3_slu_delay();
 	uint16_t get_sln_pressure_gear3();
 	int16_t get_gear3_sln_offset();
+
+	uint16_t get_sln_pressure_gear5();
 	
 	int16_t rpm_delta(uint8_t Gear);
 
@@ -140,7 +142,9 @@
 		uint16_t SLNGear3Graph[TPS_GRID_SIZE];				// Давление SLN при включении третьей передачи.
 		int16_t SLNGear3OffsetGraph[TPS_GRID_SIZE];			// Смещение времени включения SLN при включении третьей передачи.
 
-		uint16_t GearChangeStepArray[TPS_GRID_SIZE];	// Длина одного шага времени на переключение от ДПДЗ.
+		uint16_t GearChangeStepArray[TPS_GRID_SIZE];		// Длина одного шага времени на переключение от ДПДЗ.
+
+		uint16_t SLNGear5Graph[TPS_GRID_SIZE];				// Давление SLN при включении пятой передачи.
 	} TABLES_t;
 	extern struct TABLES_t TABLES; // Основные таблицы.
 
@@ -183,8 +187,9 @@
 	#define SLU_GEAR3_TEMP_ADAPT_GRAPH			17
 	#define SLN_GEAR3_GRAPH						18
 	#define SLN_GEAR3_OFFSET_GRAPH				19
-	#define TPS_ADC_GRAPH						20
-	#define OIL_ADC_GRAPH						21
-	#define GEAR_SPEED_GRAPHS					22
+	#define SLN_GEAR5_GRAPH						20
+	#define TPS_ADC_GRAPH						21
+	#define OIL_ADC_GRAPH						22
+	#define GEAR_SPEED_GRAPHS					23
 
 #endif

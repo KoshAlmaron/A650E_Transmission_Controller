@@ -15,6 +15,7 @@ extern uint16_t WaitTimer;			// Таймер ожидания из main.
 uint16_t GearChangeStep = 100;		// Шаг времени на переключение передачи.
 
 #define GEAR_2_MAX_STEP 20			// Количество шагов при включении второй передачи.
+#define GEAR_CHANGE_MAX_TIME 2500	// Максимальное время переключения передачи.
 
 // Максимальная и минимальная передача для каждого режима.
 //					I  P   R  N  D  D4 D3 L2 L  E  M
@@ -44,7 +45,7 @@ static void loop_wait(uint16_t Delay);
 
 static uint8_t rpm_after_ok(uint8_t Shift);
 
-static void gear_change_wait(uint16_t Delay, uint8_t Gear);
+static void gear_change_wait(int8_t GearChange, int8_t Add);
 
 //static void set_slt(uint8_t Value);
 static void set_sln(uint16_t Value);
@@ -138,6 +139,7 @@ static void gear_change_1_2() {
 			if (TCU.InstTPS <= CFG.IdleTPSLimit && TCU.ATMode != 6 && TCU.ATMode != 7) {
 				set_solenoids(1);
 				set_slu(CFG.MinPressureSLU);
+				set_sln(CFG.IdlePressureSLN);
 				loop_wait(200);
 				TCU.Gear = 2;
 				TCU.Gear2State = 0;
@@ -304,8 +306,7 @@ static void gear_change_3_4() {
 	TCU.GearChangeSLT = TCU.SLT;
 	TCU.GearChangeSLN = TCU.SLN;
 	
-	if (TCU.ManualModeTimer) {gear_change_wait(GearChangeStep * 4, 4);}
-	else {gear_change_wait(GearChangeStep * 15, 4);}
+	gear_change_wait(1, 0);
 
 	TCU.Gear = 4;
 	TCU.GearChange = 0;	
@@ -315,12 +316,11 @@ static void gear_change_4_5() {
 	if (TCU.OilTemp < 30) {return;}
 	TCU.GearChange = 1;
 
-	set_sln(get_sln_pressure());
+	set_sln(get_sln_pressure_gear5());
 	loop_wait(GearChangeStep * 3);
 	set_solenoids(5);		// Установка шифтовых соленоидов.
 
-	if (TCU.ManualModeTimer) {gear_change_wait(GearChangeStep * 4, 5);}
-	else {gear_change_wait(GearChangeStep * 15, 5);}
+	gear_change_wait(1, 0);
 
 	TCU.Gear = 5;
 	TCU.GearChange = 0;	
@@ -333,17 +333,19 @@ static void gear_change_5_4() {
 	// Подгазовка.
 	//if (TCU.InstTPS <= CFG.IdleTPSLimit) {SET_PIN_HIGH(REQUEST_POWER_DOWN_PIN);}
 	
+	// Добавка к значению SLN из таблицы.
+	int8_t Add = 64;
+
 	if (TCU.Glock) {			// Отключаем блокировку ГТ.
 		set_slu(CFG.MinPressureSLU);
 		TCU.Glock = 64;			// Сброс счётчика блокировки
 	}
-	set_sln(get_sln_pressure());
+
+	set_sln(get_sln_pressure() + Add);
 	loop_wait(GearChangeStep * 3);
 	set_solenoids(4);		// Установка шифтовых соленоидов.
 
-	loop_wait(GearChangeStep * 8);
-	set_sln(CFG.IdlePressureSLN);
-	//SET_PIN_LOW(REQUEST_POWER_DOWN_PIN);
+	gear_change_wait(-1, Add);
 
 	TCU.Gear = 4;
 	TCU.GearChange = 0;		
@@ -352,19 +354,21 @@ static void gear_change_5_4() {
 static void gear_change_4_3() {
 	TCU.GearChange = -1;
 
+	// Добавка к значению SLN из таблицы.
+	int8_t Add = 32;
+
 	if (TCU.Glock) {			// Отключаем блокировку ГТ.
 		set_slu(CFG.MinPressureSLU);
 		TCU.Glock = 64;			// Сброс счётчика блокировки
 	}
-	set_sln(get_sln_pressure());
-	loop_wait(GearChangeStep * 2);
+	set_sln(get_sln_pressure() + Add);
+	loop_wait(GearChangeStep * 3);
 	
-	set_solenoids(3);		// Установка шифтовых соленоидов.
+	set_solenoids(3);			// Установка шифтовых соленоидов.
 	// Отличие для режима 3. 
 	if (TCU.ATMode == 6) {SET_PIN_HIGH(SOLENOID_S3_PIN);}
 
-	loop_wait(GearChangeStep * 8);
-	set_sln(CFG.IdlePressureSLN);
+	gear_change_wait(-1, Add);
 
 	TCU.Gear = 3;
 	TCU.GearChange = 0;	
@@ -635,17 +639,26 @@ void solenoid_init() {
 	SET_PIN_LOW(REQUEST_POWER_DOWN_PIN);	
 }
 
-static void gear_change_wait(uint16_t Delay, uint8_t Gear) {
+static void gear_change_wait(int8_t GearChange, int8_t Add) {
 	uint8_t PDR = 0;
 	uint16_t PDRTime = 0;	// Для фиксации времени работы PDR.
 	if (TCU.Load > CFG.PowerDownMaxTPS) {PDR = -1;}
 	TCU.LastPDRTime = 0;
-	WaitTimer = Delay;		// Устанавливаем время ожидания.
+	WaitTimer = GEAR_CHANGE_MAX_TIME;		// Устанавливаем время ожидания.
 
-	while (WaitTimer && rpm_delta(Gear) > 35) {
-		set_sln(get_sln_pressure());
-		if (rpm_delta(Gear - 1) < -70) {	// Переключение началось.
-			if (TCU.Glock) {				// Отключаем блокировку ГТ.
+	// Отличие оборотов от текущей передачи.
+	int16_t DeltaCurr = rpm_delta(TCU.Gear) * GearChange;	
+	// Отличие оборотов от следующей передачи.
+	int16_t DeltaNext = rpm_delta(TCU.Gear + GearChange) * GearChange;
+
+	while (WaitTimer && DeltaNext > 35) {
+		DeltaCurr = rpm_delta(TCU.Gear) * GearChange;	
+		DeltaNext = rpm_delta(TCU.Gear + GearChange) * GearChange;
+
+		if (TCU.Gear == 4 && GearChange == 1) {set_sln(get_sln_pressure_gear5());}
+		else {set_sln(get_sln_pressure() + Add);}
+		if (DeltaCurr < -70) {						// Переключение началось.
+			if (TCU.Glock && GearChange == 1) {		// Отключаем блокировку ГТ.
 				set_slu(CFG.MinPressureSLU);
 				TCU.Glock = 64;				// Сброс счётчика блокировки
 			}
@@ -660,6 +673,7 @@ static void gear_change_wait(uint16_t Delay, uint8_t Gear) {
 
 	SET_PIN_LOW(REQUEST_POWER_DOWN_PIN);
 	if (PDR == 1) {TCU.LastPDRTime = PDRTime - WaitTimer;}
+	loop_wait(GearChangeStep * 3);
 	set_sln(CFG.IdlePressureSLN);
 }
 

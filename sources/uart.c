@@ -234,6 +234,9 @@ void uart_send_table(uint8_t N) {
 		case SLN_GEAR3_OFFSET_GRAPH:
 			for (uint8_t i = 0; i < TPS_GRID_SIZE; i++) {uart_buffer_add_int16(TABLES.SLNGear3OffsetGraph[i]);}
 			break;
+		case SLN_GEAR5_GRAPH:
+			for (uint8_t i = 0; i < TPS_GRID_SIZE; i++) {uart_buffer_add_uint16(TABLES.SLNGear5Graph[i]);}
+			break;
 		case TPS_ADC_GRAPH:
 			for (uint8_t i = 0; i < TPS_GRID_SIZE; i++) {uart_buffer_add_int16(ADCTBL.TPSGraph[i]);}
 			break;
@@ -634,6 +637,10 @@ static void uart_write_table(uint8_t N) {
 		case SLN_GEAR3_OFFSET_GRAPH:
 			if (RxBuffPos != TPS_GRID_SIZE * 2 + 2) {return;}
 			for (uint8_t i = 0; i < TPS_GRID_SIZE; i++) {TABLES.SLNGear3OffsetGraph[i] = uart_build_int16(2 + i * 2);}
+			break;
+		case SLN_GEAR5_GRAPH:
+			if (RxBuffPos != TPS_GRID_SIZE * 2 + 2) {return;}
+			for (uint8_t i = 0; i < TPS_GRID_SIZE; i++) {TABLES.SLNGear5Graph[i] = uart_build_uint16(2 + i * 2);}
 			break;
 		case TPS_ADC_GRAPH:
 			if (RxBuffPos != TPS_GRID_SIZE * 2 + 2) {return;}

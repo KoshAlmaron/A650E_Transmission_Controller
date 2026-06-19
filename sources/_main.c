@@ -27,7 +27,7 @@
 
 #define VERSION_YEAR 2026
 #define VERSION_MONTH 6
-#define VERSION_DAY 5
+#define VERSION_DAY 19
 #define VERSION_ADD 0
 
 // Основной счетчик времени,

@@ -29,6 +29,9 @@
 	#define ENGINE_ON_RPM_THRESHOLD 500		// Порог определения запуска двигателя.
 	#define ENGINE_OFF_RPM_THRESHOLD 0		// Порог определения останова двигателя.
 
+	// Отключение дополнительных условий включения задней передачи.
+	//#define REAR_GEAR_CONDITION_DISABLE
+
 	// Структура для хранения настроек.
 	typedef struct CFG_t {
 		uint16_t AfterChangeMinRPM;		// Минимальные обороты после переключения.
